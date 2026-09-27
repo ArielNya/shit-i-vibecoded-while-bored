@@ -25,9 +25,9 @@ So we split it in two:
 ```
 
 - **MCP server** (`server/`): an ordinary Python package built on the official
-  `mcp` SDK (`FastMCP`). Defines tools, validates args, forwards each call to
+  `mcp` SDK (v2, `MCPServer`). Defines tools, validates args, forwards each call to
   Blender, shapes results (text + images) for the model. Has no Blender dependency,
-  so it's easy to test and install with `uvx`.
+  so it's easy to test and run with `uv`.
 - **Blender add-on** (`addon/`): installed into Blender. Opens a socket on
   `127.0.0.1:9876` (configurable). A background thread accepts connections and
   pushes requests onto a queue; a `bpy.app.timers` callback drains the queue on
@@ -52,7 +52,7 @@ blender-mcp/
 ├── PLAN.md                  ← this file
 ├── pyproject.toml           ← uv project; the MCP server package
 ├── src/blender_mcp/
-│   ├── server.py            ← FastMCP app, tool registration, entrypoint
+│   ├── server.py            ← MCPServer app, tool registration, entrypoint
 │   ├── bridge.py            ← async TCP client, framing, timeouts, reconnect
 │   ├── protocol.py          ← message schemas + protocol version (shared w/ addon)
 │   ├── tools/               ← one module per tool group (scene, objects, mesh, …)
@@ -210,20 +210,21 @@ The server is a normal stdio MCP server, so any client works.
 
 **Claude Code**
 ```bash
-claude mcp add blender -- uvx --from ./blender-mcp blender-mcp
+claude mcp add blender -- uv run --directory /path/to/blender-mcp blender-mcp
 # or check examples/claude-code.mcp.json into a project as .mcp.json
 ```
 
 **Claude Desktop** (`claude_desktop_config.json`)
 ```json
-{ "mcpServers": { "blender": { "command": "uvx", "args": ["blender-mcp"] } } }
+{ "mcpServers": { "blender": { "command": "uv",
+  "args": ["run", "--directory", "/path/to/blender-mcp", "blender-mcp"] } } }
 ```
 
 **Codex CLI** (`~/.codex/config.toml`)
 ```toml
 [mcp_servers.blender]
-command = "uvx"
-args = ["blender-mcp"]
+command = "uv"
+args = ["run", "--directory", "/path/to/blender-mcp", "blender-mcp"]
 env = { BLENDER_MCP_PORT = "9876" }
 ```
 
@@ -259,7 +260,7 @@ subset for clients with tight tool limits.
 
 | # | Milestone | Done when |
 | --- | --- | --- |
-| **M0** | Skeleton | uv project, add-on registers, ping/handshake round-trips over the socket, `get_scene_info` works from Claude Code |
+| **M0** ✅ | Skeleton | uv project, add-on registers, ping/handshake round-trips over the socket, `get_scene_info` works from Claude Code |
 | **M1** | Inspect + see | all §3.1 tools; viewport screenshot + render preview return images the model can view |
 | **M2** | Object-level modelling | §3.2 + §3.3 + undo; agent can block out a simple scene (table + chairs) |
 | **M3** | Materials, lights, camera, I/O | §3.5 + §3.6; agent can produce and export a textured glTF |
@@ -273,8 +274,9 @@ subset for clients with tight tool limits.
 ## 9. Open questions
 
 - Ship the add-on and server as **one repo-local package** (current plan) or
-  publish the server to PyPI so `uvx blender-mcp` works without cloning? — Start
-  local, publish once M3 is stable.
+  publish the server to PyPI? The name `blender-mcp` is already taken there by an
+  unrelated project, so publishing needs a new distribution name. Start local,
+  decide once M3 is stable.
 - Should `execute_python` exist at all? Leaning yes: in practice it's what lets
   the model finish tasks the structured tools don't cover, and it's gated.
 - Screenshot size vs. token cost — default 768 px long edge, let the model ask

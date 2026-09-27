@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "blender": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/shit-i-vibecoded-while-bored/blender-mcp", "blender-mcp"],
+      "env": { "BLENDER_MCP_PORT": "9876" }
+    }
+  }
+}
