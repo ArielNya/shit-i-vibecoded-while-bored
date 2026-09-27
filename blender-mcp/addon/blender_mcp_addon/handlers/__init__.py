@@ -15,6 +15,7 @@ from . import (
     editing,
     files,
     materials,
+    mesh_edit,
     modifiers,
     objects,
     paths,
@@ -89,6 +90,20 @@ _HANDLERS = {
     "open_blend": files.open_blend,
     "import_file": files.import_file,
     "export_file": files.export_file,
+    # M4: mesh editing
+    "select_elements": mesh_edit.select_elements,
+    "extrude": mesh_edit.extrude,
+    "inset": mesh_edit.inset,
+    "bevel": mesh_edit.bevel,
+    "subdivide": mesh_edit.subdivide,
+    "loop_cut": mesh_edit.loop_cut,
+    "bisect": mesh_edit.bisect,
+    "delete_elements": mesh_edit.delete_elements,
+    "merge_by_distance": mesh_edit.merge_by_distance,
+    "recalc_normals": mesh_edit.recalc_normals,
+    "shade": mesh_edit.shade,
+    "transform_elements": mesh_edit.transform_elements,
+    "create_mesh_from_data": mesh_edit.create_mesh_from_data,
 }
 
 HANDLERS = {name: _fresh(fn) for name, fn in _HANDLERS.items()}

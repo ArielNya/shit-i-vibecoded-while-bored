@@ -265,7 +265,7 @@ subset for clients with tight tool limits.
 | **M1** ✅ | Inspect + see | all §3.1 tools; viewport screenshot + render preview return images the model can view |
 | **M2** ✅ | Object-level modelling | §3.2 + §3.3 + undo; agent can block out a simple scene (table + chairs) |
 | **M3** ✅ | Materials, lights, camera, I/O | §3.5 + §3.6; agent can produce and export a textured glTF |
-| **M4** | Mesh editing | §3.4 bmesh tools with selection specs; agent can model a mug with a handle |
+| **M4** ✅ | Mesh editing | §3.4 bmesh tools with selection specs; agent can model a mug with a handle |
 | **M5** | Escape hatch + resources | `execute_python` behind pref, docs resources, prompts |
 | **M6** | Hardening | token auth, path allowlist, timeouts, integration tests in CI, Codex + Claude setup verified end to end |
 | **M7** | Stretch | geometry-nodes helpers, sculpt/remesh helpers, animation keyframes, multi-instance (pick Blender by port), streaming progress for long renders |
@@ -315,6 +315,19 @@ subset for clients with tight tool limits.
   folders. Only valid image/model data can be loaded that way, but M6 should
   check or sandbox those references.
 - Not yet verified in the GUI: `open_blend` from a timer callback.
+
+### M4 notes
+
+- Selection is stateless: every mesh tool takes a `select` spec (all / indices /
+  normal+max_angle / position ranges / material / boundary / sharp_angle, ANDed,
+  local or world space), validated by a strict Pydantic schema on the server.
+- All edits are bmesh on object data (no edit mode, no operators).
+- `extrude_face_region` leaves the original faces as internal faces; they are
+  deleted (as Blender's operator does), and only the new cap is reported.
+- Guard: `subdivide` refuses edits estimated above 2M faces instead of hanging.
+- The goal test models a mug: cylinder → inset top → extrude inner face down →
+  bevel rim by sharp angle + height → half torus via bisect(fill) → boolean union
+  → auto smooth. Result is manifold.
 
 ### Review (after M1)
 

@@ -4,12 +4,12 @@ An [MCP](https://modelcontextprotocol.io) server that lets AI coding agents
 (Claude Code, Claude Desktop, OpenAI Codex, anything MCP-speaking) look at and
 build things inside a running Blender session.
 
-**Status:** M3 — the agent can inspect the scene, *see* it (screenshots and renders
-come back as images), model at the object level (primitives, transforms, parenting,
-booleans, modifiers), set up materials, textures, world lighting, cameras and lights,
-and save/open/import/export files — for example build a textured model and export it
-as glTF. Every change is one named undo step in Blender (`MCP: …`). Mesh-level
-editing comes next. See [`PLAN.md`](PLAN.md) for the roadmap.
+**Status:** M4 — the agent can inspect the scene, *see* it (screenshots and renders
+come back as images), model at the object and mesh level (primitives, booleans,
+modifiers, extrude/inset/bevel/loop cuts/bisect, raw meshes), set up materials,
+textures, lighting and cameras, and save/open/import/export files. The test suite
+models a mug with a handle using only tool calls. Every change is one named undo
+step in Blender (`MCP: …`). See [`PLAN.md`](PLAN.md) for the roadmap.
 
 ```
 agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──▶ Blender add-on ──▶ bpy (main thread)
@@ -35,6 +35,12 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 | `boolean` | Difference/union/intersect with another mesh, applied or live; cutter hidden/deleted/kept |
 | `add_modifier` / `set_modifier_params` / `move_modifier` / `apply_modifier` / `remove_modifier` | Any modifier type; params by Blender property name, angles in degrees, objects by name |
 | `undo` / `redo` | Step through Blender's undo history |
+| `select_elements` | Preview a selection spec: matching face/edge/vertex indices, with centers and normals |
+| `extrude` / `inset` / `bevel` | Region or per-face extrude (returns the new cap faces), inset with depth, edge bevels |
+| `loop_cut` / `subdivide` / `bisect` | Edge loops across quad strips, subdivision, plane cuts that can discard and cap a side |
+| `transform_elements` | Move/rotate/scale selected vertices about a pivot (taper, raise, twist) |
+| `delete_elements` / `merge_by_distance` / `recalc_normals` / `shade` | Clean-up and shading (smooth with an auto-smooth angle) |
+| `create_mesh_from_data` | Build a mesh from raw vertices and faces |
 | `create_material` / `update_material` | Principled BSDF: color, metallic, roughness, alpha, transmission, emission; image or generated (checker/color grid) textures |
 | `assign_material` | Whole object, or specific faces |
 | `set_world` | Background color or HDRI, strength, rotation |
@@ -42,6 +48,21 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 | `list_files` | What's in the workspace, and which folders are allowed |
 | `save_blend` / `open_blend` | Save (in place or to a path) / open a .blend — embedded scripts never run |
 | `import_file` / `export_file` | .obj .fbx .glb/.gltf .stl .ply .usd*; export chosen objects or everything |
+
+### Selecting mesh elements
+
+Mesh tools don't use Blender's edit-mode selection. Each takes a `select` spec
+whose criteria must all match:
+
+```json
+{"normal": [0, 0, 1], "max_angle": 10}                faces pointing up
+{"position": {"axis": "z", "min": 0.9}}                centers above z = 0.9
+{"sharp_angle": 30}                                    edges meeting at >= 30 degrees
+{"indices": [3, 4]}   {"material": "Glass"}   {"boundary": true}   {"all": true}
+```
+
+Tools return the indices of what they created (e.g. an extrude's new cap), which
+stay valid until the next topology change, so steps chain without guessing.
 
 ### File access
 
