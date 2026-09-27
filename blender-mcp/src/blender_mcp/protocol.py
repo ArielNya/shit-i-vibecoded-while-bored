@@ -20,6 +20,8 @@ DEFAULT_PORT = 9876
 
 HEADER = struct.Struct(">I")
 MAX_MESSAGE_BYTES = 64 * 1024 * 1024
+# Until a client has completed the handshake it only gets to send small messages.
+MAX_UNAUTHENTICATED_BYTES = 64 * 1024
 
 # JSON-RPC error codes. -326xx are standard, -320xx are ours.
 PARSE_ERROR = -32700
@@ -55,16 +57,16 @@ def encode(message: dict[str, Any]) -> bytes:
 def decode_body(body: bytes) -> dict[str, Any]:
     try:
         message = json.loads(body.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:
         raise ProtocolError(f"invalid JSON: {exc}") from exc
     if not isinstance(message, dict):
         raise ProtocolError("message must be a JSON object")
     return message
 
 
-def parse_header(header: bytes) -> int:
+def parse_header(header: bytes, max_bytes: int = MAX_MESSAGE_BYTES) -> int:
     (length,) = HEADER.unpack(header)
-    if length > MAX_MESSAGE_BYTES:
+    if length > max_bytes:
         raise ProtocolError(f"message too large ({length} bytes)")
     return length
 
@@ -83,12 +85,12 @@ def _recv_exact(sock: socket.socket, n: int) -> bytes | None:
     return b"".join(chunks)
 
 
-def read_message(sock: socket.socket) -> dict[str, Any] | None:
+def read_message(sock: socket.socket, max_bytes: int = MAX_MESSAGE_BYTES) -> dict[str, Any] | None:
     """Blocking read of one message. Returns None on clean EOF."""
     header = _recv_exact(sock, HEADER.size)
     if header is None:
         return None
-    body = _recv_exact(sock, parse_header(header))
+    body = _recv_exact(sock, parse_header(header, max_bytes))
     if body is None:
         raise ProtocolError("connection closed mid-message")
     return decode_body(body)

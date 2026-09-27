@@ -77,11 +77,13 @@ class VIEW3D_PT_blender_mcp(bpy.types.Panel):
         layout.label(text=runtime.status(), icon="LINKED" if running else "UNLINKED")
         if runtime.last_error:
             layout.label(text=runtime.last_error, icon="ERROR")
+        prefs = get_prefs()
+        if running and not (prefs and prefs.token):
+            layout.label(text="No token: any local program can connect", icon="INFO")
         if running:
             layout.operator(BLENDERMCP_OT_stop.bl_idname, icon="PAUSE")
         else:
             layout.operator(BLENDERMCP_OT_start.bl_idname, icon="PLAY")
-        prefs = get_prefs()
         if prefs:
             col = layout.column()
             col.enabled = not running
@@ -105,6 +107,8 @@ def _auto_start():
 def _redraw_panels():
     # Keep the client count in the panel current.
     for window in bpy.context.window_manager.windows:
+        if window.screen is None:
+            continue
         for area in window.screen.areas:
             if area.type == "VIEW_3D":
                 area.tag_redraw()

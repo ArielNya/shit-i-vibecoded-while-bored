@@ -13,3 +13,4 @@ license = ["SPDX:Unlicense"]
 
 [permissions]
 network = "Listens on localhost for the blender-mcp server"
+files = "Writes temporary images for screenshots and renders"

@@ -20,6 +20,8 @@ from . import protocol
 
 Handler = Callable[[dict[str, Any]], Any]
 
+MAX_CLIENTS = 8
+
 
 class MainThreadQueue:
     """Work submitted from any thread, executed when drain() is called on the main thread."""
@@ -119,9 +121,12 @@ class Listener:
                 continue
             except OSError:
                 return
-            conn.settimeout(None)
             with self._clients_lock:
+                if len(self._clients) >= MAX_CLIENTS:
+                    conn.close()
+                    continue
                 self._clients.add(conn)
+            conn.settimeout(None)
             threading.Thread(
                 target=self._serve_client, args=(conn,), name="blender-mcp-client", daemon=True
             ).start()
@@ -130,15 +135,20 @@ class Listener:
         state = {"authenticated": False}
         try:
             while not self._stop.is_set():
+                limit = (
+                    protocol.MAX_MESSAGE_BYTES
+                    if state["authenticated"]
+                    else protocol.MAX_UNAUTHENTICATED_BYTES
+                )
                 try:
-                    message = protocol.read_message(conn)
+                    message = protocol.read_message(conn, max_bytes=limit)
                 except protocol.ProtocolError as exc:
                     reply = protocol.error(None, protocol.PARSE_ERROR, str(exc))
                     conn.sendall(protocol.encode(reply))
                     return
                 if message is None:
                     return
-                conn.sendall(protocol.encode(self._dispatch(message, state)))
+                conn.sendall(self._encode_reply(message.get("id"), self._dispatch(message, state)))
         except OSError:
             pass
         finally:
@@ -146,7 +156,23 @@ class Listener:
                 self._clients.discard(conn)
             conn.close()
 
+    @staticmethod
+    def _encode_reply(msg_id: Any, reply: dict[str, Any]) -> bytes:
+        try:
+            return protocol.encode(reply)
+        except (protocol.ProtocolError, TypeError, ValueError) as exc:
+            # e.g. a result bigger than MAX_MESSAGE_BYTES: tell the client instead of hanging up.
+            return protocol.encode(
+                protocol.error(msg_id, protocol.HANDLER_ERROR, f"could not send result: {exc}")
+            )
+
     def _dispatch(self, message: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return self._dispatch_unchecked(message, state)
+        except Exception as exc:  # never let one bad request kill the connection thread
+            return protocol.error(message.get("id"), protocol.HANDLER_ERROR, repr(exc))
+
+    def _dispatch_unchecked(self, message: dict[str, Any], state: dict[str, Any]) -> dict:
         msg_id = message.get("id")
         method = message.get("method")
         params = message.get("params") or {}
@@ -177,7 +203,8 @@ class Listener:
                 f"protocol version mismatch: add-on speaks {protocol.PROTOCOL_VERSION}, "
                 f"server speaks {client_version}. Update whichever is older.",
             )
-        if self.token and not hmac.compare_digest(str(params.get("token") or ""), self.token):
+        given = str(params.get("token") or "").encode("utf-8")
+        if self.token and not hmac.compare_digest(given, self.token.encode("utf-8")):
             return protocol.error(msg_id, protocol.UNAUTHORIZED, "invalid token")
         state["authenticated"] = True
         return protocol.result(
