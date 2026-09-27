@@ -1,5 +1,6 @@
 """Server -> bridge -> socket -> listener -> main-thread queue, with stub handlers."""
 
+import base64
 import json
 import socket
 import threading
@@ -18,6 +19,7 @@ from blender_mcp.server import create_server
 
 pytestmark = pytest.mark.anyio
 
+PNG = b"\x89PNG\r\n\x1a\nfake"
 SCENE = {"scene": "Scene", "object_count": 3, "objects_by_type": {"MESH": 1, "CAMERA": 1}}
 
 
@@ -31,7 +33,20 @@ def stub_handlers(calls=None):
             calls.append(threading.current_thread().name)
         return {"pong": True}
 
-    return {"ping": ping, "get_scene_info": lambda params: SCENE, "boom": boom}
+    def screenshot(params):
+        return {
+            "image_base64": base64.b64encode(PNG).decode(),
+            "mime_type": "image/png",
+            "width": params["size"],
+            "height": params["size"],
+        }
+
+    return {
+        "ping": ping,
+        "get_scene_info": lambda params: SCENE,
+        "boom": boom,
+        "get_viewport_screenshot": screenshot,
+    }
 
 
 def bridge_for(fb, **kwargs):
@@ -153,3 +168,23 @@ async def test_mcp_tool_reports_blender_down():
         result = await client.call_tool("get_scene_info", {})
     assert result.is_error
     assert "Is Blender running" in result.content[0].text
+
+
+async def test_image_tool_returns_image_and_metadata(fake_blender):
+    bridge = bridge_for(fake_blender(stub_handlers()))
+    async with Client(create_server(bridge)) as client:
+        result = await client.call_tool("get_viewport_screenshot", {"size": 64})
+    assert not result.is_error, result.content
+    image, meta = result.content
+    assert image.type == "image" and image.mime_type == "image/png"
+    assert base64.b64decode(image.data) == PNG
+    assert json.loads(meta.text) == {"width": 64, "height": 64}
+    await bridge.close()
+
+
+async def test_invalid_arguments_rejected_before_reaching_blender(fake_blender):
+    bridge = bridge_for(fake_blender(stub_handlers()))
+    async with Client(create_server(bridge)) as client:
+        result = await client.call_tool("get_viewport_screenshot", {"size": 99999})
+    assert result.is_error
+    await bridge.close()

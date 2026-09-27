@@ -4,12 +4,26 @@ An [MCP](https://modelcontextprotocol.io) server that lets AI coding agents
 (Claude Code, Claude Desktop, OpenAI Codex, anything MCP-speaking) look at and
 build things inside a running Blender session.
 
-**Status:** M0 — the server ↔ add-on bridge works end to end; tools so far are
-`ping` and `get_scene_info`. See [`PLAN.md`](PLAN.md) for the architecture and roadmap.
+**Status:** M1 — the agent can inspect the scene and *see* it (screenshots and
+renders come back as images). No editing tools yet; those start in M2. See
+[`PLAN.md`](PLAN.md) for the architecture and roadmap.
 
 ```
 agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──▶ Blender add-on ──▶ bpy (main thread)
 ```
+
+## Tools
+
+| Tool | What it does |
+| --- | --- |
+| `ping` | Check the connection; Blender and add-on versions |
+| `get_scene_info` | Scene summary: units, frame range, render engine, object counts, selection, collection tree |
+| `list_objects` | Objects with transforms, dimensions, visibility; filter by type/collection/name; paginated |
+| `get_object_info` | One object in depth: modifiers + settings, materials, constraints, bounds, mesh topology (manifold, n-gons, post-modifier counts), camera/light data |
+| `get_mesh_data` | Raw vertices/faces, local or world space, optionally with modifiers applied; paginated |
+| `list_materials` / `get_material_info` | Materials, who uses them, Principled BSDF inputs, node graph |
+| `get_viewport_screenshot` | Image of the 3D viewport; optional view angle (front/top/iso/…), shading mode, and object framing. The user's view is restored afterwards |
+| `render_preview` | Quick Workbench / EEVEE / Cycles render from the scene camera or an auto-framed view angle; render settings restored afterwards |
 
 ## Requirements
 
@@ -75,7 +89,8 @@ uv run pytest                 # unit tests; no Blender needed
 uv run ruff check . && uv run ruff format --check .
 ```
 
-Integration tests run the add-on inside a real headless Blender. Point them at
+Integration tests run the add-on inside a real headless Blender. Rendering needs
+OpenGL; on a Linux box without a GPU install Mesa (`apt install libegl1 libgl1-mesa-dri`). Point them at
 either a Blender binary or a Python that has the `bpy` wheel:
 
 ```bash

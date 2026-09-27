@@ -170,8 +170,9 @@ Design principles:
   listener thread waits on the future and writes the reply.
 - **Context overrides:** anything that must use `bpy.ops` (viewport screenshot,
   some importers) runs inside `bpy.context.temp_override(window=…, area=…,
-  region=…)` using the first `VIEW_3D` area found. In `--background` mode,
-  viewport tools return a clear "not available headless, use render_preview" error.
+  region=…)` using the largest `VIEW_3D` area. In `--background` mode there is no
+  viewport, so `get_viewport_screenshot` falls back to a Workbench render from an
+  auto-framed temporary camera and says so in its result.
 - **Mode safety:** handlers ensure OBJECT mode before running and restore the
   user's previous mode/selection/active object afterwards where sensible.
 - **Errors:** Python exceptions become JSON-RPC errors with the message and a
@@ -261,7 +262,7 @@ subset for clients with tight tool limits.
 | # | Milestone | Done when |
 | --- | --- | --- |
 | **M0** ✅ | Skeleton | uv project, add-on registers, ping/handshake round-trips over the socket, `get_scene_info` works from Claude Code |
-| **M1** | Inspect + see | all §3.1 tools; viewport screenshot + render preview return images the model can view |
+| **M1** ✅ | Inspect + see | all §3.1 tools; viewport screenshot + render preview return images the model can view |
 | **M2** | Object-level modelling | §3.2 + §3.3 + undo; agent can block out a simple scene (table + chairs) |
 | **M3** | Materials, lights, camera, I/O | §3.5 + §3.6; agent can produce and export a textured glTF |
 | **M4** | Mesh editing | §3.4 bmesh tools with selection specs; agent can model a mug with a handle |
@@ -270,6 +271,17 @@ subset for clients with tight tool limits.
 | **M7** | Stretch | geometry-nodes helpers, sculpt/remesh helpers, animation keyframes, multi-instance (pick Blender by port), streaming progress for long renders |
 
 ---
+
+### M1 notes
+
+- Workbench shows a material's *viewport display* color (`diffuse_color`), not the
+  node Base Color. M3's `create_material` should set both so quick previews match.
+- The GUI path of `get_viewport_screenshot` (`render.opengl` with `view_context`)
+  has not been run in CI yet: the test environment only has headless Blender (the
+  `bpy` wheel), so only the Workbench fallback is covered. Verify by hand in the
+  Blender app.
+- Headless renders need OpenGL; Mesa's software driver works (Workbench ~0.05 s
+  per frame at 384 px, EEVEE ~40 s on first use while shaders compile).
 
 ## 9. Open questions
 
