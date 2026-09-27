@@ -31,6 +31,12 @@ class BlenderMCPPreferences(bpy.types.AddonPreferences):
         "(plus the open .blend's folder). Default: ~/BlenderMCP",
         subtype="DIR_PATH",
     )
+    allow_python: bpy.props.BoolProperty(
+        name="Allow arbitrary Python",
+        description="Let the agent run any Python code in Blender (execute_python). Only "
+        "with a token set. The code runs with your user's full permissions",
+        default=False,
+    )
     auto_start: bpy.props.BoolProperty(
         name="Start automatically",
         description="Start listening when Blender starts",
@@ -43,6 +49,11 @@ class BlenderMCPPreferences(bpy.types.AddonPreferences):
         layout.prop(self, "token")
         layout.prop(self, "workspace")
         layout.prop(self, "auto_start")
+        row = layout.row()
+        row.alert = self.allow_python
+        row.prop(self, "allow_python")
+        if self.allow_python and not self.token:
+            layout.label(text="Also set a token, or execute_python stays off", icon="ERROR")
 
 
 class BLENDERMCP_OT_start(bpy.types.Operator):
@@ -55,8 +66,9 @@ class BLENDERMCP_OT_start(bpy.types.Operator):
         port = prefs.port if prefs else protocol.DEFAULT_PORT
         token = prefs.token if prefs else None
         workspace = bpy.path.abspath(prefs.workspace) if prefs and prefs.workspace else None
+        allow_python = bool(prefs and prefs.allow_python)
         try:
-            runtime.start(port=port, token=token, workspace=workspace)
+            runtime.start(port=port, token=token, workspace=workspace, allow_python=allow_python)
         except OSError:
             self.report({"ERROR"}, runtime.last_error)
             return {"CANCELLED"}
@@ -88,6 +100,8 @@ class VIEW3D_PT_blender_mcp(bpy.types.Panel):
         prefs = get_prefs()
         if running and not (prefs and prefs.token):
             layout.label(text="No token: any local program can connect", icon="INFO")
+        if prefs and prefs.allow_python and prefs.token:
+            layout.label(text="Arbitrary Python is ON", icon="ERROR")
         if running:
             layout.operator(BLENDERMCP_OT_stop.bl_idname, icon="PAUSE")
         else:
@@ -108,7 +122,12 @@ def _auto_start():
     if prefs and prefs.auto_start and not runtime.is_running():
         try:
             workspace = bpy.path.abspath(prefs.workspace) if prefs.workspace else None
-            runtime.start(port=prefs.port, token=prefs.token, workspace=workspace)
+            runtime.start(
+                port=prefs.port,
+                token=prefs.token,
+                workspace=workspace,
+                allow_python=prefs.allow_python,
+            )
         except OSError:
             pass  # surfaced in the panel via runtime.last_error
     return None

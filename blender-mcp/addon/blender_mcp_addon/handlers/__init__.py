@@ -19,6 +19,7 @@ from . import (
     modifiers,
     objects,
     paths,
+    python_exec,
     render,
     scene,
     shading,
@@ -104,6 +105,8 @@ _HANDLERS = {
     "shade": mesh_edit.shade,
     "transform_elements": mesh_edit.transform_elements,
     "create_mesh_from_data": mesh_edit.create_mesh_from_data,
+    # M5
+    "execute_python": python_exec.execute_python,
 }
 
 HANDLERS = {name: _fresh(fn) for name, fn in _HANDLERS.items()}

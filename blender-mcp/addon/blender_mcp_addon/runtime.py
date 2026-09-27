@@ -5,7 +5,7 @@ from __future__ import annotations
 import bpy
 
 from . import handlers, protocol
-from .handlers import paths
+from .handlers import paths, settings
 from .listener import Listener, MainThreadQueue
 
 ADDON_VERSION = "0.1.0"
@@ -21,10 +21,13 @@ def start(
     port: int = protocol.DEFAULT_PORT,
     token: str | None = None,
     workspace: str | None = None,
+    allow_python: bool = False,
 ) -> Listener:
     global _listener, last_error
     stop()
     paths.configure(workspace)
+    settings.allow_python = allow_python
+    settings.token_set = bool(token)
     listener = Listener(
         handlers.HANDLERS,
         main_thread,
@@ -36,6 +39,7 @@ def start(
             "addon_version": ADDON_VERSION,
             "background": bpy.app.background,
             "workspace": str(paths.workspace()),
+            "python_enabled": allow_python and bool(token),
         },
     )
     try:

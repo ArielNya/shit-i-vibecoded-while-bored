@@ -41,12 +41,24 @@ def workspace(tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
-def blender_port(workspace):
+def blender_options(request):
+    """Per-module Blender settings: a test module may define
+    BLENDER_OPTIONS = {"token": "...", "allow_python": True}."""
+    return getattr(request.module, "BLENDER_OPTIONS", {})
+
+
+@pytest.fixture(scope="module")
+def blender_port(workspace, blender_options):
     cmd = _command()
     if cmd is None:
         pytest.skip("set BLENDER_BIN or BLENDER_PYTHON to run Blender integration tests")
+    args = ["--port", "0", "--workspace", str(workspace)]
+    if blender_options.get("token"):
+        args += ["--token", blender_options["token"]]
+    if blender_options.get("allow_python"):
+        args.append("--allow-python")
     proc = subprocess.Popen(
-        [*cmd, "--", "--port", "0", "--workspace", str(workspace)],
+        [*cmd, "--", *args],
         stdout=subprocess.PIPE,
         stderr=sys.stderr,
         text=True,
@@ -66,8 +78,9 @@ def blender_port(workspace):
 
 
 @pytest.fixture
-async def client(blender_port):
-    bridge = BlenderBridge(BridgeConfig(port=blender_port, timeout=120))
+async def client(blender_port, blender_options):
+    config = BridgeConfig(port=blender_port, timeout=120, token=blender_options.get("token"))
+    bridge = BlenderBridge(config)
     async with Client(create_server(bridge)) as client:
         yield client
     await bridge.close()

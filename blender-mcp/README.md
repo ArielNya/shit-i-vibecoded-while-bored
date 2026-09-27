@@ -9,8 +9,8 @@ come back as images), model at the object and mesh level (primitives, booleans,
 modifiers, extrude/inset/bevel/loop cuts/bisect, raw meshes), set up materials,
 textures, lighting and cameras, and save/open/import/export files. The test suite
 models a mug with a handle using only tool calls. Every change is one named undo
-step in Blender (`MCP: …`). M5 (in progress) adds reference notes and workflow
-prompts for the agent. See [`PLAN.md`](PLAN.md) for the roadmap.
+step in Blender (`MCP: …`). M5 adds reference notes, workflow prompts, and an
+opt-in `execute_python` escape hatch. See [`PLAN.md`](PLAN.md) for the roadmap.
 
 ```
 agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──▶ Blender add-on ──▶ bpy (main thread)
@@ -49,6 +49,16 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 | `list_files` | What's in the workspace, and which folders are allowed |
 | `save_blend` / `open_blend` | Save (in place or to a path) / open a .blend — embedded scripts never run |
 | `import_file` / `export_file` | .obj .fbx .glb/.gltf .stl .ply .usd*; export chosen objects or everything |
+| `execute_python` | Run Python in Blender for anything the tools don't cover — **off by default**, see below |
+
+### `execute_python` (opt-in)
+
+Arbitrary Python runs with your user account's full permissions, so it stays off
+unless you turn on **Allow arbitrary Python** in the add-on preferences *and* set a
+**token** (give the server the same value in `BLENDER_MCP_TOKEN`). Without the token
+it refuses, because any account on the machine can reach a localhost port. Each run
+is one undo step; `print()` output and a `result` variable come back to the agent.
+Blender is busy while the code runs, and a timeout doesn't stop it.
 
 ### Resources and prompts
 
@@ -138,7 +148,7 @@ Then ask the agent something like *"what's in my Blender scene?"*.
 | `BLENDER_MCP_PORT` | `9876` | Must match the port in the add-on panel |
 | `BLENDER_MCP_TOKEN` | — | Must match the add-on's token, if one is set |
 | `BLENDER_MCP_TIMEOUT` | `30` | Seconds to wait for Blender per call |
-| `BLENDER_MCP_TOOLSETS` | all | Comma-separated subset to expose, for clients with tool limits: `inspect`, `view`, `edit`, `mesh`, `look`, `files` |
+| `BLENDER_MCP_TOOLSETS` | all | Comma-separated subset to expose, for clients with tool limits: `inspect`, `view`, `edit`, `mesh`, `look`, `files`, `python` |
 
 ## Development
 

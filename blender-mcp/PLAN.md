@@ -266,7 +266,7 @@ subset for clients with tight tool limits.
 | **M2** ✅ | Object-level modelling | §3.2 + §3.3 + undo; agent can block out a simple scene (table + chairs) |
 | **M3** ✅ | Materials, lights, camera, I/O | §3.5 + §3.6; agent can produce and export a textured glTF |
 | **M4** ✅ | Mesh editing | §3.4 bmesh tools with selection specs; agent can model a mug with a handle |
-| **M5** ◐ | Escape hatch + resources | `execute_python` behind pref, docs resources, prompts |
+| **M5** ✅ | Escape hatch + resources | `execute_python` behind pref, docs resources, prompts |
 | **M6** | Hardening | token auth, path allowlist, timeouts, integration tests in CI, Codex + Claude setup verified end to end |
 | **M7** | Stretch | geometry-nodes helpers, sculpt/remesh helpers, animation keyframes, multi-instance (pick Blender by port), streaming progress for long renders |
 
@@ -338,11 +338,15 @@ subset for clients with tight tool limits.
 - A test checks every modifier type/setting named in docs/modifiers.md exists in
   Blender. It caught that empty ID-pointer settings (e.g. MIRROR `mirror_object`)
   were hidden from `add_modifier` results; they are now reported as null.
-- **`execute_python` is on hold.** An implementation was drafted (off by default,
-  requires the add-on pref *and* a token, runs as one undo step, output capped),
-  but the coding agent's permission system blocked continuing it as a
-  remote-code-execution surface. It is not committed; the owner decides whether
-  to pursue it (see "Should `execute_python` exist at all?" below).
+- `execute_python` (owner decided to keep it): refused unless the add-on pref
+  *and* a token are set — the token requirement is because other accounts on a
+  shared machine can reach a localhost port. The gate is enforced in Blender, not
+  the server. One undo step per run; stdout/stderr/result capped; tracebacks
+  limited to the submitted code; `SystemExit`/`KeyboardInterrupt` from agent code
+  become errors instead of stopping Blender's request loop (the main-thread queue
+  also converts any BaseException). `keep_session` shares a namespace across runs.
+- Found by tests: mathutils types iterate via `__getitem__`, not `__iter__`, so
+  results like `Vector` were returned as their repr; fixed.
 
 ### Review (after M1)
 
@@ -363,8 +367,7 @@ process can drive Blender — the panel now says so; make tokens the default in 
   publish the server to PyPI? The name `blender-mcp` is already taken there by an
   unrelated project, so publishing needs a new distribution name. Start local,
   decide once M3 is stable.
-- Should `execute_python` exist at all? Leaning yes: in practice it's what lets
-  the model finish tasks the structured tools don't cover, and it's gated.
+- ~~Should `execute_python` exist at all?~~ Yes, opt-in with a required token (M5).
 - Screenshot size vs. token cost — default 768 px long edge, let the model ask
   for bigger.
 - Support Blender < 4.2? Probably not; revisit if someone needs it.

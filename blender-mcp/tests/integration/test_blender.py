@@ -92,3 +92,9 @@ async def test_render_preview_through_scene_camera(call, call_image, call_error)
 async def test_viewport_screenshot_falls_back_headless(call, call_image, call_error):
     meta = await call_image("get_viewport_screenshot", view="iso", size=96)
     assert "headless" in meta["note"]
+
+
+async def test_execute_python_disabled_by_default(call, call_image, call_error):
+    text = await call_error("execute_python", code="result = 1")
+    assert "disabled" in text and "Allow arbitrary Python" in text
+    assert (await call("ping"))["python_enabled"] is False

@@ -44,7 +44,9 @@ class MainThreadQueue:
                 continue
             try:
                 future.set_result(fn())
-            except Exception as exc:
+            except BaseException as exc:  # a stray SystemExit must not stop Blender's loop
+                if not isinstance(exc, Exception):
+                    exc = RuntimeError(f"handler raised {exc!r}")
                 future.set_exception(exc)
 
 

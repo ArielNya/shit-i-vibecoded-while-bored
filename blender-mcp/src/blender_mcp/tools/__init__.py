@@ -1,6 +1,6 @@
 """MCP tool definitions, grouped by area. Each module exposes register(mcp, blender)."""
 
-from . import edit, files, inspection, look, mesh, view
+from . import edit, files, inspection, look, mesh, python, view
 
 # Toolset names for BLENDER_MCP_TOOLSETS, in registration order.
 TOOLSETS = {
@@ -10,4 +10,5 @@ TOOLSETS = {
     "mesh": mesh,
     "look": look,
     "files": files,
+    "python": python,
 }
