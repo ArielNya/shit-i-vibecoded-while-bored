@@ -264,7 +264,7 @@ subset for clients with tight tool limits.
 | **M0** ✅ | Skeleton | uv project, add-on registers, ping/handshake round-trips over the socket, `get_scene_info` works from Claude Code |
 | **M1** ✅ | Inspect + see | all §3.1 tools; viewport screenshot + render preview return images the model can view |
 | **M2** ✅ | Object-level modelling | §3.2 + §3.3 + undo; agent can block out a simple scene (table + chairs) |
-| **M3** | Materials, lights, camera, I/O | §3.5 + §3.6; agent can produce and export a textured glTF |
+| **M3** ✅ | Materials, lights, camera, I/O | §3.5 + §3.6; agent can produce and export a textured glTF |
 | **M4** | Mesh editing | §3.4 bmesh tools with selection specs; agent can model a mug with a handle |
 | **M5** | Escape hatch + resources | `execute_python` behind pref, docs resources, prompts |
 | **M6** | Hardening | token auth, path allowlist, timeouts, integration tests in CI, Codex + Claude setup verified end to end |
@@ -297,6 +297,24 @@ subset for clients with tight tool limits.
   can run twice. Edit timeouts are 120 s to make that unlikely.
 - Undo/redo from a timer needs a window in the context override; verified
   headless, not yet in the GUI.
+
+### M3 notes
+
+- Path policy lives in `handlers/paths.py`: workspace (pref / `--workspace`) plus
+  the open .blend's folder unless that is `~` or `/`; realpath before checking;
+  per-tool extension allowlists; no overwrite by default. Modifier/data path
+  properties are still refused entirely.
+- `open_blend` passes `use_scripts=False`.
+- Bug found by rendering: primitives had no UVs — `bmesh.ops.create_*(calc_uvs=True)`
+  silently does nothing unless a UV layer already exists, so textures sampled a
+  single texel. Every primitive now gets a `UVMap`, and a test checks it.
+- `create_material` keeps `diffuse_color`/`metallic`/`roughness` (viewport display)
+  in sync with the BSDF, so Workbench previews match (M1 note resolved).
+- Known gap: importers follow references inside the model file (a .gltf's
+  buffers/images, an .obj's .mtl textures), which may point outside the allowed
+  folders. Only valid image/model data can be loaded that way, but M6 should
+  check or sandbox those references.
+- Not yet verified in the GUI: `open_blend` from a timer callback.
 
 ### Review (after M1)
 

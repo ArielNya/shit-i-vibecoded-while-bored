@@ -5,6 +5,7 @@ from __future__ import annotations
 import bpy
 
 from . import handlers, protocol
+from .handlers import paths
 from .listener import Listener, MainThreadQueue
 
 ADDON_VERSION = "0.1.0"
@@ -16,10 +17,14 @@ last_error = ""
 
 
 def start(
-    host: str = protocol.DEFAULT_HOST, port: int = protocol.DEFAULT_PORT, token: str | None = None
+    host: str = protocol.DEFAULT_HOST,
+    port: int = protocol.DEFAULT_PORT,
+    token: str | None = None,
+    workspace: str | None = None,
 ) -> Listener:
     global _listener, last_error
     stop()
+    paths.configure(workspace)
     listener = Listener(
         handlers.HANDLERS,
         main_thread,
@@ -30,6 +35,7 @@ def start(
             "blender_version": bpy.app.version_string,
             "addon_version": ADDON_VERSION,
             "background": bpy.app.background,
+            "workspace": str(paths.workspace()),
         },
     )
     try:

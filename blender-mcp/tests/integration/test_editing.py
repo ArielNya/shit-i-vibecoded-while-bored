@@ -35,6 +35,7 @@ async def test_create_mesh_primitives(call, args, name, dimensions):
         assert approx(obj["dimensions"], dimensions), obj["dimensions"]
     info = await call("get_object_info", name=obj["name"])
     assert info["mesh"]["faces"] > 0
+    assert info["mesh"]["uv_layers"] == ["UVMap"]  # textures need UVs
     await call("delete_objects", names=[obj["name"]])
 
 

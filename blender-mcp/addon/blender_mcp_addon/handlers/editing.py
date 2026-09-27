@@ -79,11 +79,14 @@ def _torus(bm: bmesh.types.BMesh, major: float, minor: float, seg: int, ring: in
             r = major + minor * math.cos(v)
             row.append(bm.verts.new((r * math.cos(u), r * math.sin(u), minor * math.sin(v))))
         grid.append(row)
+    uv_layer = bm.loops.layers.uv.verify()
     for i in range(seg):
         for j in range(ring):
-            a, b = grid[i][j], grid[(i + 1) % seg][j]
-            c, d = grid[(i + 1) % seg][(j + 1) % ring], grid[i][(j + 1) % ring]
-            bm.faces.new((a, b, c, d))
+            corners = ((i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1))
+            face = bm.faces.new([grid[a % seg][b % ring] for a, b in corners])
+            # Unwrapped UVs use the unwrapped indices, so the seam doesn't smear.
+            for loop, (a, b) in zip(face.loops, corners, strict=True):
+                loop[uv_layer].uv = (a / seg, b / ring)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
 
@@ -93,6 +96,8 @@ def _build_mesh(kind: str, p: dict[str, Any], name: str) -> bpy.types.Mesh:
     depth = float(p.get("depth", 2.0))
     bm = bmesh.new()
     try:
+        # calc_uvs=True in the ops below silently does nothing without a UV layer.
+        bm.loops.layers.uv.new("UVMap")
         if kind == "cube":
             bmesh.ops.create_cube(bm, size=size, calc_uvs=True)
         elif kind == "plane":

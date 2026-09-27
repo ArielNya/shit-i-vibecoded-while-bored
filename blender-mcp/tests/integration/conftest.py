@@ -35,12 +35,18 @@ def _command() -> list[str] | None:
 
 
 @pytest.fixture(scope="module")
-def blender_port():
+def workspace(tmp_path_factory):
+    """The folder file tools may use in this module's Blender."""
+    return tmp_path_factory.mktemp("workspace")
+
+
+@pytest.fixture(scope="module")
+def blender_port(workspace):
     cmd = _command()
     if cmd is None:
         pytest.skip("set BLENDER_BIN or BLENDER_PYTHON to run Blender integration tests")
     proc = subprocess.Popen(
-        [*cmd, "--", "--port", "0"],
+        [*cmd, "--", "--port", "0", "--workspace", str(workspace)],
         stdout=subprocess.PIPE,
         stderr=sys.stderr,
         text=True,

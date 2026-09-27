@@ -27,13 +27,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host", default=protocol.DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=protocol.DEFAULT_PORT)
     parser.add_argument("--token", default=None)
+    parser.add_argument("--workspace", default=None, help="folder for file tools")
     return parser.parse_args(argv)
 
 
 def main() -> None:
     args = parse_args()
     if bpy.app.background:
-        listener = runtime.start(args.host, args.port, args.token)
+        listener = runtime.start(args.host, args.port, args.token, args.workspace)
         # Parsed by tests/integration to find the port when --port 0 is used.
         print(f"BLENDER_MCP_READY {listener.host}:{listener.port}", flush=True)
         try:
@@ -46,7 +47,7 @@ def main() -> None:
             runtime.stop()
     else:
         blender_mcp_addon.register()
-        runtime.start(args.host, args.port, args.token)
+        runtime.start(args.host, args.port, args.token, args.workspace)
         print(f"blender-mcp: {runtime.status()}", flush=True)
 
 

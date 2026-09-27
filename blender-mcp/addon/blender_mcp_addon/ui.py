@@ -25,6 +25,12 @@ class BlenderMCPPreferences(bpy.types.AddonPreferences):
         description="Optional shared secret; give the server the same value in BLENDER_MCP_TOKEN",
         subtype="PASSWORD",
     )
+    workspace: bpy.props.StringProperty(
+        name="Workspace",
+        description="Folder the agent may read and write files in "
+        "(plus the open .blend's folder). Default: ~/BlenderMCP",
+        subtype="DIR_PATH",
+    )
     auto_start: bpy.props.BoolProperty(
         name="Start automatically",
         description="Start listening when Blender starts",
@@ -35,6 +41,7 @@ class BlenderMCPPreferences(bpy.types.AddonPreferences):
         layout = self.layout
         layout.prop(self, "port")
         layout.prop(self, "token")
+        layout.prop(self, "workspace")
         layout.prop(self, "auto_start")
 
 
@@ -47,8 +54,9 @@ class BLENDERMCP_OT_start(bpy.types.Operator):
         prefs = get_prefs()
         port = prefs.port if prefs else protocol.DEFAULT_PORT
         token = prefs.token if prefs else None
+        workspace = bpy.path.abspath(prefs.workspace) if prefs and prefs.workspace else None
         try:
-            runtime.start(port=port, token=token)
+            runtime.start(port=port, token=token, workspace=workspace)
         except OSError:
             self.report({"ERROR"}, runtime.last_error)
             return {"CANCELLED"}
@@ -89,6 +97,7 @@ class VIEW3D_PT_blender_mcp(bpy.types.Panel):
             col.enabled = not running
             col.prop(prefs, "port")
             col.prop(prefs, "token")
+            col.prop(prefs, "workspace")
 
 
 CLASSES = (BlenderMCPPreferences, BLENDERMCP_OT_start, BLENDERMCP_OT_stop, VIEW3D_PT_blender_mcp)
@@ -98,7 +107,8 @@ def _auto_start():
     prefs = get_prefs()
     if prefs and prefs.auto_start and not runtime.is_running():
         try:
-            runtime.start(port=prefs.port, token=prefs.token)
+            workspace = bpy.path.abspath(prefs.workspace) if prefs.workspace else None
+            runtime.start(port=prefs.port, token=prefs.token, workspace=workspace)
         except OSError:
             pass  # surfaced in the panel via runtime.last_error
     return None

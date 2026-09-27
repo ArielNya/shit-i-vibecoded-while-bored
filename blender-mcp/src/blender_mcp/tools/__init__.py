@@ -1,5 +1,5 @@
 """MCP tool definitions, grouped by area. Each module exposes register(mcp, blender)."""
 
-from . import edit, inspection, view
+from . import edit, files, inspection, look, view
 
-MODULES = (inspection, view, edit)
+MODULES = (inspection, view, edit, look, files)

@@ -4,11 +4,12 @@ An [MCP](https://modelcontextprotocol.io) server that lets AI coding agents
 (Claude Code, Claude Desktop, OpenAI Codex, anything MCP-speaking) look at and
 build things inside a running Blender session.
 
-**Status:** M2 — the agent can inspect the scene, *see* it (screenshots and renders
-come back as images), and do object-level modelling: primitives, transforms,
-parenting, collections, booleans and modifiers. Every change is one named undo
-step in Blender (`MCP: …`), so Ctrl+Z reverts what the agent did. Mesh editing,
-materials and file I/O come next. See [`PLAN.md`](PLAN.md) for the roadmap.
+**Status:** M3 — the agent can inspect the scene, *see* it (screenshots and renders
+come back as images), model at the object level (primitives, transforms, parenting,
+booleans, modifiers), set up materials, textures, world lighting, cameras and lights,
+and save/open/import/export files — for example build a textured model and export it
+as glTF. Every change is one named undo step in Blender (`MCP: …`). Mesh-level
+editing comes next. See [`PLAN.md`](PLAN.md) for the roadmap.
 
 ```
 agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──▶ Blender add-on ──▶ bpy (main thread)
@@ -34,6 +35,21 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 | `boolean` | Difference/union/intersect with another mesh, applied or live; cutter hidden/deleted/kept |
 | `add_modifier` / `set_modifier_params` / `move_modifier` / `apply_modifier` / `remove_modifier` | Any modifier type; params by Blender property name, angles in degrees, objects by name |
 | `undo` / `redo` | Step through Blender's undo history |
+| `create_material` / `update_material` | Principled BSDF: color, metallic, roughness, alpha, transmission, emission; image or generated (checker/color grid) textures |
+| `assign_material` | Whole object, or specific faces |
+| `set_world` | Background color or HDRI, strength, rotation |
+| `look_at` / `set_active_camera` / `set_data_params` | Aim cameras/lights, pick the scene camera, change lens/energy/size/... |
+| `list_files` | What's in the workspace, and which folders are allowed |
+| `save_blend` / `open_blend` | Save (in place or to a path) / open a .blend — embedded scripts never run |
+| `import_file` / `export_file` | .obj .fbx .glb/.gltf .stl .ply .usd*; export chosen objects or everything |
+
+### File access
+
+File tools only touch files inside the **workspace folder** (add-on preference;
+default `~/BlenderMCP`) and the folder of the open .blend file — unless that folder
+is your home directory or a filesystem root. Paths are checked after following
+symlinks, each tool accepts only its own file types, and nothing is overwritten
+without `overwrite=true`.
 
 ## Requirements
 

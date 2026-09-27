@@ -11,7 +11,18 @@ from typing import Any
 
 import bpy
 
-from . import editing, materials, modifiers, objects, render, scene, undo
+from . import (
+    editing,
+    files,
+    materials,
+    modifiers,
+    objects,
+    paths,
+    render,
+    scene,
+    shading,
+    undo,
+)
 
 
 def ping(params: dict[str, Any]) -> dict[str, Any]:
@@ -65,6 +76,19 @@ _HANDLERS = {
     "move_modifier": modifiers.move_modifier,
     "undo": undo.undo,
     "redo": undo.redo,
+    # M3: materials, world, camera/lights, files
+    "create_material": shading.create_material,
+    "update_material": shading.update_material,
+    "assign_material": shading.assign_material,
+    "set_world": shading.set_world,
+    "look_at": shading.look_at,
+    "set_active_camera": shading.set_active_camera,
+    "set_data_params": shading.set_data_params,
+    "list_files": paths.list_files,
+    "save_blend": files.save_blend,
+    "open_blend": files.open_blend,
+    "import_file": files.import_file,
+    "export_file": files.export_file,
 }
 
 HANDLERS = {name: _fresh(fn) for name, fn in _HANDLERS.items()}

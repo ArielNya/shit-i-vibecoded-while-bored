@@ -9,7 +9,7 @@ at the root is shared unless it's genuinely repo-wide (this README, the license,
 
 | Folder | What it is | Status |
 | --- | --- | --- |
-| [`blender-mcp/`](blender-mcp/) | MCP server that lets Claude / Codex inspect and model inside Blender | M2 done (inspect, see, object-level modelling + undo) — see [`PLAN.md`](blender-mcp/PLAN.md) |
+| [`blender-mcp/`](blender-mcp/) | MCP server that lets Claude / Codex inspect and model inside Blender | M3 done (modelling, materials/textures, lighting, file I/O) — see [`PLAN.md`](blender-mcp/PLAN.md) |
 
 ## Conventions
 
@@ -20,5 +20,7 @@ at the root is shared unless it's genuinely repo-wide (this README, the license,
   folder, never at the root.
 - CI workflows (when added) go in `.github/workflows/<project>.yml` and use
   `paths:` filters so a project only builds when its folder changes.
+- Milestone work happens on a branch named after the milestone (`M3`, `M4`, …),
+  created from the previous milestone's branch.
 - Commit messages are prefixed with the project folder, e.g.
   `blender-mcp: add scene inspection tools`.
