@@ -78,8 +78,14 @@ def rna_props(struct: Any, skip: set[str] = frozenset()) -> dict[str, Any]:
         ident = prop.identifier
         if ident in SKIP_PROPS or ident in skip or prop.type == "COLLECTION":
             continue
-        if prop.type == "POINTER" and not isinstance(getattr(struct, ident, None), bpy.types.ID):
-            continue
+        if prop.type == "POINTER":
+            value = getattr(struct, ident, None)
+            # ID pointers settable by name are shown even when empty (as null), so the
+            # caller can see e.g. that MIRROR has a mirror_object setting.
+            if not isinstance(value, bpy.types.ID) and not (
+                value is None and prop.fixed_type.identifier in POINTER_LOOKUPS
+            ):
+                continue
         try:
             value = getattr(struct, ident)
         except AttributeError:

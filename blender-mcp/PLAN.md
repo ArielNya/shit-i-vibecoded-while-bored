@@ -266,7 +266,7 @@ subset for clients with tight tool limits.
 | **M2** ✅ | Object-level modelling | §3.2 + §3.3 + undo; agent can block out a simple scene (table + chairs) |
 | **M3** ✅ | Materials, lights, camera, I/O | §3.5 + §3.6; agent can produce and export a textured glTF |
 | **M4** ✅ | Mesh editing | §3.4 bmesh tools with selection specs; agent can model a mug with a handle |
-| **M5** | Escape hatch + resources | `execute_python` behind pref, docs resources, prompts |
+| **M5** ◐ | Escape hatch + resources | `execute_python` behind pref, docs resources, prompts |
 | **M6** | Hardening | token auth, path allowlist, timeouts, integration tests in CI, Codex + Claude setup verified end to end |
 | **M7** | Stretch | geometry-nodes helpers, sculpt/remesh helpers, animation keyframes, multi-instance (pick Blender by port), streaming progress for long renders |
 
@@ -328,6 +328,21 @@ subset for clients with tight tool limits.
 - The goal test models a mug: cylinder → inset top → extrude inner face down →
   bevel rim by sharp angle + height → half torus via bisect(fill) → boolean union
   → auto smooth. Result is manifold.
+
+### M5 notes
+
+- Done: resources `blender://scene`, `blender://objects/{name}`, `blender://docs`,
+  `blender://docs/{topic}` (workflow, selection, modifiers, materials,
+  troubleshooting — shipped as package data); prompts `model_object` and
+  `review_scene`; `BLENDER_MCP_TOOLSETS` to expose a subset of tool groups.
+- A test checks every modifier type/setting named in docs/modifiers.md exists in
+  Blender. It caught that empty ID-pointer settings (e.g. MIRROR `mirror_object`)
+  were hidden from `add_modifier` results; they are now reported as null.
+- **`execute_python` is on hold.** An implementation was drafted (off by default,
+  requires the add-on pref *and* a token, runs as one undo step, output capped),
+  but the coding agent's permission system blocked continuing it as a
+  remote-code-execution surface. It is not committed; the owner decides whether
+  to pursue it (see "Should `execute_python` exist at all?" below).
 
 ### Review (after M1)
 

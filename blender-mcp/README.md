@@ -9,7 +9,8 @@ come back as images), model at the object and mesh level (primitives, booleans,
 modifiers, extrude/inset/bevel/loop cuts/bisect, raw meshes), set up materials,
 textures, lighting and cameras, and save/open/import/export files. The test suite
 models a mug with a handle using only tool calls. Every change is one named undo
-step in Blender (`MCP: …`). See [`PLAN.md`](PLAN.md) for the roadmap.
+step in Blender (`MCP: …`). M5 (in progress) adds reference notes and workflow
+prompts for the agent. See [`PLAN.md`](PLAN.md) for the roadmap.
 
 ```
 agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──▶ Blender add-on ──▶ bpy (main thread)
@@ -48,6 +49,16 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 | `list_files` | What's in the workspace, and which folders are allowed |
 | `save_blend` / `open_blend` | Save (in place or to a path) / open a .blend — embedded scripts never run |
 | `import_file` / `export_file` | .obj .fbx .glb/.gltf .stl .ply .usd*; export chosen objects or everything |
+
+### Resources and prompts
+
+| URI / prompt | What it gives the agent |
+| --- | --- |
+| `blender://scene` | Live scene summary |
+| `blender://objects/{name}` | Live details of one object |
+| `blender://docs` + `blender://docs/{topic}` | Reference notes: `workflow`, `selection`, `modifiers`, `materials`, `troubleshooting` |
+| prompt `model_object(subject, details, style)` | A staged modelling workflow with visual checks |
+| prompt `review_scene` | Audit the scene for modelling problems, report without changing anything |
 
 ### Selecting mesh elements
 
@@ -127,6 +138,7 @@ Then ask the agent something like *"what's in my Blender scene?"*.
 | `BLENDER_MCP_PORT` | `9876` | Must match the port in the add-on panel |
 | `BLENDER_MCP_TOKEN` | — | Must match the add-on's token, if one is set |
 | `BLENDER_MCP_TIMEOUT` | `30` | Seconds to wait for Blender per call |
+| `BLENDER_MCP_TOOLSETS` | all | Comma-separated subset to expose, for clients with tool limits: `inspect`, `view`, `edit`, `mesh`, `look`, `files` |
 
 ## Development
 

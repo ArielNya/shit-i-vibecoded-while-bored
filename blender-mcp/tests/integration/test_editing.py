@@ -269,3 +269,28 @@ async def test_file_path_properties_are_refused(call, call_error):
     assert "file path" in text
     assert (await call("get_object_info", name="P"))["modifiers"] == []
     await call("delete_objects", names=["P"])
+
+
+async def test_modifier_docs_match_blender(call):
+    """Every modifier type and setting named in docs/modifiers.md must exist."""
+    import re
+    from importlib import resources
+
+    doc = resources.files("blender_mcp.docs").joinpath("modifiers.md").read_text()
+    await call("create_primitive", type="cube", name="DocCheck")
+    checked = 0
+    for line in doc.splitlines():
+        match = re.match(r"\| `([A-Z_]+)` \| (.*?) \|", line)
+        if not match:
+            continue
+        mod_type, settings = match.groups()
+        added = await call("add_modifier", object="DocCheck", type=mod_type)
+        props = set(added["modifier"])
+        # First backticked word of each comma-separated entry is a property name.
+        names = {m for m in re.findall(r"(?:^|, )`([a-z_]+)`", settings)}
+        missing = names - props
+        assert not missing, f"{mod_type}: docs mention unknown settings {missing}"
+        await call("remove_modifier", object="DocCheck", modifier=added["modifier"]["name"])
+        checked += 1
+    assert checked >= 10
+    await call("delete_objects", names=["DocCheck"])
