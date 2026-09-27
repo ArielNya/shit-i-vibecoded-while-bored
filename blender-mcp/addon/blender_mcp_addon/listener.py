@@ -21,6 +21,9 @@ from . import protocol
 Handler = Callable[[dict[str, Any]], Any]
 
 MAX_CLIENTS = 8
+# Seconds a new connection gets to complete the handshake, so idle unauthenticated
+# connections can't hold all MAX_CLIENTS slots.
+HANDSHAKE_TIMEOUT = 10.0
 
 
 class MainThreadQueue:
@@ -59,7 +62,9 @@ class Listener:
         port: int = protocol.DEFAULT_PORT,
         token: str | None = None,
         server_info: dict[str, Any] | None = None,
+        handshake_timeout: float = HANDSHAKE_TIMEOUT,
     ) -> None:
+        self.handshake_timeout = handshake_timeout
         self.handlers = handlers
         self.main_thread = main_thread
         self.host = host
@@ -128,7 +133,7 @@ class Listener:
                     conn.close()
                     continue
                 self._clients.add(conn)
-            conn.settimeout(None)
+            conn.settimeout(self.handshake_timeout)
             threading.Thread(
                 target=self._serve_client, args=(conn,), name="blender-mcp-client", daemon=True
             ).start()
@@ -150,7 +155,10 @@ class Listener:
                     return
                 if message is None:
                     return
+                was_authenticated = state["authenticated"]
                 conn.sendall(self._encode_reply(message.get("id"), self._dispatch(message, state)))
+                if state["authenticated"] and not was_authenticated:
+                    conn.settimeout(None)  # authenticated: no deadline between requests
         except OSError:
             pass
         finally:

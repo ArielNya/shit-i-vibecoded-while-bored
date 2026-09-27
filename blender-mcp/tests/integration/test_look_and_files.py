@@ -128,6 +128,52 @@ async def test_list_files(call, workspace):
     assert "tex.png" in names and "notes.txt" not in names
 
 
+async def test_import_refuses_references_outside_the_workspace(
+    call, call_error, workspace, tmp_path_factory
+):
+    import json
+
+    outside = write_png(tmp_path_factory.mktemp("elsewhere") / "private.png")
+    (workspace / "refs").mkdir(exist_ok=True)
+
+    gltf = {
+        "asset": {"version": "2.0"},
+        "images": [{"uri": str(outside)}],
+        "buffers": [{"uri": "data:application/octet-stream;base64,", "byteLength": 0}],
+    }
+    (workspace / "refs" / "evil.gltf").write_text(json.dumps(gltf))
+    text = await call_error("import_file", path="refs/evil.gltf")
+    assert "references files outside" in text and "private.png" in text
+
+    # The same inside a binary .glb (JSON chunk first).
+    body = json.dumps(gltf).encode()
+    body += b" " * (-len(body) % 4)
+    glb = b"glTF" + struct.pack("<II", 2, 20 + len(body)) + struct.pack("<I4s", len(body), b"JSON")
+    (workspace / "refs" / "evil.glb").write_bytes(glb + body)
+    assert "references files outside" in await call_error("import_file", path="refs/evil.glb")
+
+    (workspace / "refs" / "evil.obj").write_text(f"mtllib {outside.parent / 'x.mtl'}\nv 0 0 0\n")
+    assert "references files outside" in await call_error("import_file", path="refs/evil.obj")
+
+    (workspace / "refs" / "local.mtl").write_text(f"newmtl m\nmap_Kd -s 1 1 1 {outside}\n")
+    (workspace / "refs" / "sneaky.obj").write_text(
+        "mtllib local.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nusemtl m\nf 1 2 3\n"
+    )
+    text = await call_error("import_file", path="refs/sneaky.obj")
+    assert "private.png" in text
+
+
+async def test_gltf_with_local_texture_still_imports(call, workspace):
+    await call("create_primitive", type="cube", name="LocalTex")
+    await call("create_material", name="LocalTexMat", base_color_texture="red.png")
+    await call("assign_material", object="LocalTex", material="LocalTexMat")
+    await call("export_file", path="sep/local.gltf", objects=["LocalTex"])
+    await call("delete_objects", names=["LocalTex"])
+    imported = await call("import_file", path="sep/local.gltf")
+    assert imported["count"] == 1 and "removed_external_files" not in imported
+    await call("delete_objects", names=imported["objects"])
+
+
 # --- world, camera, lights ----------------------------------------------------------------
 
 

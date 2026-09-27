@@ -81,3 +81,25 @@ async def test_one_run_is_one_undo_step(call):
     assert (await call("list_objects", name_contains="Batch"))["total"] == 3
     await call("undo")
     assert (await call("list_objects", name_contains="Batch"))["total"] == 0
+
+
+async def test_import_cleanup_classifies_file_backed_data(call, workspace, tmp_path_factory):
+    """After an import, file-backed datablocks pointing outside the allowed folders are
+    removed (binary formats like .fbx/.usd can't be pre-scanned). This checks the
+    classification that decides it, on images loaded from inside and outside."""
+    outside = tmp_path_factory.mktemp("elsewhere") / "secret.png"
+    inside = workspace / "fine.png"
+    for path in (outside, inside):
+        path.write_bytes(b"not decoded until used")
+    out = await call(
+        "execute_python",
+        code=(
+            "from blender_mcp_addon.handlers import files\n"
+            f"a = D.images.load({str(outside)!r}, check_existing=False)\n"
+            f"b = D.images.load({str(inside)!r}, check_existing=False)\n"
+            "g = D.images.new('generated', 4, 4)\n"
+            "result = [files._outside_file(a), files._outside_file(b), files._outside_file(g)]\n"
+            "for img in (a, b, g): D.images.remove(img)\n"
+        ),
+    )
+    assert out["result"] == [str(outside.resolve()), None, None]

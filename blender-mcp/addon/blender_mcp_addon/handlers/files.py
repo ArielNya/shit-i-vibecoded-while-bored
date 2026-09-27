@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import struct
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
 
 import bpy
 
@@ -43,11 +46,17 @@ def open_blend(params: dict[str, Any]) -> dict[str, Any]:
     with _ops_context():
         # use_scripts=False: never auto-run Python embedded in a file the agent opens.
         bpy.ops.wm.open_mainfile(filepath=str(target), load_ui=False, use_scripts=False)
-    return {
+    result: dict[str, Any] = {
         "opened": str(target),
         "objects": len(bpy.context.scene.objects),
         "scene": bpy.context.scene.name,
     }
+    # A .blend may legitimately use textures/libraries from elsewhere, so they stay, but
+    # say which ones live outside the allowed folders.
+    outside = sorted({p for b in _file_backed() if (p := _outside_file(b)) is not None})
+    if outside:
+        result["external_files"] = outside[:50]
+    return result
 
 
 IMPORTERS = {
@@ -64,14 +73,117 @@ IMPORTERS = {
 }
 
 
+MTL_MAP_PREFIXES = ("map_", "bump", "disp", "decal", "refl", "norm")
+
+
+def _referenced_files(target: Path) -> list[Path]:
+    """Files a text-based model says it will load (.gltf buffers/images, .obj → .mtl →
+    textures). Data URIs and web URLs are ignored; they aren't local files."""
+    refs: list[Path] = []
+    base = target.parent
+    suffix = target.suffix.lower()
+    if suffix in {".gltf", ".glb"}:
+        try:
+            doc = json.loads(_gltf_json(target))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError(f"{target.name} is not valid glTF: {exc}") from None
+        for section in ("buffers", "images"):
+            for item in doc.get(section) or []:
+                uri = item.get("uri") if isinstance(item, dict) else None
+                if isinstance(uri, str) and not uri.startswith(("data:", "http:", "https:")):
+                    refs.append(base / unquote(uri))
+    elif suffix == ".obj":
+        for line in target.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith("mtllib "):
+                for name in line.split()[1:]:
+                    mtl = base / name
+                    refs.append(mtl)
+                    if mtl.is_file() and paths.is_allowed(mtl):
+                        refs += _mtl_textures(mtl)
+    return refs
+
+
+def _gltf_json(target: Path) -> str:
+    """The JSON part of a .gltf, or of a binary .glb (its first chunk)."""
+    if target.suffix.lower() == ".gltf":
+        return target.read_text(encoding="utf-8")
+    with open(target, "rb") as f:
+        header = f.read(20)
+        if len(header) < 20 or header[:4] != b"glTF":
+            raise ValueError(f"{target.name} is not a binary glTF file")
+        length, chunk_type = struct.unpack("<I4s", header[12:20])
+        if chunk_type != b"JSON" or length > 64 * 1024 * 1024:
+            raise ValueError(f"{target.name}: unexpected first chunk")
+        return f.read(length).decode("utf-8")
+
+
+def _mtl_textures(mtl: Path) -> list[Path]:
+    refs = []
+    for line in mtl.read_text(encoding="utf-8", errors="replace").splitlines():
+        parts = line.strip().split()
+        if len(parts) >= 2 and parts[0].lower().startswith(MTL_MAP_PREFIXES):
+            refs.append(mtl.parent / parts[-1])  # options come first, the file name last
+    return refs
+
+
+def _file_backed() -> list[Any]:
+    """Datablocks that load their content from a file path."""
+    data = bpy.data
+    return [
+        *data.images, *data.sounds, *data.movieclips, *data.fonts, *data.cache_files,
+        *data.libraries,
+    ]  # fmt: skip
+
+
+def _outside_file(block: Any) -> str | None:
+    """The absolute path a datablock reads from, if that's outside the allowed folders."""
+    filepath = getattr(block, "filepath", "")
+    if not filepath or getattr(block, "packed_file", None) is not None:
+        return None
+    if getattr(block, "source", "FILE") == "GENERATED":
+        return None
+    library = getattr(block, "library", None)
+    absolute = Path(bpy.path.abspath(filepath, library=library))
+    return None if paths.is_allowed(absolute) else str(absolute)
+
+
+def _remove(block: Any) -> None:
+    for collection in (
+        bpy.data.images, bpy.data.sounds, bpy.data.movieclips, bpy.data.fonts,
+        bpy.data.cache_files, bpy.data.libraries,
+    ):  # fmt: skip
+        if block in collection.values():
+            collection.remove(block)
+            return
+
+
 @mutation("import")
 def import_file(params: dict[str, Any]) -> dict[str, Any]:
     target = paths.resolve(params["path"], set(IMPORTERS), must_exist=True)
-    before = set(bpy.data.objects)
+    outside = [str(p) for p in _referenced_files(target) if not paths.is_allowed(p)]
+    if outside:
+        raise PermissionError(
+            f"{target.name} references files outside the allowed folders: {outside[:10]}. "
+            "Copy them into the workspace next to the model first."
+        )
+    before_objects = set(bpy.data.objects)
+    before_files = set(_file_backed())
     with _ops_context():
         IMPORTERS[target.suffix.lower()](str(target))
-    new = sorted(o.name for o in set(bpy.data.objects) - before)
-    return {"imported": str(target), "objects": new, "count": len(new)}
+    # Binary formats (fbx, usd, ...) can't be pre-scanned: drop anything they loaded
+    # from outside the allowed folders.
+    removed = []
+    for block in set(_file_backed()) - before_files:
+        path = _outside_file(block)
+        if path is not None:
+            removed.append(path)
+            _remove(block)
+    new = sorted(o.name for o in set(bpy.data.objects) - before_objects)
+    result: dict[str, Any] = {"imported": str(target), "objects": new, "count": len(new)}
+    if removed:
+        result["removed_external_files"] = sorted(removed)
+        result["note"] = "Files outside the allowed folders were not loaded."
+    return result
 
 
 def _exporter(suffix: str, path: str, apply_modifiers: bool) -> None:

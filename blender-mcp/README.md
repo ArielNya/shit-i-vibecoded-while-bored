@@ -10,7 +10,8 @@ modifiers, extrude/inset/bevel/loop cuts/bisect, raw meshes), set up materials,
 textures, lighting and cameras, and save/open/import/export files. The test suite
 models a mug with a handle using only tool calls. Every change is one named undo
 step in Blender (`MCP: …`). M5 adds reference notes, workflow prompts, and an
-opt-in `execute_python` escape hatch. See [`PLAN.md`](PLAN.md) for the roadmap.
+opt-in `execute_python` escape hatch; M6 hardens it (automatic per-user auth, import
+checks, CI) — see [Security](#security). See [`PLAN.md`](PLAN.md) for the roadmap.
 
 ```
 agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──▶ Blender add-on ──▶ bpy (main thread)
@@ -54,9 +55,8 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 ### `execute_python` (opt-in)
 
 Arbitrary Python runs with your user account's full permissions, so it stays off
-unless you turn on **Allow arbitrary Python** in the add-on preferences *and* set a
-**token** (give the server the same value in `BLENDER_MCP_TOKEN`). Without the token
-it refuses, because any account on the machine can reach a localhost port. Each run
+unless you turn on **Allow arbitrary Python** in the add-on preferences. It also
+requires authentication (on by default, see [Security](#security)). Each run
 is one undo step; `print()` output and a `result` variable come back to the agent.
 Blender is busy while the code runs, and a timeout doesn't stop it.
 
@@ -85,13 +85,28 @@ whose criteria must all match:
 Tools return the indices of what they created (e.g. an extrude's new cap), which
 stay valid until the next topology change, so steps chain without guessing.
 
-### File access
+## Security
 
-File tools only touch files inside the **workspace folder** (add-on preference;
-default `~/BlenderMCP`) and the folder of the open .blend file — unless that folder
-is your home directory or a filesystem root. Paths are checked after following
-symlinks, each tool accepts only its own file types, and nothing is overwritten
-without `overwrite=true`.
+- **Authentication is automatic.** When the add-on starts it creates a random token
+  in a file only your OS user can read (`~/.config/blender-mcp/token` on Linux,
+  `~/Library/Application Support/blender-mcp/token` on macOS,
+  `%APPDATA%\blender-mcp\token` on Windows); the server reads the same file. Other
+  accounts on the machine can reach the localhost port but can't connect. A custom
+  token in the add-on preferences (with `BLENDER_MCP_TOKEN` for the server) overrides
+  it; **Copy Token** in the panel helps when the server can't read the file.
+- **Localhost only**, at most 8 connections, 10 s to authenticate, small messages
+  until authenticated.
+- **Files**: file tools only touch the **workspace folder** (add-on preference;
+  default `~/BlenderMCP`) and the open .blend's folder — unless that is your home
+  folder or a filesystem root. Paths are checked after following symlinks, each tool
+  accepts only its own file types, and nothing is overwritten without
+  `overwrite=true`. Imports that reference files elsewhere (.gltf/.glb, .obj/.mtl)
+  are refused; anything other formats load from elsewhere is removed after import.
+  Opening a .blend never runs its embedded scripts.
+- **`execute_python`** is off unless you enable it.
+- **Undo**: every change is one named undo step (`MCP: …`).
+- The server tells the agent that scene content (names, text, imported files) is
+  data, not instructions.
 
 ## Requirements
 
@@ -104,7 +119,7 @@ without `overwrite=true`.
 
 ```bash
 cd blender-mcp
-python3 scripts/build_addon.py        # writes dist/blender_mcp_addon-0.1.0.zip
+python3 scripts/build_addon.py        # writes dist/blender_mcp_addon-<version>.zip
 ```
 
 In Blender: *Edit → Preferences → Get Extensions → ⌄ → Install from Disk…* and pick the
@@ -136,7 +151,11 @@ args = ["run", "--directory", "/path/to/blender-mcp", "blender-mcp"]
 **Claude Desktop** — see [`examples/claude-code.mcp.json`](examples/claude-code.mcp.json);
 the same `mcpServers` block goes in `claude_desktop_config.json`.
 
-Then ask the agent something like *"what's in my Blender scene?"*.
+Then ask the agent something like *"what's in my Blender scene?"*. No token setup is
+needed: the server finds the add-on's token file on its own.
+
+Verified end to end with Claude Code 2.1 (the agent created objects in Blender through
+the server) and with Codex CLI 0.157 (`codex mcp list` shows the server enabled).
 
 > Don't use `uvx blender-mcp`: that name on PyPI belongs to a different project.
 
@@ -146,7 +165,8 @@ Then ask the agent something like *"what's in my Blender scene?"*.
 | --- | --- | --- |
 | `BLENDER_MCP_HOST` | `127.0.0.1` | Where the add-on is listening |
 | `BLENDER_MCP_PORT` | `9876` | Must match the port in the add-on panel |
-| `BLENDER_MCP_TOKEN` | — | Must match the add-on's token, if one is set |
+| `BLENDER_MCP_TOKEN` | token file | Only needed if the add-on uses a custom token |
+| `BLENDER_MCP_TOKEN_FILE` | per-user path above | Where to find the token file (both sides honour it) |
 | `BLENDER_MCP_TIMEOUT` | `30` | Seconds to wait for Blender per call |
 | `BLENDER_MCP_TOOLSETS` | all | Comma-separated subset to expose, for clients with tool limits: `inspect`, `view`, `edit`, `mesh`, `look`, `files`, `python` |
 

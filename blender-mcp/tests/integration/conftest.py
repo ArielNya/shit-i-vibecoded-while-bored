@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 from mcp import Client
 
+from blender_mcp import protocol
 from blender_mcp.bridge import BlenderBridge, BridgeConfig
 from blender_mcp.server import create_server
 
@@ -43,12 +44,19 @@ def workspace(tmp_path_factory):
 @pytest.fixture(scope="module")
 def blender_options(request):
     """Per-module Blender settings: a test module may define
-    BLENDER_OPTIONS = {"token": "...", "allow_python": True}."""
+    BLENDER_OPTIONS = {"token": "...", "allow_python": True, "no_auth": True}.
+    Without "token" or "no_auth", Blender uses the (per-module) token file, like a real
+    install."""
     return getattr(request.module, "BLENDER_OPTIONS", {})
 
 
 @pytest.fixture(scope="module")
-def blender_port(workspace, blender_options):
+def token_file(tmp_path_factory):
+    return tmp_path_factory.mktemp("config") / "blender-mcp" / "token"
+
+
+@pytest.fixture(scope="module")
+def blender_port(workspace, blender_options, token_file):
     cmd = _command()
     if cmd is None:
         pytest.skip("set BLENDER_BIN or BLENDER_PYTHON to run Blender integration tests")
@@ -57,8 +65,12 @@ def blender_port(workspace, blender_options):
         args += ["--token", blender_options["token"]]
     if blender_options.get("allow_python"):
         args.append("--allow-python")
+    if blender_options.get("no_auth"):
+        args.append("--no-auth")
+    env = {**os.environ, protocol.TOKEN_FILE_ENV: str(token_file)}
     proc = subprocess.Popen(
         [*cmd, "--", *args],
+        env=env,
         stdout=subprocess.PIPE,
         stderr=sys.stderr,
         text=True,
@@ -78,8 +90,12 @@ def blender_port(workspace, blender_options):
 
 
 @pytest.fixture
-async def client(blender_port, blender_options):
-    config = BridgeConfig(port=blender_port, timeout=120, token=blender_options.get("token"))
+async def client(blender_port, blender_options, token_file):
+    token = blender_options.get("token")
+    if token is None and not blender_options.get("no_auth"):
+        token = protocol.read_token_file(token_file)  # created by Blender on start
+        assert token, "Blender should have created the token file"
+    config = BridgeConfig(port=blender_port, timeout=120, token=token)
     bridge = BlenderBridge(config)
     async with Client(create_server(bridge)) as client:
         yield client

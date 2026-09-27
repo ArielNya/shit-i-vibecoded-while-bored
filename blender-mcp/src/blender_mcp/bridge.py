@@ -104,20 +104,44 @@ class BlenderBridge:
                 "blender-mcp add-on started (3D Viewport sidebar > MCP > Start)?"
             ) from exc
         try:
+            token = self._token()
             info = await asyncio.wait_for(
                 self._roundtrip(
                     protocol.HANDSHAKE_METHOD,
-                    {"protocol_version": protocol.PROTOCOL_VERSION, "token": self.config.token},
+                    {"protocol_version": protocol.PROTOCOL_VERSION, "token": token},
                 ),
                 5.0,
             )
-        except BlenderCommandError:
+        except BlenderConnectionError:
             await self.close()
+            raise
+        except BlenderCommandError as exc:
+            await self.close()
+            if exc.code == protocol.UNAUTHORIZED:
+                source = (
+                    "BLENDER_MCP_TOKEN" if self.config.token else str(protocol.token_file_path())
+                )
+                raise BlenderCommandError(
+                    exc.code,
+                    f"{exc} — the token from {source} doesn't match the add-on's. If the "
+                    "add-on has a custom token in its preferences, set the same value in "
+                    "BLENDER_MCP_TOKEN.",
+                ) from None
             raise
         except (OSError, TimeoutError, asyncio.IncompleteReadError, protocol.ProtocolError) as exc:
             await self.close()
             raise BlenderConnectionError(f"Handshake with Blender failed: {exc}") from exc
         self.server_info = info
+
+    def _token(self) -> str | None:
+        """Explicit token, else the shared token file — read on every connect, since
+        Blender (which creates the file) may start after this server."""
+        if self.config.token:
+            return self.config.token
+        try:
+            return protocol.read_token_file()
+        except (protocol.TokenFileError, OSError) as exc:
+            raise BlenderConnectionError(f"Can't use the token file: {exc}") from exc
 
     async def _roundtrip(self, method: str, params: dict[str, Any] | None) -> Any:
         assert self._reader is not None and self._writer is not None

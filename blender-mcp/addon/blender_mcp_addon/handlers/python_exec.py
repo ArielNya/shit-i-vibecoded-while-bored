@@ -89,13 +89,13 @@ def _check_enabled() -> None:
     if not settings.allow_python:
         raise PermissionError(
             "execute_python is disabled. The user can enable it in Blender: Preferences > "
-            "Add-ons > Blender MCP > 'Allow arbitrary Python' (a token is required too). "
+            "Add-ons > Blender MCP > 'Allow arbitrary Python'. "
             "Prefer the dedicated tools where they exist."
         )
     if not settings.token_set:
         raise PermissionError(
-            "execute_python needs a token: set one in the add-on preferences and give the "
-            "server the same value in BLENDER_MCP_TOKEN."
+            "execute_python needs authentication, but this Blender was started without it "
+            "(--no-auth)."
         )
 
 

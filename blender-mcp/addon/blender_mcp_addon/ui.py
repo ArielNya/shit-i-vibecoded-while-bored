@@ -22,7 +22,9 @@ class BlenderMCPPreferences(bpy.types.AddonPreferences):
     port: bpy.props.IntProperty(name="Port", default=protocol.DEFAULT_PORT, min=1024, max=65535)
     token: bpy.props.StringProperty(
         name="Token",
-        description="Optional shared secret; give the server the same value in BLENDER_MCP_TOKEN",
+        description="Custom token (optional). Empty: a random token is kept in a private "
+        "file that the server reads automatically. If set, give the server the same value "
+        "in BLENDER_MCP_TOKEN",
         subtype="PASSWORD",
     )
     workspace: bpy.props.StringProperty(
@@ -33,8 +35,8 @@ class BlenderMCPPreferences(bpy.types.AddonPreferences):
     )
     allow_python: bpy.props.BoolProperty(
         name="Allow arbitrary Python",
-        description="Let the agent run any Python code in Blender (execute_python). Only "
-        "with a token set. The code runs with your user's full permissions",
+        description="Let the agent run any Python code in Blender (execute_python). The "
+        "code runs with your user's full permissions",
         default=False,
     )
     auto_start: bpy.props.BoolProperty(
@@ -52,8 +54,7 @@ class BlenderMCPPreferences(bpy.types.AddonPreferences):
         row = layout.row()
         row.alert = self.allow_python
         row.prop(self, "allow_python")
-        if self.allow_python and not self.token:
-            layout.label(text="Also set a token, or execute_python stays off", icon="ERROR")
+        layout.label(text=f"Token file: {protocol.token_file_path()}", icon="LOCKED")
 
 
 class BLENDERMCP_OT_start(bpy.types.Operator):
@@ -73,6 +74,26 @@ class BLENDERMCP_OT_start(bpy.types.Operator):
             self.report({"ERROR"}, runtime.last_error)
             return {"CANCELLED"}
         self.report({"INFO"}, runtime.status())
+        return {"FINISHED"}
+
+
+class BLENDERMCP_OT_copy_token(bpy.types.Operator):
+    bl_idname = "blender_mcp.copy_token"
+    bl_label = "Copy Token"
+    bl_description = (
+        "Copy the active token to the clipboard, for servers that can't read the token "
+        "file (set it as BLENDER_MCP_TOKEN)"
+    )
+
+    def execute(self, context):
+        prefs = get_prefs()
+        try:
+            token = (prefs.token if prefs else "") or protocol.ensure_token_file()
+        except (protocol.TokenFileError, OSError) as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
+        context.window_manager.clipboard = token
+        self.report({"INFO"}, "Token copied")
         return {"FINISHED"}
 
 
@@ -98,9 +119,9 @@ class VIEW3D_PT_blender_mcp(bpy.types.Panel):
         if runtime.last_error:
             layout.label(text=runtime.last_error, icon="ERROR")
         prefs = get_prefs()
-        if running and not (prefs and prefs.token):
-            layout.label(text="No token: any local program can connect", icon="INFO")
-        if prefs and prefs.allow_python and prefs.token:
+        if running:
+            layout.label(text=f"Auth: {runtime.token_source}", icon="LOCKED")
+        if prefs and prefs.allow_python:
             layout.label(text="Arbitrary Python is ON", icon="ERROR")
         if running:
             layout.operator(BLENDERMCP_OT_stop.bl_idname, icon="PAUSE")
@@ -112,9 +133,16 @@ class VIEW3D_PT_blender_mcp(bpy.types.Panel):
             col.prop(prefs, "port")
             col.prop(prefs, "token")
             col.prop(prefs, "workspace")
+        layout.operator(BLENDERMCP_OT_copy_token.bl_idname, icon="COPYDOWN")
 
 
-CLASSES = (BlenderMCPPreferences, BLENDERMCP_OT_start, BLENDERMCP_OT_stop, VIEW3D_PT_blender_mcp)
+CLASSES = (
+    BlenderMCPPreferences,
+    BLENDERMCP_OT_start,
+    BLENDERMCP_OT_stop,
+    BLENDERMCP_OT_copy_token,
+    VIEW3D_PT_blender_mcp,
+)
 
 
 def _auto_start():

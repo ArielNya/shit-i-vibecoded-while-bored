@@ -98,3 +98,12 @@ async def test_execute_python_disabled_by_default(call, call_image, call_error):
     text = await call_error("execute_python", code="result = 1")
     assert "disabled" in text and "Allow arbitrary Python" in text
     assert (await call("ping"))["python_enabled"] is False
+
+
+async def test_connection_needs_the_token(blender_port):
+    """This module's Blender uses the token file; a client without it is refused."""
+    from blender_mcp.bridge import BlenderBridge, BlenderCommandError, BridgeConfig
+
+    bridge = BlenderBridge(BridgeConfig(port=blender_port, token="not-the-token"))
+    with pytest.raises(BlenderCommandError, match="invalid token"):
+        await bridge.call("ping")

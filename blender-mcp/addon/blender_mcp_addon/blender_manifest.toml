@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "blender_mcp"
-version = "0.1.0"
+version = "0.6.0"
 name = "Blender MCP"
 tagline = "Let AI agents inspect and model in Blender over MCP"
 maintainer = "ArielNya"

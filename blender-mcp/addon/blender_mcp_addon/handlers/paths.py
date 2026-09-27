@@ -64,6 +64,12 @@ def _inside(path: Path, root: Path) -> bool:
     return path == root or root in path.parents
 
 
+def is_allowed(path: str | os.PathLike) -> bool:
+    """Whether a path (after resolving symlinks) is inside an allowed folder."""
+    real = _real(Path(path))
+    return any(_inside(real, root) for root in allowed_roots())
+
+
 def resolve(
     path: str,
     suffixes: set[str],
