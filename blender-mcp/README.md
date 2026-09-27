@@ -4,9 +4,11 @@ An [MCP](https://modelcontextprotocol.io) server that lets AI coding agents
 (Claude Code, Claude Desktop, OpenAI Codex, anything MCP-speaking) look at and
 build things inside a running Blender session.
 
-**Status:** M1 — the agent can inspect the scene and *see* it (screenshots and
-renders come back as images). No editing tools yet; those start in M2. See
-[`PLAN.md`](PLAN.md) for the architecture and roadmap.
+**Status:** M2 — the agent can inspect the scene, *see* it (screenshots and renders
+come back as images), and do object-level modelling: primitives, transforms,
+parenting, collections, booleans and modifiers. Every change is one named undo
+step in Blender (`MCP: …`), so Ctrl+Z reverts what the agent did. Mesh editing,
+materials and file I/O come next. See [`PLAN.md`](PLAN.md) for the roadmap.
 
 ```
 agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──▶ Blender add-on ──▶ bpy (main thread)
@@ -24,6 +26,14 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 | `list_materials` / `get_material_info` | Materials, who uses them, Principled BSDF inputs, node graph |
 | `get_viewport_screenshot` | Image of the 3D viewport; optional view angle (front/top/iso/…), shading mode, and object framing. The user's view is restored afterwards |
 | `render_preview` | Quick Workbench / EEVEE / Cycles render from the scene camera or an auto-framed view angle; render settings restored afterwards |
+| `create_primitive` | cube, plane, grid, circle, uv/ico sphere, cylinder, cone, torus, monkey, empty, camera, light — with size/segments/location/rotation/scale |
+| `transform_object` / `apply_transform` | Set or offset location/rotation (degrees)/scale/dimensions; bake transforms into the mesh |
+| `duplicate_object` / `rename_object` / `delete_objects` | Copies (full or linked), renames, deletes |
+| `set_parent` / `create_collection` / `move_to_collection` | Scene organisation; parenting keeps world position |
+| `join_objects` / `separate_mesh` | Merge meshes; split by loose parts or material |
+| `boolean` | Difference/union/intersect with another mesh, applied or live; cutter hidden/deleted/kept |
+| `add_modifier` / `set_modifier_params` / `move_modifier` / `apply_modifier` / `remove_modifier` | Any modifier type; params by Blender property name, angles in degrees, objects by name |
+| `undo` / `redo` | Step through Blender's undo history |
 
 ## Requirements
 

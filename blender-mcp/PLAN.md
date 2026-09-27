@@ -263,7 +263,7 @@ subset for clients with tight tool limits.
 | --- | --- | --- |
 | **M0** ✅ | Skeleton | uv project, add-on registers, ping/handshake round-trips over the socket, `get_scene_info` works from Claude Code |
 | **M1** ✅ | Inspect + see | all §3.1 tools; viewport screenshot + render preview return images the model can view |
-| **M2** | Object-level modelling | §3.2 + §3.3 + undo; agent can block out a simple scene (table + chairs) |
+| **M2** ✅ | Object-level modelling | §3.2 + §3.3 + undo; agent can block out a simple scene (table + chairs) |
 | **M3** | Materials, lights, camera, I/O | §3.5 + §3.6; agent can produce and export a textured glTF |
 | **M4** | Mesh editing | §3.4 bmesh tools with selection specs; agent can model a mug with a handle |
 | **M5** | Escape hatch + resources | `execute_python` behind pref, docs resources, prompts |
@@ -282,6 +282,34 @@ subset for clients with tight tool limits.
   Blender app.
 - Headless renders need OpenGL; Mesa's software driver works (Workbench ~0.05 s
   per frame at 384 px, EEVEE ~40 s on first use while shaders compile).
+
+### M2 notes
+
+- Edits use `bpy.data`/`bmesh` wherever possible (primitives are built with
+  `bmesh.ops`, separate is done in bmesh); only `join`, `transform_apply` and
+  `modifier_apply` go through operators, with an explicit context override.
+- Every handler first runs `view_layer.update()`: between our calls nothing
+  re-evaluates the depsgraph, so bounds/dimensions/world matrices were stale.
+- Mutating handlers leave edit mode first (data edits made in edit mode would be
+  overwritten on exit), then push an `MCP: <tool>` undo step — also on failure,
+  so a partial change is still one Ctrl+Z away.
+- A client-side timeout doesn't cancel the command in Blender; a retried edit
+  can run twice. Edit timeouts are 120 s to make that unlikely.
+- Undo/redo from a timer needs a window in the context override; verified
+  headless, not yet in the GUI.
+
+### Review (after M1)
+
+Probing the listener with hostile input found and fixed: non-ASCII tokens
+crashing the connection thread, deeply nested JSON (RecursionError), results
+over the 64 MB frame limit dropping the connection, and unauthenticated clients
+being able to announce 64 MB messages on unlimited connections. Now: 64 KB limit
+before the handshake, at most 8 clients, every failure answered with an error
+reply. A browser POSTing to the port is rejected by the framing (the "POST"
+bytes read as a ~1.3 GB length). Modifier file-path properties (e.g. Mesh
+Cache `filepath`) are refused, since they would allow reading arbitrary local
+files back through `get_mesh_data`. Open: with no token (the default) any local
+process can drive Blender — the panel now says so; make tokens the default in M6.
 
 ## 9. Open questions
 

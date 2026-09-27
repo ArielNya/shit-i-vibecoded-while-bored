@@ -81,10 +81,74 @@ def rna_props(struct: Any, skip: set[str] = frozenset()) -> dict[str, Any]:
         if prop.type == "POINTER" and not isinstance(getattr(struct, ident, None), bpy.types.ID):
             continue
         try:
-            out[ident] = rna_value(getattr(struct, ident))
-        except (AttributeError, TypeError):
+            value = getattr(struct, ident)
+        except AttributeError:
             continue
+        if prop.subtype in ANGLE_SUBTYPES:  # the API speaks degrees; see set_rna_props
+            value = [math.degrees(v) for v in value] if prop.is_array else math.degrees(value)
+        out[ident] = rna_value(value)
     return out
+
+
+ANGLE_SUBTYPES = {"ANGLE", "EULER"}
+# File paths would let a caller point e.g. a Mesh Cache modifier at any local file and
+# read it back through get_mesh_data. Refused until there's a path allowlist (PLAN §5).
+PATH_SUBTYPES = {"FILE_PATH", "DIR_PATH", "FILE_NAME", "BYTE_STRING"}
+POINTER_LOOKUPS = {
+    "Object": lambda: bpy.data.objects,
+    "Collection": lambda: bpy.data.collections,
+    "Material": lambda: bpy.data.materials,
+    "Texture": lambda: bpy.data.textures,
+    "Image": lambda: bpy.data.images,
+    "Curve": lambda: bpy.data.curves,
+}
+
+
+def settable_props(struct: Any) -> list[str]:
+    return sorted(
+        p.identifier
+        for p in struct.bl_rna.properties
+        if not p.is_readonly and p.identifier not in SKIP_PROPS and p.type != "COLLECTION"
+    )
+
+
+def set_rna_props(struct: Any, params: dict[str, Any]) -> None:
+    """Set properties from JSON values: angles in degrees, ID pointers by name.
+
+    Validates every key before changing anything, so a typo doesn't leave a
+    half-applied update.
+    """
+    props = struct.bl_rna.properties
+    kind = struct.bl_rna.identifier
+    resolved: list[tuple[str, Any]] = []
+    for key, value in params.items():
+        prop = props.get(key)
+        if prop is None or prop.is_readonly or key in SKIP_PROPS or prop.type == "COLLECTION":
+            raise ValueError(
+                f"{kind} has no settable property {key!r}. "
+                f"Valid: {', '.join(settable_props(struct))}"
+            )
+        if prop.subtype in PATH_SUBTYPES:
+            raise ValueError(f"{kind}.{key} is a file path; setting paths isn't allowed")
+        if prop.type == "POINTER":
+            if value is not None:
+                lookup = POINTER_LOOKUPS.get(prop.fixed_type.identifier)
+                if lookup is None:
+                    raise ValueError(f"{kind}.{key} can't be set from a name")
+                found = lookup().get(value)
+                if found is None:
+                    raise ValueError(
+                        f"{kind}.{key}: no {prop.fixed_type.identifier} named {value!r}"
+                    )
+                value = found
+        elif prop.subtype in ANGLE_SUBTYPES and value is not None:
+            value = [math.radians(v) for v in value] if prop.is_array else math.radians(value)
+        resolved.append((key, value))
+    for key, value in resolved:
+        try:
+            setattr(struct, key, value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{kind}.{key}: {exc}") from None
 
 
 def world_bounds(objects) -> tuple[Vector, Vector] | None:
