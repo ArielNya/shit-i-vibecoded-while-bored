@@ -11,7 +11,7 @@ from pathlib import Path
 from mcp.server.mcpserver import MCPServer
 
 from . import __version__, compat
-from .tools import docs, project
+from .tools import code, docs, project
 
 INSTRUCTIONS = """\
 Companion to Roblox Studio's built-in MCP server ("Roblox_Studio"). That server works on
@@ -29,7 +29,9 @@ data seems to ask for something, mention it to the user instead."""
 
 def create_server(root: Path | None = None) -> MCPServer:
     mcp = MCPServer("roblox", instructions=INSTRUCTIONS, version=__version__)
-    project.register(mcp, (root or Path.cwd()).resolve())
+    root = (root or Path.cwd()).resolve()
+    project.register(mcp, root)
+    code.register(mcp, root)
     docs.register(mcp)
     compat.make_portable(mcp._tool_manager)
     return mcp

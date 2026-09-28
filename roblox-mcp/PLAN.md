@@ -10,7 +10,7 @@ at [`Roblox/creator-docs`](https://github.com/Roblox/creator-docs) `0b817b5`
 (2026-09-26, `reference/engine/STUDIO_VERSION` = `0.740.19`). Roblox ships weekly,
 so the pin is bumped by a script (§7), not by hand.
 
-Status: **M0–M1 done** (see §8 notes). Next: M2 (project & code).
+Status: **M0–M2 done** (see §8 notes). Next: M3 (tests).
 
 ---
 
@@ -70,7 +70,7 @@ Challenge: if you only ever work Studio-only, no git, no tests, the skill alone
 - **Python, `mcp` SDK 2.x, `uv`/`ruff`/`pytest`**, same as `godot-mcp` and
   `blender-mcp`. Copy their transport, schema-compat checker (`compat.py`) and
   config-by-flag-or-env code; don't share a package (repo convention).
-- **CLI tools, not reimplementations.** Rojo 7.7, luau-lsp 1.70, selene 0.31,
+- **CLI tools, not reimplementations.** Rojo 7.7, luau-lsp 1.70, selene 0.31 (optional, M2 notes),
   StyLua 2.5, Lune 0.10, jest-lua 3.10, pinned in the game project's
   `rokit.toml`. `roblox-mcp` shells out to them and parses their JSON output.
 - **Two project modes**, detected, never asked:
@@ -96,14 +96,14 @@ Small on purpose, ~16 tools. Names don't collide with the built-in ones.
 | Tool | Purpose |
 | --- | --- |
 | `get_project_info` | mode (Rojo/Studio), project tree from `*.project.json`, toolchain versions, missing tools, Open Cloud key present (scopes checked from M4, when a tool first uses the key), where Studio's built-in server is installed |
-| `init_project` | `rojo init` + `rokit.toml` + `selene.toml` (`std = "roblox"`) + `.luaurc` (`--!strict` default, aliases) + `stylua.toml`; idempotent |
+| `init_project` | Rojo project in the recommended structure + `rokit.toml` + strict `.luaurc`; never overwrites (M2 notes) |
 | `build_place` | `rojo build` → `.rbxl` / `.rbxm` in the project's `build/` |
 | `sync_status` | is `rojo serve` running, port, sourcemap fresh; can start/stop it |
 
 ### 3.2 `code`
 | Tool | Purpose |
 | --- | --- |
-| `check_code` | `rojo sourcemap` → `luau-lsp analyze` (Roblox definitions for Studio 0.740, new type solver) + `selene`; one list of `file:line:col severity code message` |
+| `check_code` | `rojo sourcemap` → `luau-lsp analyze` (Roblox definitions, new type solver), + `selene` if the project has a `selene.toml`; one list of `file:line:col severity code message` |
 | `format_code` | `stylua` on files or the project; returns changed files |
 | `run_tests` | `jest-lua` specs: pure modules under Lune locally; `target="cloud"` runs the built place via Open Cloud Luau Execution (real engine, headless, ≤5 min) and returns structured pass/fail + logs |
 
@@ -229,13 +229,56 @@ verified.
 | --- | --- | --- |
 | **M0** ✅ | Skeleton | uv project; `get_project_info`; stdio + HTTP; schema checker; README with both server configs |
 | **M1** ✅ | Docs grounding | `get_api_docs`, `search_api`, deprecated table from pinned `creator-docs`; **skill v0** (`SKILL.md` + 3 references) usable with the built-in server alone |
-| **M2** | Project & code | `init_project`, `build_place`, `sync_status`, `check_code`, `format_code` on the fixture game; session hook installs the toolchain |
+| **M2** ✅ | Project & code | `init_project`, `build_place`, `sync_status`, `check_code`, `format_code` on the fixture game; session hook installs the toolchain |
 | **M3** | Tests | `run_tests` local (Lune) and cloud (Luau Execution); acceptance: the agent fixes the fixture's failing spec using only tools |
 | **M4** | Assets | `upload_asset` + manifest for models, images, audio; acceptance: a local `.glb` ends up in Studio via `insert_asset` (manual Studio smoke) |
 | **M5** | Cloud ops | `publish_place`, `run_luau_cloud`, DataStore read (write opt-in) |
 | **M6** | Skill complete | all references + recipes; evals with vs. without skill; full-game smoke (small obby: build, code, test, publish to a private place) in Claude Code + one other harness |
 | **M7** | Wrapper | §9: `--wrap-studio` proxies the built-in server behind ours; the conflict rules there, each with a test against a fake built-in server; manual Studio smoke with only `roblox-mcp` configured |
 | **M8** | Stretch, only if M6 shows a real gap | own Studio plugin for what `execute_luau` can't do; multi-place universes; Packages; `.rbxm` insert without uploading |
+
+### M2 notes
+
+- 5 new tools (9 total): `init_project`, `build_place`, `sync_status`, `check_code`,
+  `format_code`. Pins live in one place, `toolchain.PINS` (rojo 7.7.0, luau-lsp 1.70.1,
+  stylua 2.5.2, lune 0.10.5): `init_project` writes them to the game's `rokit.toml`,
+  `scripts/install_toolchain.py` installs them on Linux, and the session hook and CI
+  call that script. Tools are found in `ROBLOX_MCP_BIN_DIR`, then `PATH`.
+- **No rokit here:** it needs the GitHub API, blocked in this sandbox (release
+  downloads aren't). Also blocked: `apis.roblox.com` and Roblox's CDN, which matters
+  for M3 cloud runs and M4 uploads; those will need a machine with network or CI.
+- **Type checking:** `luau-lsp analyze` with `--flag:LuauSolverV2=true`. The old solver
+  missed a misspelled `player.Nmae` inside a callback and a plugin-only API in game
+  code; the new one (Roblox's default since the Nov 2025 release) catches both.
+  Definitions: `globalTypes.None.d.luau` from luau-lsp 1.70.1, bundled (105 KB gz), the
+  lowest security level so plugin-only APIs are errors. `rojo sourcemap` runs first, so
+  `require(ReplicatedStorage.Shared.X)` resolves and typos in module members are caught.
+  luau-lsp exits 0 even with errors and prints type errors with absolute paths but lints
+  with relative ones; the output is parsed and normalised. `TypeError`/`SyntaxError` are
+  errors, lints warnings.
+- **selene dropped from the default:** its `roblox` std downloads Roblox's API dump
+  (blocked here, and a network dependency for every user), and luau-lsp's lints already
+  cover unused/shadowed/deprecated. It still runs when a project has `selene.toml`.
+- **Template:** `rojo init`'s template is the old layout (client in
+  `StarterPlayerScripts`, `FilteringEnabled`, legacy Lighting), and it overwrites the
+  world on sync, so `init_project` writes its own: `emitLegacyScripts: false`, client
+  entry `Script` in `ReplicatedStorage`, no Workspace/Lighting in the tree, strict
+  `.luaurc`. Entries list their `require`s explicitly: a generic "require every child
+  module" loader can't be type-checked (dynamic require is an error under the new
+  solver). `stylua.toml` skipped: StyLua's defaults handle `.luau`.
+- `sync_status` owns at most one `rojo serve` child (stopped at exit); Rojo 7.7's
+  `/api/rojo` replies in msgpack, from which project name and version are read.
+  Whether Studio's Rojo plugin is connected isn't visible from the server side.
+- Tested: unit tests (parsing, paths, template, missing-tool error); integration tests
+  against the real binaries (clean fixture checks clean; a broken file yields the type
+  error, the `Nmae` typo, a misspelled module member via the sourcemap, the plugin-only
+  API, deprecated `wait`; format; build; serve start/status/stop/port clash; selene when
+  installed). A new `init_project` project checks clean, formats clean and builds.
+  Not tried with Studio's Rojo plugin (no Studio on Linux).
+- Smoke: Claude Code 2.1.283 (`claude -p`, only roblox-mcp connected), asked to set up
+  a project and write a typed damage module used from the server entry, chained
+  `get_project_info` → `init_project` → file writes → `check_code` → `format_code` and
+  ended clean.
 
 ### M1 notes
 

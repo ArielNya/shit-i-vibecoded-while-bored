@@ -15,8 +15,8 @@ Two MCP servers, each with its own job:
   inside the place, `execute_luau`, play-testing, input, screenshots, asset
   search/insert/generation.
 - **roblox** (roblox-mcp, optional): the project on disk and Roblox's cloud.
-  Project info, API docs, guides; later code checks, tests, asset upload,
-  publishing. Works without Studio.
+  Project info, Rojo setup and live sync, type checking and formatting, API docs,
+  guides; later tests, asset upload, publishing. Works without Studio.
 
 If only one of them is connected, use what's there and say what's missing when a
 task needs the other.
@@ -38,6 +38,9 @@ task needs the other.
 | --- | --- | --- |
 | Read code | your file tools | `script_read`, `script_grep` |
 | Write code | your file tools on the `.luau` files (**never `multi_edit`**: Rojo overwrites it) | `multi_edit` |
+| Check code | `check_code` (types + lints, Studio's API), `format_code` | read `get_console_output` after running |
+| Get code into Studio | `sync_status` (start `rojo serve`; the user connects Studio's Rojo plugin) | already there |
+| No project yet, user wants files/git | `init_project` | same |
 | Build the world, set properties, tags, attributes, lighting | `execute_luau` in `Edit` (undoable, §3) | same |
 | Instances that belong in git | `.model.json` / `.meta.json` files | `execute_luau` |
 | Marketplace asset | `search_asset` → `insert_asset` | same |
@@ -109,7 +112,8 @@ Where code runs decides what it can do. Details in `references/project-layout.md
 ## 6. The loop
 
 1. Make the change (code or world).
-2. Look for errors in what you wrote before running it.
+2. Rojo mode: `check_code` and fix every error before running; `sync_status` shows
+   Rojo is serving so Studio has the new code. Studio mode: re-read what you wrote.
 3. `start_stop_play` → `get_console_output` (errors show script + line) →
    `screen_capture` to see it. Drive the game with `character_navigation`,
    `user_keyboard_input`, `user_mouse_input`, or `execute_luau` with

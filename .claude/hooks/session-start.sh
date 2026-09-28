@@ -58,6 +58,18 @@ if [ -d godot-mcp ]; then
   fi
 fi
 
+# roblox-mcp's toolchain (rojo, luau-lsp, stylua, lune at the pinned versions). Installed
+# once, outside the repo.
+if [ -d roblox-mcp ]; then
+  ROBLOX_BIN="$HOME/.cache/roblox-mcp/bin"
+  (cd roblox-mcp && uv run --quiet python scripts/install_toolchain.py "$ROBLOX_BIN") \
+    || echo "session-start: roblox-mcp toolchain install failed; its integration tests will skip" >&2
+  if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
+    echo "export ROBLOX_MCP_BIN_DIR=\"$ROBLOX_BIN\"" >> "$CLAUDE_ENV_FILE"
+    echo "export PATH=\"$ROBLOX_BIN:\$PATH\"" >> "$CLAUDE_ENV_FILE"
+  fi
+fi
+
 # ponytail Claude Code plugin (github.com/DietrichGebert/ponytail), installed at user scope.
 if command -v claude >/dev/null 2>&1 && ! claude plugin list 2>/dev/null | grep -q "ponytail@ponytail"; then
   echo "session-start: installing ponytail plugin" >&2
