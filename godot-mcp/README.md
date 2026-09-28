@@ -105,7 +105,7 @@ Ready-to-copy files with it filled in are in [`examples/`](examples/).
 
 The server speaks plain MCP over **stdio** (every client) or **Streamable HTTP**
 (`--http`, see below). Its tool schemas keep to what every major client accepts;
-`scripts/check_harness_schemas.py` checks that in CI. What has actually been run (details
+`scripts/check_harness_schemas.py` checks that. What has actually been run (details
 in [`examples/smoke/`](examples/smoke/)):
 
 | Client | Status |

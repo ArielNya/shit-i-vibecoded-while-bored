@@ -1,0 +1,577 @@
+[
+  {
+    "task": "shop",
+    "skill": true,
+    "run": 1,
+    "seconds": 39,
+    "turns": 25,
+    "cost_usd": 0.259491,
+    "agent_error": false,
+    "used_skill": true,
+    "tools": [
+      "Bash",
+      "Edit",
+      "Glob",
+      "Read",
+      "Skill",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code",
+      "mcp__roblox__format_code",
+      "mcp__roblox__get_project_info",
+      "mcp__roblox__read_guide",
+      "mcp__roblox__run_tests"
+    ],
+    "workdir": "/tmp/roblox-eval-shop-7564xmz6",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "validates remote arg types": true,
+      "rejects NaN/inf or fractional quantities": true
+    },
+    "tests": "6 passed, 0 failed",
+    "tests_ok": true,
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "shop",
+    "skill": true,
+    "run": 2,
+    "seconds": 37,
+    "turns": 20,
+    "cost_usd": 0.21279719999999996,
+    "agent_error": false,
+    "used_skill": true,
+    "tools": [
+      "Bash",
+      "Edit",
+      "Read",
+      "Skill",
+      "Write",
+      "mcp__roblox__check_code",
+      "mcp__roblox__get_project_info",
+      "mcp__roblox__read_guide",
+      "mcp__roblox__run_tests"
+    ],
+    "workdir": "/tmp/roblox-eval-shop-zn6au_k2",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "validates remote arg types": true,
+      "rejects NaN/inf or fractional quantities": true
+    },
+    "tests": "9 passed, 0 failed",
+    "tests_ok": true,
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "shop",
+    "skill": false,
+    "run": 1,
+    "seconds": 47,
+    "turns": 24,
+    "cost_usd": 0.2197536,
+    "agent_error": false,
+    "used_skill": true,
+    "tools": [
+      "Bash",
+      "Read",
+      "Skill",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code",
+      "mcp__roblox__get_api_docs",
+      "mcp__roblox__get_project_info",
+      "mcp__roblox__run_tests"
+    ],
+    "workdir": "/tmp/roblox-eval-shop-xtze099j",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "validates remote arg types": true,
+      "rejects NaN/inf or fractional quantities": true
+    },
+    "tests": "8 passed, 0 failed",
+    "tests_ok": true,
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "shop",
+    "skill": false,
+    "run": 2,
+    "seconds": 46,
+    "turns": 23,
+    "cost_usd": 0.2103646,
+    "agent_error": false,
+    "used_skill": false,
+    "tools": [
+      "Bash",
+      "Read",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code",
+      "mcp__roblox__get_project_info",
+      "mcp__roblox__run_tests"
+    ],
+    "workdir": "/tmp/roblox-eval-shop-osxk5407",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "validates remote arg types": true,
+      "rejects NaN/inf or fractional quantities": true
+    },
+    "tests": "9 passed, 1 failed",
+    "tests_ok": false,
+    "score": "4/5",
+    "all_pass": false
+  },
+  {
+    "task": "sign",
+    "skill": true,
+    "run": 1,
+    "seconds": 50,
+    "turns": 17,
+    "cost_usd": 0.2287828,
+    "agent_error": false,
+    "used_skill": true,
+    "tools": [
+      "Bash",
+      "Read",
+      "Skill",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code"
+    ],
+    "workdir": "/tmp/roblox-eval-sign-za7jr8d5",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "filters text (FilterStringAsync)": true,
+      "broadcast filter": true,
+      "limits message length": true
+    },
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "sign",
+    "skill": true,
+    "run": 2,
+    "seconds": 39,
+    "turns": 18,
+    "cost_usd": 0.18794120000000003,
+    "agent_error": false,
+    "used_skill": true,
+    "tools": [
+      "Bash",
+      "Edit",
+      "Read",
+      "Skill",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code"
+    ],
+    "workdir": "/tmp/roblox-eval-sign-517seha9",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "filters text (FilterStringAsync)": true,
+      "broadcast filter": true,
+      "limits message length": true
+    },
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "sign",
+    "skill": false,
+    "run": 1,
+    "seconds": 48,
+    "turns": 15,
+    "cost_usd": 0.2158504,
+    "agent_error": false,
+    "used_skill": true,
+    "tools": [
+      "Bash",
+      "Skill",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code",
+      "mcp__roblox__get_project_info"
+    ],
+    "workdir": "/tmp/roblox-eval-sign-zggi13yd",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "filters text (FilterStringAsync)": true,
+      "broadcast filter": true,
+      "limits message length": true
+    },
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "sign",
+    "skill": false,
+    "run": 2,
+    "seconds": 49,
+    "turns": 15,
+    "cost_usd": 0.2001896,
+    "agent_error": false,
+    "used_skill": false,
+    "tools": [
+      "Bash",
+      "Edit",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code",
+      "mcp__roblox__get_project_info"
+    ],
+    "workdir": "/tmp/roblox-eval-sign-g660r0p0",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "filters text (FilterStringAsync)": true,
+      "broadcast filter": true,
+      "limits message length": true
+    },
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "projectile",
+    "skill": true,
+    "run": 1,
+    "seconds": 50,
+    "turns": 14,
+    "cost_usd": 0.2049066,
+    "agent_error": false,
+    "used_skill": true,
+    "tools": [
+      "Bash",
+      "Skill",
+      "Write",
+      "mcp__roblox__check_code"
+    ],
+    "workdir": "/tmp/roblox-eval-projectile-bpst2jlr",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "excludes owner and other fireballs": true,
+      "server-side cooldown": true
+    },
+    "score": "4/4",
+    "all_pass": true
+  },
+  {
+    "task": "projectile",
+    "skill": true,
+    "run": 2,
+    "seconds": 47,
+    "turns": 17,
+    "cost_usd": 0.21976159999999997,
+    "agent_error": false,
+    "used_skill": true,
+    "tools": [
+      "Bash",
+      "Edit",
+      "Glob",
+      "Read",
+      "Skill",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code"
+    ],
+    "workdir": "/tmp/roblox-eval-projectile-3mj0tb5c",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "excludes owner and other fireballs": true,
+      "server-side cooldown": true
+    },
+    "score": "4/4",
+    "all_pass": true
+  },
+  {
+    "task": "projectile",
+    "skill": false,
+    "run": 1,
+    "seconds": 40,
+    "turns": 13,
+    "cost_usd": 0.151349,
+    "agent_error": false,
+    "used_skill": false,
+    "tools": [
+      "Bash",
+      "Read",
+      "Write",
+      "mcp__roblox__check_code",
+      "mcp__roblox__get_project_info"
+    ],
+    "workdir": "/tmp/roblox-eval-projectile-76e0b1yh",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "excludes owner and other fireballs": true,
+      "server-side cooldown": true
+    },
+    "score": "4/4",
+    "all_pass": true
+  },
+  {
+    "task": "projectile",
+    "skill": false,
+    "run": 2,
+    "seconds": 37,
+    "turns": 16,
+    "cost_usd": 0.1613908,
+    "agent_error": false,
+    "used_skill": false,
+    "tools": [
+      "Edit",
+      "Glob",
+      "Read",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code",
+      "mcp__roblox__get_api_docs",
+      "mcp__roblox__get_project_info"
+    ],
+    "workdir": "/tmp/roblox-eval-projectile-hlxp0ef7",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "excludes owner and other fireballs": true,
+      "server-side cooldown": true
+    },
+    "score": "4/4",
+    "all_pass": true
+  },
+  {
+    "task": "npc",
+    "skill": true,
+    "run": 1,
+    "seconds": 41,
+    "turns": 11,
+    "cost_usd": 0.19406239999999997,
+    "agent_error": false,
+    "used_skill": true,
+    "tools": [
+      "Bash",
+      "Skill",
+      "Write",
+      "mcp__roblox__check_code"
+    ],
+    "workdir": "/tmp/roblox-eval-npc-jr_qpjd7",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "animates through the Animator": true,
+      "uses pathfinding": true,
+      "handles failed paths": true
+    },
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "npc",
+    "skill": true,
+    "run": 2,
+    "seconds": 43,
+    "turns": 14,
+    "cost_usd": 0.209402,
+    "agent_error": false,
+    "used_skill": true,
+    "tools": [
+      "Bash",
+      "Edit",
+      "Skill",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code"
+    ],
+    "workdir": "/tmp/roblox-eval-npc-1pqudks1",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "animates through the Animator": true,
+      "uses pathfinding": true,
+      "handles failed paths": true
+    },
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "npc",
+    "skill": false,
+    "run": 1,
+    "seconds": 49,
+    "turns": 16,
+    "cost_usd": 0.2191908,
+    "agent_error": false,
+    "used_skill": false,
+    "tools": [
+      "Bash",
+      "Edit",
+      "Read",
+      "Write",
+      "mcp__roblox__check_code",
+      "mcp__roblox__get_project_info"
+    ],
+    "workdir": "/tmp/roblox-eval-npc-38_dp0ni",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "animates through the Animator": true,
+      "uses pathfinding": true,
+      "handles failed paths": true
+    },
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "npc",
+    "skill": false,
+    "run": 2,
+    "seconds": 43,
+    "turns": 14,
+    "cost_usd": 0.19713080000000002,
+    "agent_error": false,
+    "used_skill": false,
+    "tools": [
+      "Bash",
+      "Edit",
+      "Read",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code"
+    ],
+    "workdir": "/tmp/roblox-eval-npc-t1d_7t87",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "animates through the Animator": true,
+      "uses pathfinding": true,
+      "handles failed paths": true
+    },
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "save",
+    "skill": true,
+    "run": 1,
+    "seconds": 34,
+    "turns": 14,
+    "cost_usd": 0.18912879999999999,
+    "agent_error": false,
+    "used_skill": true,
+    "tools": [
+      "Bash",
+      "Read",
+      "Skill",
+      "Write",
+      "mcp__roblox__check_code",
+      "mcp__roblox__read_guide"
+    ],
+    "workdir": "/tmp/roblox-eval-save-enl6hcbj",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "pcall around data store calls": true,
+      "saves on server shutdown (BindToClose)": true,
+      "saves when the player leaves": true
+    },
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "save",
+    "skill": true,
+    "run": 2,
+    "seconds": 34,
+    "turns": 15,
+    "cost_usd": 0.1970246,
+    "agent_error": false,
+    "used_skill": true,
+    "tools": [
+      "Bash",
+      "Read",
+      "Skill",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code",
+      "mcp__roblox__read_guide"
+    ],
+    "workdir": "/tmp/roblox-eval-save-_1upcml6",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "pcall around data store calls": true,
+      "saves on server shutdown (BindToClose)": true,
+      "saves when the player leaves": true
+    },
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "save",
+    "skill": false,
+    "run": 1,
+    "seconds": 24,
+    "turns": 11,
+    "cost_usd": 0.1271476,
+    "agent_error": false,
+    "used_skill": false,
+    "tools": [
+      "Edit",
+      "Glob",
+      "Read",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code",
+      "mcp__roblox__get_project_info"
+    ],
+    "workdir": "/tmp/roblox-eval-save-e_r2ewxt",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "pcall around data store calls": true,
+      "saves on server shutdown (BindToClose)": true,
+      "saves when the player leaves": true
+    },
+    "score": "5/5",
+    "all_pass": true
+  },
+  {
+    "task": "save",
+    "skill": false,
+    "run": 2,
+    "seconds": 26,
+    "turns": 11,
+    "cost_usd": 0.13023500000000002,
+    "agent_error": false,
+    "used_skill": false,
+    "tools": [
+      "Edit",
+      "Glob",
+      "Read",
+      "ToolSearch",
+      "Write",
+      "mcp__roblox__check_code"
+    ],
+    "workdir": "/tmp/roblox-eval-save-34x7z1is",
+    "type_errors": 0,
+    "deprecated": [],
+    "checks": {
+      "pcall around data store calls": true,
+      "saves on server shutdown (BindToClose)": true,
+      "saves when the player leaves": true
+    },
+    "score": "5/5",
+    "all_pass": true
+  }
+]

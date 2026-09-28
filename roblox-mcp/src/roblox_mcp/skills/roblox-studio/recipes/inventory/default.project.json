@@ -1,0 +1,14 @@
+{
+  "name": "inventory",
+  "emitLegacyScripts": false,
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": { "$path": "src/shared" },
+      "Remotes": { "$path": "src/remotes" }
+    },
+    "ServerScriptService": {
+      "Server": { "$path": "src/server" }
+    }
+  }
+}

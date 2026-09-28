@@ -1,0 +1,14 @@
+{
+  "name": "round-based",
+  "emitLegacyScripts": false,
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": { "$path": "src/shared" },
+      "Client": { "$path": "src/client" }
+    },
+    "ServerScriptService": {
+      "Server": { "$path": "src/server" }
+    }
+  }
+}
