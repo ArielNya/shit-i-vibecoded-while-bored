@@ -10,7 +10,7 @@ at [`Roblox/creator-docs`](https://github.com/Roblox/creator-docs) `0b817b5`
 (2026-09-26, `reference/engine/STUDIO_VERSION` = `0.740.19`). Roblox ships weekly,
 so the pin is bumped by a script (§7), not by hand.
 
-Status: **M0–M5 done, M6 done except what needs Studio, Open Cloud or another client** (see §8 notes; the Open Cloud parts of M3–M5 aren't verified against Roblox yet). Next: M6's remaining manual checks, then M7 (the wrapper).
+Status: **M0–M5 and M7 done, M6 done except what needs Studio, Open Cloud or another client** (see §8 notes; the Open Cloud parts of M3–M5 and the wrapper aren't verified against Roblox/Studio yet). Next: the manual Studio smoke (M6 + M7), then M8 only if it shows a gap.
 
 ---
 
@@ -235,8 +235,49 @@ verified.
 | **M4** ✅ | Assets | `upload_asset` + manifest for models, images, audio; acceptance: a local `.glb` ends up in Studio via `insert_asset` (manual Studio smoke) |
 | **M5** ✅ | Cloud ops | `publish_place`, `run_luau_cloud`, DataStore read (write opt-in) |
 | **M6** ◐ | Skill complete | all references + recipes; evals with vs. without skill; full-game smoke (small obby: build, code, test, publish to a private place) in Claude Code + one other harness |
-| **M7** | Wrapper | §9: `--wrap-studio` proxies the built-in server behind ours; the conflict rules there, each with a test against a fake built-in server; manual Studio smoke with only `roblox-mcp` configured |
+| **M7** ✅ | Wrapper | §9: `--wrap-studio` proxies the built-in server behind ours; the conflict rules there, each with a test against a fake built-in server; manual Studio smoke with only `roblox-mcp` configured |
 | **M8** | Stretch, only if M6 shows a real gap | own Studio plugin for what `execute_luau` can't do; multi-place universes; Packages; `.rbxm` insert without uploading |
+
+### M7 notes
+
+- `--wrap-studio` (`--studio-mcp` to override the launcher, found by default where Studio
+  installs it). The child connection opens in the server's lifespan, so Studio's tools
+  are registered before the first `tools/list`; each becomes a `ProxyTool` (a `Tool`
+  subclass whose `run` forwards the arguments through the guard and returns the child's
+  result as-is). Schemas are the child's, with titles stripped; no output schema is
+  advertised (the placeholder function's `null` one broke clients until removed).
+- The child gets the full environment: the SDK's default is a filtered subset, and
+  Studio's launcher may need `LOCALAPPDATA`/`HOME`. If it can't start, one stderr line
+  and our tools only (tested with a nonexistent launcher).
+- Rules find their arguments by shape, not by name (Roblox's parameter names aren't
+  documented beyond `studio_id` and `datamodel_type`): a `game.` path, a value equal to
+  `Edit`, a code field among `code/script/source/luau/command`, an integer asset id.
+  All five §9 rules are in: `multi_edit` refused on Rojo-owned paths (scripts from a fresh
+  sourcemap, plus every `$path` folder, since Rojo also deletes new instances created
+  inside them); Edit `execute_luau` wrapped in `ChangeHistoryService` recording unless the
+  code already records; `studio_id` filled when there's one Studio or one whose place id
+  matches `ROBLOX_PLACE_ID`/`ROBLOX_TEST_PLACE_ID`, refused with the list otherwise;
+  `start_stop_play` warns when Rojo isn't serving and waits up to 2 s after the newest
+  file change; `insert_asset` refuses a manifest asset that moderation rejected and notes
+  one still in review.
+- Two bugs caught by the tests: the sourcemap's root node lists `default.project.json`,
+  which made every `game.` path "Rojo-owned"; only script/model files and `$path` folders
+  count now.
+- The undo wrapper runs the code inside `pcall` and re-raises; tested under Lune with a
+  stub `ChangeHistoryService`: values returned unchanged, errors re-raised after
+  `Cancel` (which reverts), `Commit` on success, plain pass-through when recording isn't
+  possible (solo playtest).
+- Tested end to end: roblox-mcp as a separate process wrapping a fake Studio server
+  (`tests/fixtures/fake_studio_mcp.py`, the documented tool names, every tool echoing what
+  it received). Not tested with Studio's real server: its exact parameter names, its
+  `list_roblox_studios` output format (the studio_id rule falls back to pass-through if it
+  isn't JSON) and whether Studio's connection indicator shows a wrapped client are open.
+- Not done: re-listing tools on the child's `tools/list_changed` (restart picks them up).
+- Smoke (`examples/smoke/2026-09-28-wrapper.md`): Claude Code with only the wrapped
+  server, asked to `multi_edit` a Rojo-synced module, got the refusal, edited
+  `src/shared/Damage.luau` instead and ran `check_code`; its Edit-mode `execute_luau`
+  calls arrived wrapped. Seen: read-only Edit-mode calls get wrapped too (an empty undo
+  step at most); left as is rather than guessing which Luau is read-only.
 
 ### M6 notes
 

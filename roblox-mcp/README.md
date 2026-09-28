@@ -6,7 +6,7 @@ asset search and insert. This server covers what it can't do: the game project o
 disk (Rojo), type-checking and linting, tests, uploading local assets, publishing,
 and offline Engine API docs. It needs no Studio, so it also runs on Linux and in CI.
 
-Status: **M6** (Rojo projects and live sync, type checking and formatting, tests, asset
+Status: **M7** (the `--wrap-studio` single-server mode, Rojo projects and live sync, type checking and formatting, tests, asset
 uploads, cloud Luau runs, data stores, publishing, offline Engine API docs, and the
 `roblox-studio` agent skill with references and tested recipes). Open Cloud features are
 tested against a fake server only so far, and nothing has been run inside Studio yet.
@@ -57,6 +57,24 @@ JSON clients (Claude Desktop, Cursor, Gemini CLI, …):
 Verified: roblox-mcp over stdio and HTTP with the MCP SDK client (M0). Not yet
 tried in any harness with Studio connected; that's the M2 smoke test.
 
+### One server instead of two (`--wrap-studio`)
+
+roblox-mcp can start Studio's server itself and serve its tools next to its own, so the
+client needs one entry. Calls pass through unchanged except where the two servers
+conflict: `multi_edit` on a script Rojo syncs is refused (with the file to edit),
+Edit-mode `execute_luau` is wrapped in an undo recording, a missing `studio_id` is filled
+in when there's one Studio (or one matching `ROBLOX_PLACE_ID`), play-testing warns when
+Rojo isn't serving (and waits for fresh file changes to sync), and `insert_asset` of an
+upload still in moderation (from `assets.lock.json`) is flagged or refused if rejected.
+
+```sh
+claude mcp add roblox -- uvx --from /path/to/roblox-mcp roblox-mcp --project /path/to/your-game --wrap-studio
+```
+
+Studio's launcher is found where Studio installs it; `--studio-mcp "<command>"` overrides.
+If it can't start, roblox-mcp logs why and serves its own tools. Tested against a stand-in
+server with the documented tool names; not yet with Studio itself.
+
 ## Options
 
 Every option is a flag and an environment variable.
@@ -71,6 +89,8 @@ Every option is a flag and an environment variable.
 | `--no-http-auth` | | loopback only |
 | `--allow-publish` | `ROBLOX_MCP_ALLOW_PUBLISH=1` | off: adds `publish_place`, `run_luau_cloud place="live"` |
 | `--allow-datastore-writes` | `ROBLOX_MCP_ALLOW_DATASTORE_WRITES=1` | off: adds `datastore_set` |
+| `--wrap-studio` | `ROBLOX_MCP_WRAP_STUDIO=1` | off: serve Studio's MCP tools through this server |
+| `--studio-mcp` | `ROBLOX_MCP_STUDIO_MCP` | Studio's install location |
 
 The code tools need the toolchain: in a game project, `rokit install` (it reads the
 `rokit.toml` that `init_project` writes). Tools are looked up in `ROBLOX_MCP_BIN_DIR`, then

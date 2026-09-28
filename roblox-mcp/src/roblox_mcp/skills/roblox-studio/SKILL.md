@@ -21,6 +21,13 @@ Two MCP servers, each with its own job:
 If only one of them is connected, use what's there and say what's missing when a
 task needs the other.
 
+**Wrapper mode** (roblox-mcp started with `--wrap-studio`): Studio's tools appear under
+the roblox server instead (same names, e.g. `execute_luau`), and roblox-mcp enforces the
+rules below that it can: `multi_edit` on Rojo-synced scripts is refused with the file to
+edit, Edit-mode `execute_luau` is made undoable, a missing `studio_id` is filled in when
+unambiguous, play-testing warns when Rojo isn't syncing, and inserting an asset still in
+moderation says so. Follow the rules anyway; the wrapper is a safety net.
+
 ## 1. Orient before touching anything
 
 1. `list_roblox_studios` → choose the `studio_id` (match the place ID or name to
