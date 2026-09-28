@@ -16,6 +16,8 @@ DOCS = {
     "modifiers": "Common modifier types, their setting names, and stack order",
     "materials": "Material recipes, lighting setups, cameras and render engines",
     "troubleshooting": "Symptoms and fixes for common problems",
+    "character": "Low-poly character from a front/side reference sheet: model, rig, "
+    "skin, pose-test, animate, export",
 }
 
 
@@ -90,6 +92,34 @@ view "front", "top" or "iso"; render_preview when materials matter):
 
 Reference notes: blender://docs/workflow, blender://docs/selection,
 blender://docs/modifiers, blender://docs/materials."""
+
+    @mcp.prompt(
+        description="Build a rigged low-poly character from a front and a side view reference sheet"
+    )
+    def model_character(
+        front: str, side: str, height: str = "", style: str = "low poly, flat colours"
+    ) -> str:
+        size = f"{height} m tall" if height else "a height you choose from the sheet"
+        return f"""Build a rigged, game-ready low-poly character in Blender.
+Front view reference: {front}
+Side view reference: {side}
+Size: {size}. Style: {style}.
+
+Read blender://docs/character first and follow it stage by stage:
+1. Measure the sheet (head top, soles, centre line in pixels) and write a landmark
+   table in metres; add_reference_image for both views and check the alignment.
+2. Box-model one Body mesh: torso block, legs, feet, arms, neck and head, with an edge
+   loop at every joint. Bound every selection on both ends and check select_elements'
+   count before each extrude.
+3. Compare with render_preview(view front/right, ortho, textures, xray) and fix sizes
+   with transform_elements size/center until both views overlap.
+4. Flat-colour materials by region, sampled from the sheet.
+5. create_humanoid_rig from the same landmarks, bind_to_armature, and fix any
+   unweighted vertices.
+6. Pose-test (arms down, elbows, leg lift, knee bend, head turn) and look at each; then
+   reset_pose. Optionally keyframe a short walk.
+7. save_blend and export_file a .glb with the rig; summarise face count, bones and
+   anything that needs a human eye."""
 
     @mcp.prompt(description="Review the current scene for modelling problems and suggest fixes")
     def review_scene() -> str:

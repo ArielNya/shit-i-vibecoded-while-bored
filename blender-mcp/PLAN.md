@@ -269,6 +269,7 @@ subset for clients with tight tool limits.
 | **M5** ✅ | Escape hatch + resources | `execute_python` behind pref, docs resources, prompts |
 | **M6** ✅ | Hardening | token auth, path allowlist, timeouts, integration tests in CI, Codex + Claude setup verified end to end |
 | **M7** ✅ | Stretch | geometry-nodes helpers, sculpt/remesh helpers, animation keyframes, multi-instance (pick Blender by port), streaming progress for long renders |
+| **M8** ✅ | Characters | reference sheets, armatures + humanoid rig, skinning, posing; low-poly character skill verified end to end (sheet → rigged, animated .glb) |
 
 ---
 
@@ -391,6 +392,28 @@ subset for clients with tight tool limits.
   Failed binds also closed their socket (they leaked before).
 - Release: `CHANGELOG.md` + `.github/workflows/blender-mcp-release.yml` (tag
   `blender-mcp-v*` → checks, add-on zip, wheel/sdist, GitHub release).
+
+### M8 notes
+
+- Rig conventions: Z up, the character faces -Y, left = +X = `.L`. `create_humanoid_rig`
+  takes landmarks (left side, mirrored) or proportions of `height`; rolls are set so
+  +X is the natural bend for every bone (knees back, toes down, arms fold forward).
+  `pose_bone(mirror=true)` negates Y/Z for the opposite bone.
+- `bind_to_armature` uses `ARMATURE_AUTO` and fills any vertex that heat weighting
+  missed with an inverse-distance blend of its two nearest bones (same side only);
+  `nearest` does that for every vertex. The result reports unweighted vertices and
+  bones with no vertices.
+- `add_reference_image` builds a UV'd plane with an emission image material in a
+  `References` collection, unselectable, scaled so the sheet's feet/head rows land on
+  z=0 / z=height. Workbench `textures` + `xray` renders show it through the model.
+- Lessons from building the reference character, now in the skill: sizing by chained
+  multipliers drifts (hence absolute `size`/`center`); unbounded `normal` selections
+  also match limb side faces (bound both ends and check the count); opaque renders
+  hide the reference (hence `xray`).
+- The skill lives in `src/blender_mcp/docs/character.md`; `scripts/build_addon.py
+  --sync` generates `skills/lowpoly-character/SKILL.md`, and a unit test fails if it's stale.
+- The integration test caught `bind_to_armature(method=…)` colliding with
+  `Blender.call(method, …)`; the helper's first parameter is now positional-only.
 
 ### Review (after M1)
 

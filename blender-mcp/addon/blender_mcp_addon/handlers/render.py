@@ -111,7 +111,9 @@ def _temp_png():
 
 
 @contextmanager
-def _preview_camera(scene: bpy.types.Scene, view: str, target: str | None, aspect: float):
+def _preview_camera(
+    scene: bpy.types.Scene, view: str, target: str | None, aspect: float, ortho: bool = False
+):
     """A temporary camera looking at the target from `view`, removed afterwards."""
     center, radius = _framing(_targets(scene, target))
     data = bpy.data.cameras.new(PREVIEW_CAMERA)
@@ -126,6 +128,10 @@ def _preview_camera(scene: bpy.types.Scene, view: str, target: str | None, aspec
         cam.location = center + rotation.to_matrix() @ Vector((0, 0, distance))
         data.clip_start = max(0.001, (distance - radius) * 0.1)
         data.clip_end = distance + radius * 4
+        if ortho:
+            # ortho_scale spans the longer image edge; fit the bounds in the shorter one.
+            data.type = "ORTHO"
+            data.ortho_scale = 2.1 * radius / min(aspect, 1 / aspect)
         with _restoring(scene, camera=cam):
             yield cam
     finally:
@@ -152,6 +158,9 @@ def _render(
     size: int,
     samples: int | None,
     target: str | None,
+    ortho: bool = False,
+    textures: bool = False,
+    xray: bool = False,
 ) -> dict[str, Any]:
     if view == "camera" and scene.camera is None:
         raise ValueError("The scene has no camera; use a view like 'iso' or 'front' instead")
@@ -178,10 +187,16 @@ def _render(
         elif engine_id.startswith("BLENDER_EEVEE"):
             stack.enter_context(_restoring(scene.eevee, taa_render_samples=samples or 16))
         else:
-            # Show material colors instead of flat grey.
-            stack.enter_context(_restoring(scene.display.shading, color_type="MATERIAL"))
+            # Material colors instead of flat grey; TEXTURE also shows image textures
+            # (e.g. reference sheets), with untextured objects in their material color.
+            color = "TEXTURE" if textures else "MATERIAL"
+            stack.enter_context(_restoring(scene.display.shading, color_type=color))
+            if xray:  # see-through model, so a reference behind it stays visible
+                stack.enter_context(
+                    _restoring(scene.display.shading, show_xray=True, xray_alpha=0.5)
+                )
         if view != "camera":
-            stack.enter_context(_preview_camera(scene, view, target, width / height))
+            stack.enter_context(_preview_camera(scene, view, target, width / height, ortho))
         bpy.ops.render.render(write_still=True)
         image = _png_base64(path)
     return {
@@ -215,6 +230,9 @@ def render_preview(params: dict[str, Any]) -> dict[str, Any]:
         size=_check_size(params.get("size", DEFAULT_SIZE)),
         samples=params.get("samples"),
         target=params.get("object"),
+        ortho=bool(params.get("ortho", False)),
+        textures=bool(params.get("textures", False)),
+        xray=bool(params.get("xray", False)),
     )
 
 

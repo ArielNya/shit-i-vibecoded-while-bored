@@ -77,6 +77,20 @@ def register(mcp: MCPServer, blender: Blender) -> None:
             int | None, Field(ge=1, le=4096, description="eevee/cycles samples (default 16)")
         ] = None,
         object: Target = None,
+        ortho: Annotated[
+            bool,
+            Field(description="Orthographic camera for axis views (compare to references)"),
+        ] = False,
+        textures: Annotated[
+            bool, Field(description="workbench: show image textures (e.g. reference sheets)")
+        ] = False,
+        xray: Annotated[
+            bool,
+            Field(
+                description="workbench: half-transparent model, to compare against a "
+                "reference behind it"
+            ),
+        ] = False,
     ) -> list[Any]:
         """Render the scene at low resolution and return the image. Scene render
         settings are restored afterwards. Views other than 'camera' use a temporary
@@ -90,5 +104,8 @@ def register(mcp: MCPServer, blender: Blender) -> None:
             size=size,
             samples=samples,
             object=object,
+            ortho=ortho,
+            textures=textures,
+            xray=xray,
         )
         return _image_result(reply)

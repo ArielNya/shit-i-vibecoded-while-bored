@@ -61,7 +61,7 @@ SELECT_HELP = (
 
 
 def register(mcp: MCPServer, blender: Blender) -> None:
-    async def edit(method: str, **params: Any) -> Any:
+    async def edit(method: str, /, **params: Any) -> Any:
         return await blender.call(method, timeout=EDIT_TIMEOUT, **params)
 
     @mcp.tool(
@@ -202,7 +202,10 @@ def register(mcp: MCPServer, blender: Blender) -> None:
     @mcp.tool(
         description="Move/rotate/scale selected elements' vertices (local space) about a "
         "pivot — e.g. scale the top faces by 0.5 to taper, or translate them up. Order: "
-        "scale, rotate, translate." + SELECT_HELP
+        "scale, rotate, translate, then size/center. `size` and `center` are absolute — "
+        "best when matching a reference: size=[0.30, 0.28, null] makes the selection 30 cm "
+        "wide and 28 cm deep; center=[null, null, 1.4] moves it to z=1.4. The result "
+        "reports the selection's new bounds." + SELECT_HELP
     )
     async def transform_elements(
         name: Name,
@@ -214,11 +217,27 @@ def register(mcp: MCPServer, blender: Blender) -> None:
             Literal["median", "bounds_center", "origin"] | Vec3 | None,
             Field(description="Default: median of the selected vertices"),
         ] = None,
+        size: Annotated[
+            list[float | None] | None,
+            Field(
+                min_length=3,
+                max_length=3,
+                description="Target bounding-box size per axis; null keeps that axis",
+            ),
+        ] = None,
+        center: Annotated[
+            list[float | None] | None,
+            Field(
+                min_length=3,
+                max_length=3,
+                description="Target bounding-box centre per axis; null keeps that axis",
+            ),
+        ] = None,
         type: ElementType = "faces",
     ) -> dict[str, Any]:
         return await edit(
             "transform_elements", name=name, select=_spec(select), translate=translate,
-            rotation=rotation, scale=scale, pivot=pivot, type=type,
+            rotation=rotation, scale=scale, pivot=pivot, size=size, center=center, type=type,
         )  # fmt: skip
 
     @mcp.tool()

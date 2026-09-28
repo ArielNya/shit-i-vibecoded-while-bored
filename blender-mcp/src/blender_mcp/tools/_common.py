@@ -22,6 +22,7 @@ class Blender:
     async def call(
         self,
         method: str,
+        /,
         timeout: float | None = None,
         progress: Context | None = None,
         **params: Any,

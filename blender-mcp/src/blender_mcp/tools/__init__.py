@@ -10,6 +10,7 @@ from . import (
     mesh,
     nodes,
     python,
+    rig,
     sculpt,
     view,
 )
@@ -23,6 +24,7 @@ TOOLSETS = {
     "sculpt": sculpt,
     "nodes": nodes,
     "animate": animate,
+    "rig": rig,
     "look": look,
     "files": files,
     "python": python,

@@ -23,7 +23,9 @@ from . import (
     organic,
     paths,
     python_exec,
+    reference,
     render,
+    rigging,
     scene,
     shading,
     undo,
@@ -127,6 +129,16 @@ _HANDLERS = {
     "find_node_types": geonodes.find_node_types,
     "build_geometry_nodes": geonodes.build_geometry_nodes,
     "get_geometry_nodes": geonodes.get_geometry_nodes,
+    # M8: rigging and reference sheets
+    "create_armature": rigging.create_armature,
+    "create_humanoid_rig": rigging.create_humanoid_rig,
+    "bind_to_armature": rigging.bind_to_armature,
+    "set_vertex_weights": rigging.set_vertex_weights,
+    "pose_bone": rigging.pose_bone,
+    "reset_pose": rigging.reset_pose,
+    "get_armature_info": rigging.get_armature_info,
+    "add_reference_image": reference.add_reference_image,
+    "set_visibility": reference.set_visibility,
 }
 
 HANDLERS = {name: _fresh(fn) for name, fn in _HANDLERS.items()}
