@@ -1,0 +1,276 @@
+# godot-mcp
+
+MCP server that lets AI agents inspect, edit, run and debug a live **Godot 4.7+**
+project. It's meant to work with any MCP client (Claude Code, Claude Desktop, Codex CLI,
+Gemini CLI, Cursor, VS Code / Copilot, Windsurf, Zed, opencode, dsh, …).
+
+**Status: M0–M4 done.** The agent can explore the project, read and **edit** scenes
+(nodes, properties, signals, groups, instancing, save-branch-as-scene), **write**
+scripts and get the editor's errors and warnings back right away, navigate code
+(definitions, references, symbols), look up the Godot 4.7 API, screenshot the editor,
+and undo its own changes. It can also **run the game and play-test it**: read its
+output and runtime errors (with file:line and backtrace), inspect and tweak the live
+scene, send input, wait for conditions, and take screenshots of the game. It runs over
+stdio or Streamable HTTP, and has been checked against real clients (see below). See
+[`PLAN.md`](PLAN.md) for the roadmap.
+
+```
+AI client ──stdio──▶ godot-mcp (Python) ──TCP 127.0.0.1:9080──▶ Godot editor + "Godot MCP" plugin
+                          └──────────────── LSP :6005 ─────────▶ (GDScript language server)
+```
+
+## Tools
+
+| Toolset | Tools |
+| --- | --- |
+| `project` | `ping`, `get_project_info`, `list_files`, `search_files`, `get_project_settings`, `set_project_setting`, `get_input_map`, `edit_input_map` |
+| `scene` | `get_scene_tree`, `get_node_properties` |
+| `edit` | `open_scene`, `new_scene`, `save_scene`, `close_scene`, `add_node`, `remove_node`, `rename_node`, `move_node`, `duplicate_node`, `set_node_properties`, `list_signals`, `connect_signal`, `disconnect_signal`, `set_groups`, `save_branch_as_scene`, `undo`, `redo` |
+| `script` | `read_script`, `get_diagnostics`, `write_script`, `edit_script`, `create_script`, `attach_script`, `detach_script`, `find_symbol`, `get_definition`, `get_references` |
+| `docs` | `get_class_docs`, `search_docs` |
+| `view` | `get_editor_screenshot` |
+| `run` | `run_project`, `stop_project`, `get_run_status`, `get_output`, `get_runtime_errors`, `get_game_screenshot`, `get_live_tree`, `get_live_properties`, `set_live_properties`, `send_input`, `wait_for`, `get_performance` |
+
+- **`get_diagnostics`** asks the editor's own GDScript analyzer (through the built-in
+  language server) for errors and warnings in one file or the whole project. You get the
+  same messages the script editor shows, e.g. `4:19 Cannot assign a value of type
+  "String" as "int".`
+- **`get_class_docs` / `search_docs`** answer from the running engine's `ClassDB` plus
+  the class reference. The agent sees the exact API of *your* Godot version, and your
+  own `class_name` scripts too. Godot 3 names get a pointer to the Godot 4 name
+  (`KinematicBody2D` → use `CharacterBody2D`).
+- **Every change is one editor undo step** named `MCP: <tool>`, so you can Ctrl+Z it in
+  Godot. The agent's `undo`/`redo` only touch its own changes. Like Ctrl+Z, they only
+  act on the current scene and the global history, and they stop instead of reverting
+  anything you did in the editor since. Scene edits reach the disk on `save_scene`;
+  settings and scripts are saved right away.
+- **Scripts:** `write_script`, `edit_script` and `create_script` reload the file in the
+  editor and return fresh errors and warnings. They refuse to overwrite a script that
+  has unsaved changes in Godot's script editor (`force=true` overrides), and they can't
+  write scenes, `project.godot` or this plugin's own files.
+- **`set_project_setting` / `edit_input_map`** save `project.godot`.
+- **Running the game:** `run_project` presses Play in the editor. The game talks back
+  through Godot's own debugger connection to a small **`McpRuntime` autoload**, which
+  the plugin adds to your project (it does nothing unless the game was started from
+  the editor, and it's left out of exported games). Script errors don't pause the game
+  the way a normal debug run would; they're logged, and `get_runtime_errors` returns
+  them with file:line and a backtrace. When the editor has no display, the game runs
+  headless: input, live properties and waits work, but screenshots need a window.
+  A typical play-test is `send_input` (hold `move_right` for 60 frames), then
+  `get_live_properties` or `wait_for` a condition.
+- **Values** are plain JSON where possible. Engine types are written as GDScript
+  literals (`"Vector2(100, 200)"`, `"Color(1, 0, 0, 1)"`). Resources are
+  `{"_type": "Resource", "class": "...", "path": "res://..."}`.
+
+## Requirements
+
+- Godot **4.7** or newer (standard or .NET build)
+- [uv](https://docs.astral.sh/uv/) (it fetches Python 3.11+ automatically)
+
+## Setup
+
+### 1. Add the plugin to your Godot project
+
+Copy [`addon/addons/godot_mcp`](addon/addons/godot_mcp) into your project so it ends up
+at `res://addons/godot_mcp/`:
+
+```bash
+git clone https://github.com/ArielNya/shit-i-vibecoded-while-bored.git
+cp -r shit-i-vibecoded-while-bored/godot-mcp/addon/addons/godot_mcp /path/to/your/project/addons/
+```
+
+Then in Godot: *Project → Project Settings → Plugins* → enable **Godot MCP**. An **MCP**
+dock appears that shows `● Listening on 127.0.0.1:9080`. No token setup is needed: the
+plugin writes a private token file and the server reads it (see [Security](#security)).
+
+### 2. The server command
+
+Every client runs the same command:
+
+```bash
+uvx --from "git+https://github.com/ArielNya/shit-i-vibecoded-while-bored@main#subdirectory=godot-mcp" godot-mcp
+```
+
+- **From a clone** (for development): `uv run --directory /path/to/godot-mcp godot-mcp`.
+- **Don't** use `uvx godot-mcp` on its own. The PyPI name hasn't been claimed by this
+  project.
+- **GUI apps:** desktop apps often don't inherit your shell's PATH. If the client can't
+  find `uvx`, use its full path (`which uvx`, or `where uvx` on Windows).
+
+Below, `SERVER_SPEC` stands for
+`git+https://github.com/ArielNya/shit-i-vibecoded-while-bored@main#subdirectory=godot-mcp`.
+Ready-to-copy files with it filled in are in [`examples/`](examples/).
+
+### 3. Register it with your client
+
+The server speaks plain MCP over **stdio** (every client) or **Streamable HTTP**
+(`--http`, see below). Its tool schemas keep to what every major client accepts;
+`scripts/check_harness_schemas.py` checks that in CI. What has actually been run (details
+in [`examples/smoke/`](examples/smoke/)):
+
+| Client | Status |
+| --- | --- |
+| Claude Code | **verified**: a model used the tools end to end, over stdio and HTTP |
+| Gemini CLI, opencode | **connects** over stdio and HTTP and discovers the tools (no model run) |
+| MCP Inspector (TypeScript SDK, which most IDE clients use) | **verified** tool listing and calls, stdio and HTTP |
+| Codex CLI | config accepted by `codex mcp list`; not connected |
+| Claude Desktop, Cursor, VS Code, Windsurf, Zed, Cline, JetBrains AI, dsh | untested; configs follow each client's docs |
+
+Ready-to-copy files are in [`examples/`](examples/).
+
+<details open>
+<summary><b>Claude Code</b></summary>
+
+```bash
+claude mcp add godot -s user -- uvx --from "SERVER_SPEC" godot-mcp
+claude mcp list          # godot … ✓ Connected
+```
+
+Or check [`examples/claude-code.mcp.json`](examples/claude-code.mcp.json) into your game
+repo as `.mcp.json`.
+</details>
+
+<details>
+<summary><b>Claude Desktop</b>, <b>Cursor</b>, <b>Windsurf</b>, <b>Cline</b>, <b>JetBrains AI</b>, <b>Gemini CLI</b></summary>
+
+All of these read the same `mcpServers` shape
+([`examples/claude_desktop_config.json`](examples/claude_desktop_config.json)):
+
+```json
+{ "mcpServers": { "godot": { "command": "uvx", "args": ["--from", "SERVER_SPEC", "godot-mcp"] } } }
+```
+
+Where it goes: Claude Desktop *Settings → Developer → Edit Config*; Cursor
+`.cursor/mcp.json` (or `~/.cursor/mcp.json`); Windsurf
+`~/.codeium/windsurf/mcp_config.json`; Cline *MCP Servers → Configure*; JetBrains AI
+*Settings → Tools → AI Assistant → MCP → As JSON*; Gemini CLI `~/.gemini/settings.json`
+or `.gemini/settings.json` (Gemini only starts MCP servers in *trusted* folders).
+Restart the app afterwards. GUI apps may need the full path to `uvx`.
+
+With many servers Cursor slows down (godot-mcp has 52 tools): add
+`"env": {"GODOT_MCP_TOOLSETS": "core"}` (31 tools) or `"minimal"` (13).
+</details>
+
+<details>
+<summary><b>Codex CLI</b></summary>
+
+```bash
+codex mcp add godot -- uvx --from "SERVER_SPEC" godot-mcp
+```
+
+or [`examples/codex.config.toml`](examples/codex.config.toml) in `~/.codex/config.toml`
+(sets a longer `tool_timeout_sec` for game runs).
+</details>
+
+<details>
+<summary><b>VS Code (Copilot agent mode)</b></summary>
+
+[`examples/vscode.mcp.json`](examples/vscode.mcp.json) as `.vscode/mcp.json`: a stdio
+entry, plus an HTTP entry that prompts for the token.
+</details>
+
+<details>
+<summary><b>opencode</b>, <b>Zed</b>, <b>dsh</b></summary>
+
+[`examples/opencode.json`](examples/opencode.json) (`opencode.json`),
+[`examples/zed.settings.json`](examples/zed.settings.json) (Zed `settings.json`,
+`context_servers`), [`examples/dsh.cordis.patch.yml`](examples/dsh.cordis.patch.yml)
+(dsh starts servers with an empty environment, so give the full `uvx` path; the server
+needs nothing else).
+</details>
+
+<details>
+<summary><b>Streamable HTTP</b> (one server shared by several clients, remote dev containers)</summary>
+
+```bash
+uvx --from "SERVER_SPEC" godot-mcp --http            # http://127.0.0.1:7080/mcp
+```
+
+Clients must send `Authorization: Bearer <token>`. The token is the one in the shared
+token file (`~/.config/godot-mcp/token`), or your own with `--http-token`.
+`--no-http-auth` turns auth off, and is only allowed on a loopback address.
+
+```bash
+claude mcp add --transport http godot http://127.0.0.1:7080/mcp \
+  --header "Authorization: Bearer $(cat ~/.config/godot-mcp/token)"
+```
+
+HTTP configs for Claude Code, Gemini CLI, VS Code and Codex are in
+[`examples/`](examples/) (`*.http.*`, `gemini-http.settings.json`, the commented Codex
+entry). They read the token from `GODOT_MCP_HTTP_TOKEN`.
+</details>
+
+<details>
+<summary><b>Clients that don't show images to the model</b></summary>
+
+Screenshots come back as MCP image content. If your client drops images, run the server
+with `--image-mode file` (or `both`): the PNG is saved (under the project's `.godot/`
+folder) and its path is returned, so an agent with file access can open it.
+</details>
+
+## Configuration
+
+Server: each option is a flag and an environment variable (`godot-mcp --help`):
+
+| Flag | Variable | Default | |
+| --- | --- | --- | --- |
+| `--godot-port` / `--godot-host` | `GODOT_MCP_PORT` / `GODOT_MCP_HOST` | `9080` / `127.0.0.1` | where the editor plugin listens |
+| `--token` / `--token-file` | `GODOT_MCP_TOKEN` / `GODOT_MCP_TOKEN_FILE` | the shared token file | plugin token |
+| `--timeout` | `GODOT_MCP_TIMEOUT` | `30` | seconds per editor call |
+| `--toolsets` | `GODOT_MCP_TOOLSETS` | `all` (52) | presets `core` (31), `minimal` (13), and/or `project,scene,edit,script,docs,view,run` |
+| `--lsp-port` / `--lsp-host` | `GODOT_MCP_LSP_PORT` / `GODOT_MCP_LSP_HOST` | from the editor | GDScript language server |
+| `--image-mode` | `GODOT_MCP_IMAGE_MODE` | `inline` | `file` / `both`: save screenshots as PNGs and return their paths |
+| `--http`, `--http-port`, `--http-host` | `GODOT_MCP_HTTP_PORT` / `_HOST` | stdio; `7080`, `127.0.0.1` | Streamable HTTP |
+| `--http-token`, `--no-http-auth` | `GODOT_MCP_HTTP_TOKEN` | the token file's token | HTTP bearer token |
+
+Flags win over variables. Nothing depends on `HOME` or `PATH`, so clients that start
+servers with an empty environment work too.
+
+Plugin: *Editor → Editor Settings → Godot Mcp* has `port`, `auto_start`,
+`require_token` and `token`. For scripted launches, arguments after `--` override
+them: `godot -e --path proj -- --mcp-port=9081 --mcp-token=… --mcp-no-auth`. The
+matching environment variables are `GODOT_MCP_PORT`, `GODOT_MCP_TOKEN` and
+`GODOT_MCP_NO_AUTH=1`. If you start the editor with `--lsp-port N`, also pass
+`-- --mcp-lsp-port=N`. Godot consumes `--lsp-port` before plugins can see it.
+
+**Several editors at once:** give each one its own `godot_mcp/port`, and each server
+entry the matching `GODOT_MCP_PORT`. Only the first editor gets the language server
+port (6005), so the others need their own (`--lsp-port`) for `get_diagnostics` and
+member docs.
+
+## Security
+
+- The plugin listens on **127.0.0.1 only**. By default it requires a token. On first
+  start it writes a random one to `~/.config/godot-mcp/token` (macOS:
+  `~/Library/Application Support/…`, Windows: `%APPDATA%\…`), readable only by you, and
+  the server reads the same file.
+- File tools only see `res://` paths. `..` is rejected, and hidden folders and folders
+  with a `.gdignore` are skipped.
+- `set_project_setting` can only change game settings (application, display, physics,
+  rendering, audio, input devices, layer names, autoloads, …). It can't touch
+  `editor_plugins/` or editor settings, so an agent can't turn this plugin off or
+  change it.
+- The HTTP transport requires a bearer token by default: the server can drive the
+  editor, so an open port would let any local process do that. It binds to
+  127.0.0.1 and checks Host/Origin headers against DNS rebinding.
+- The runtime in the game only answers the editor it was started from (over Godot's
+  debugger connection); it opens no ports of its own and is inert in exported builds.
+- The server's instructions tell the model that project contents are data, not
+  instructions.
+
+## Development
+
+```bash
+cd godot-mcp
+uv sync
+uv run ruff check . && uv run ruff format --check .
+uv run pytest tests/unit -q                              # no Godot needed
+GODOT_BIN=/path/to/godot uv run pytest tests/integration -q
+```
+
+The integration tests copy [`tests/fixtures/demo_project`](tests/fixtures/demo_project)
+plus the plugin to a temp folder, open it in a real headless editor and drive every
+tool through an MCP client. The screenshot tests run the editor with a window under
+`xvfb-run` (Mesa software OpenGL) and are skipped if `xvfb-run` is missing. To hack on
+the plugin itself, open [`addon/`](addon/) in Godot; it's a tiny project with the
+plugin enabled.

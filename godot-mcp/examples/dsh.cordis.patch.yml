@@ -1,0 +1,8 @@
+# dsh starts servers with a scrubbed environment: use the full path to uvx.
+- id: mcp-godot
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    serverName: godot
+    transport: stdio
+    command: /full/path/to/uvx
+    args: ['--from', 'git+https://github.com/ArielNya/shit-i-vibecoded-while-bored@main#subdirectory=godot-mcp', 'godot-mcp']

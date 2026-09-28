@@ -1,0 +1,9 @@
+# ~/.codex/config.toml (stdio; the HTTP entry is optional)
+[mcp_servers.godot]
+command = "uvx"
+args = ["--from", "git+https://github.com/ArielNya/shit-i-vibecoded-while-bored@main#subdirectory=godot-mcp", "godot-mcp"]
+tool_timeout_sec = 120
+
+# [mcp_servers.godot-http]
+# url = "http://127.0.0.1:7080/mcp"
+# bearer_token_env_var = "GODOT_MCP_HTTP_TOKEN"

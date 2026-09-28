@@ -1,0 +1,17 @@
+{
+  "inputs": [
+    { "id": "godot-token", "type": "promptString", "description": "godot-mcp token (only for the HTTP entry)", "password": true }
+  ],
+  "servers": {
+    "godot": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/ArielNya/shit-i-vibecoded-while-bored@main#subdirectory=godot-mcp", "godot-mcp"]
+    },
+    "godot-http": {
+      "type": "http",
+      "url": "http://127.0.0.1:7080/mcp",
+      "headers": { "Authorization": "Bearer ${input:godot-token}" }
+    }
+  }
+}

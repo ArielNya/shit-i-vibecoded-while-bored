@@ -1,0 +1,23 @@
+; Fixture for the integration tests. The tests copy this folder (plus the plugin from
+; addon/addons/godot_mcp) to a temporary directory and open it in a headless editor.
+
+config_version=5
+
+[application]
+
+config/name="MCP Demo"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7")
+
+[autoload]
+
+GameState="*res://scripts/game_state.gd"
+
+[display]
+
+window/size/viewport_width=640
+window/size/viewport_height=360
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg")

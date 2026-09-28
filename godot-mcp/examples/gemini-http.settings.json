@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "godot": {
+      "httpUrl": "http://127.0.0.1:7080/mcp",
+      "headers": { "Authorization": "Bearer $GODOT_MCP_HTTP_TOKEN" }
+    }
+  }
+}
