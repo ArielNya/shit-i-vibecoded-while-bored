@@ -39,3 +39,21 @@ if [ -d blender-mcp ]; then
     echo "export BLENDER_PYTHON=\"$BPY_ENV/bin/python\"" >> "$CLAUDE_ENV_FILE"
   fi
 fi
+
+# godot-mcp integration tests need a Godot editor binary. Installed once, outside the repo.
+if [ -d godot-mcp ]; then
+  GODOT_VERSION="4.7.2-stable"
+  GODOT_DIR="$HOME/.cache/godot-mcp/godot-$GODOT_VERSION"
+  GODOT_BIN="$GODOT_DIR/Godot_v${GODOT_VERSION}_linux.x86_64"
+  if [ ! -x "$GODOT_BIN" ]; then
+    echo "session-start: downloading Godot $GODOT_VERSION" >&2
+    mkdir -p "$GODOT_DIR"
+    curl -sSL -o "$GODOT_DIR/godot.zip" \
+      "https://github.com/godotengine/godot-builds/releases/download/$GODOT_VERSION/Godot_v${GODOT_VERSION}_linux.x86_64.zip" \
+      && unzip -oq "$GODOT_DIR/godot.zip" -d "$GODOT_DIR" && rm -f "$GODOT_DIR/godot.zip" \
+      || echo "session-start: Godot download failed; godot-mcp integration tests will skip" >&2
+  fi
+  if [ -x "$GODOT_BIN" ] && [ -n "${CLAUDE_ENV_FILE:-}" ]; then
+    echo "export GODOT_BIN=\"$GODOT_BIN\"" >> "$CLAUDE_ENV_FILE"
+  fi
+fi

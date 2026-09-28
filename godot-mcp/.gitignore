@@ -1,0 +1,3 @@
+# Godot editor cache of the dev project (addon/) and test copies
+.godot/
+__pycache__/

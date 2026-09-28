@@ -9,7 +9,7 @@ game, look at it, read the errors, fix them, repeat.
 Target engine: **Godot 4.7** (current stable is 4.7.2, Aug 2026). Minimum supported:
 4.7. The 4.8 dev snapshots run in a non-blocking CI job so we see breakage early.
 
-Status: **planning** — nothing implemented yet.
+Status: **M0 + M1 done** (see §8 notes). Next: M2 (editing scenes and scripts).
 
 ---
 
@@ -99,6 +99,7 @@ godot-mcp/
 │   ├── bridge.py               ← async TCP client to the editor, framing, reconnect
 │   ├── protocol.py             ← message schemas + protocol version (mirrored in GDScript)
 │   ├── lsp.py                  ← minimal LSP client for Godot's :6005 server
+│   ├── bbcode.py               ← class-reference BBCode → Markdown
 │   ├── headless.py             ← spawn `godot --headless` for no-editor tools
 │   ├── compat.py               ← per-harness quirks (schema flattening, image fallback)
 │   ├── tools/                  ← one module per toolset (project, scene, script, run, …)
@@ -109,12 +110,15 @@ godot-mcp/
 │       ├── plugin.cfg
 │       ├── plugin.gd           ← EditorPlugin: start/stop, dock, settings
 │       ├── listener.gd         ← TCPServer + framing + auth, polled in _process
-│       ├── protocol.gd         ← GDScript mirror of protocol.py (generated + checked in CI)
+│       ├── protocol.gd         ← GDScript mirror of protocol.py (constants checked in CI)
+│       ├── codec.gd            ← Variant ⇄ JSON (§4 typed values)
+│       ├── paths.gd            ← res:// normalisation + hidden/symlink guards
+│       ├── log_capture.gd      ← Logger that records engine errors for replies
 │       ├── debugger_plugin.gd  ← EditorDebuggerPlugin: talks to running games
 │       ├── export_plugin.gd    ← strips McpRuntime from export builds
 │       ├── runtime/mcp_runtime.gd   ← autoload inside the game
 │       ├── handlers/           ← mirror of tools/: project.gd, scene.gd, node.gd, …
-│       └── dock/               ← status dock scene (port, token, log, toggles)
+│       └── dock.gd             ← EditorDock: status, start/stop, copy config, log
 ├── tests/
 │   ├── unit/                   ← server-side with a fake bridge; schema compat checks
 │   ├── integration/            ← real `godot --headless --editor` + plugin
@@ -258,12 +262,15 @@ Tools are grouped into **toolsets** (§6.3) so tool-capped harnesses can load a 
 - **Framing & protocol:** 4-byte big-endian length + UTF-8 JSON, JSON-RPC 2.0,
   versioned `hello` handshake (same as `blender-mcp`, so bridge code is shared).
   Hard limits: 64 KB before auth, 32 MB after, max 8 clients, bounded JSON depth.
-- **Typed JSON values:** one serializer shared by all handlers.
-  `{"_type":"Vector2","x":1,"y":2}`, `{"_type":"Color","html":"#ff0000"}`,
-  `{"_type":"Resource","path":"res://…"}`, `{"_type":"NodePath","path":"../Player"}`.
-  Plain JSON numbers/strings/bools pass through. The same shape is accepted as
-  input, and string shorthands (`"Vector2(1, 2)"`) are parsed with `str_to_var` for
-  forgiveness.
+- **Typed JSON values** (`codec.gd`, one serializer shared by all handlers; decided in
+  M1): plain JSON for null/bool/int/float/string; every other built-in type is its
+  **GDScript literal** (`"Vector2(1, 2)"`, `"Color(1, 0, 0, 1)"`, `"NodePath(\"../P\")"`),
+  which is compact and exactly what the model writes in GDScript anyway. Resources →
+  `{"_type":"Resource","class":…,"path":"res://…"}` (or `"embedded": true`), nodes →
+  `{"_type":"Node","class":…,"path":…}`. Input is decoded *type-directed* (the target
+  property's type is known): literals are parsed with `str_to_var` only after checking
+  they are a single constructor of the expected type (so no `Object(...)`), `[1, 2]`
+  works for vectors, `"#ff0000"`/`"red"` for colors, `"res://…"` for resources.
 - **Undo:** `EditorUndoRedoManager.create_action("MCP: add_node")`, `add_do_method`
   / `add_undo_method` / `add_do_reference`. Failures roll back before committing.
 - **Filesystem sync:** after any file write → `EditorFileSystem.update_file()` or
@@ -292,7 +299,8 @@ Tools are grouped into **toolsets** (§6.3) so tool-capped harnesses can load a 
   `GODOT_MCP_TOKEN`. The dock shows it with a copy button and a ready-made config
   snippet.
 - File tools are confined to `res://` plus explicit allowlisted import/export
-  folders; `..`, symlink escapes and `user://`-to-OS tricks are rejected.
+  folders; `..`, symlink escapes and `user://`-to-OS tricks are rejected. Hidden
+  paths too (done in M1): `.godot/export_credentials.cfg` holds keystore passwords.
   `.godot/`, `addons/godot_mcp/` and `project.godot` are write-protected except
   through the dedicated settings tools.
 - `execute_gdscript` and `export_project` are opt-in toggles.
@@ -385,8 +393,8 @@ per milestone in each harness we can access; transcripts + screenshots kept in
 
 | # | Milestone | Done when |
 | --- | --- | --- |
-| **M0** | Skeleton | uv project; plugin enables, dock shows status; `hello` handshake + `get_project_info` works from Claude Code *and* one non-Claude harness |
-| **M1** | Read the project | §3.1 + `get_scene_tree`, `get_node_properties`, `read_script`, `get_class_docs`, `get_diagnostics` (LSP); editor screenshots |
+| **M0** ✅ | Skeleton | uv project; plugin enables, dock shows status; `hello` handshake + `get_project_info` works from Claude Code *and* one non-Claude harness |
+| **M1** ✅ | Read the project | §3.1 + `get_scene_tree`, `get_node_properties`, `read_script`, `get_class_docs`, `get_diagnostics` (LSP); editor screenshots |
 | **M2** | Edit scenes & scripts | rest of §3.2 + §3.3 with undo; typed-JSON codec; agent builds a small 2D scene with a moving player |
 | **M3** | Run & observe | runtime bridge: run/stop, output, runtime errors, game screenshot, live tree, `send_input`, `wait`; the *fix-errors loop* works end to end |
 | **M4** | Harness hardening | Streamable HTTP, toolsets, schema checker in CI, image-file fallback, configs + smoke run on ≥6 harnesses |
@@ -396,6 +404,51 @@ per milestone in each harness we can access; transcripts + screenshots kept in
 | **M8** | Stretch | C# depth (build errors, `[Export]` awareness), multi-editor (pick by port/project), animation/AnimationTree helpers, shader tools, native in-editor HTTP transport experiment, Asset Library release |
 
 Release tags: `godot-mcp-v*`, mirroring `blender-mcp`'s release workflow.
+
+### M0 notes
+
+- Built and tested against the real Godot **4.7.2** editor (Linux). Integration tests
+  open a copy of `tests/fixtures/demo_project` in `godot --headless --editor` and drive
+  every tool through an MCP client; screenshot tests run the editor under Xvfb with
+  Mesa's software OpenGL (`--rendering-driver opengl3`). CI does the same
+  (`.github/workflows/godot-mcp.yml`), plus a non-blocking job on the newest Godot
+  build.
+- Verified end to end over **stdio** as a client would run it (`uvx --from <path>
+  godot-mcp`, raw JSON-RPC `initialize` → `tools/list` → `tools/call`) against a headless
+  editor on the default port with the token file. Not yet smoke-tested inside Claude
+  Code or another harness (that's M4); the configs in the README follow each client's
+  documented format.
+- Handshake is the blender-mcp one (`handshake` method, token, protocol version), not
+  a new `hello`: same Python bridge code.
+- GDScript has no exceptions: handlers return an `McpError` object; a runtime error in
+  a handler makes it return `null`, and the listener then replies with the engine
+  errors captured by a `Logger` (`OS.add_logger`, 4.5+) during that call.
+- The editor accepts connections before the first filesystem scan/import finishes, so
+  handlers that need files `await` the scan, and `ping` reports `editor_ready`.
+- Godot **consumes `--lsp-port`** before scripts see it (`OS.get_cmdline_args()` lacks
+  it), so the plugin can only report the Editor Settings port. Editors started with
+  `--lsp-port N` also take `-- --mcp-lsp-port=N`; the server has `GODOT_MCP_LSP_PORT`.
+- Uses `EditorDock` + `add_dock()` (4.6+) for the dock.
+
+### M1 notes
+
+- Diagnostics come from the editor's GDScript language server: `didOpen` with the file
+  text, wait for `publishDiagnostics` for that URI (clean files get an empty publish,
+  so no timeouts). Repeat checks close and re-open the document. Only the first error
+  stage is reported by Godot (a parse error hides type errors until fixed).
+- `get_class_docs`: structure from `ClassDB` in the editor (enum-typed properties get
+  their enum name from the getter's return info; setters/getters fold into
+  properties), descriptions from the LSP's `textDocument/nativeSymbol` (class entry
+  includes every member's docs), BBCode converted to Markdown. Right after the first
+  start the editor may still be generating the class reference, so empty answers are
+  retried for a few seconds and never cached. Godot 3 class names get a rename hint.
+- Tool schemas avoid `Optional` (which becomes `anyOf`): defaults are `""`/`0`, and
+  free-form values (`set_project_setting.value`) are strings parsed as JSON when
+  possible; `tests/unit/test_schemas.py` enforces the rules of §6.2.
+- `set_project_setting` covers autoloads via `add/remove_autoload_singleton`; all
+  setting and input-map changes are `EditorUndoRedoManager` actions that also save.
+- `list_files` reflects the editor's filesystem (types, class names, respects
+  `.gdignore`); `search_files` walks the disk so it also sees non-resource text files.
 
 ---
 

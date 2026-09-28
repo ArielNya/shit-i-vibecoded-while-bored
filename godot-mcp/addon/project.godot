@@ -1,0 +1,13 @@
+; Development project for the godot-mcp editor plugin. Open this folder in Godot 4.7+
+; to hack on addons/godot_mcp with the plugin already enabled.
+
+config_version=5
+
+[application]
+
+config/name="godot-mcp dev"
+config/features=PackedStringArray("4.7")
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg")

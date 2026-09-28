@@ -1,0 +1,5 @@
+# ~/.codex/config.toml
+[mcp_servers.godot]
+command = "uvx"
+args = ["--from", "git+https://github.com/ArielNya/shit-i-vibecoded-while-bored@main#subdirectory=godot-mcp", "godot-mcp"]
+tool_timeout_sec = 120
