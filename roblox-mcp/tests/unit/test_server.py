@@ -11,7 +11,12 @@ pytestmark = pytest.mark.anyio
 
 async def test_every_tool_is_portable_to_every_client():
     listed = await create_server().list_tools()
-    assert {t.name for t in listed} == {"get_project_info"}
+    assert {t.name for t in listed} == {
+        "get_project_info",
+        "get_api_docs",
+        "search_api",
+        "read_guide",
+    }
     assert {t.name: compat.problems(t) for t in listed if compat.problems(t)} == {}
 
 

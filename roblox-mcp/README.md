@@ -6,8 +6,8 @@ asset search and insert. This server covers what it can't do: the game project o
 disk (Rojo), type-checking and linting, tests, uploading local assets, publishing,
 and offline Engine API docs. It needs no Studio, so it also runs on Linux and in CI.
 
-Status: **M0** (skeleton: `get_project_info`, stdio + HTTP). See [`PLAN.md`](PLAN.md)
-for the roadmap.
+Status: **M1** (project info, offline Engine API docs, the `roblox-studio` agent skill).
+See [`PLAN.md`](PLAN.md) for the roadmap.
 
 Targets Roblox Studio **0.740** (Sept 2026).
 
@@ -75,6 +75,25 @@ Open Cloud (later milestones) reads `ROBLOX_API_KEY`, `ROBLOX_UNIVERSE_ID` and
 | Tool | What it does |
 | --- | --- |
 | `get_project_info` | Rojo or Studio-only project, Rojo tree, toolchain versions (rojo, luau-lsp, selene, stylua, lune, rokit), Open Cloud settings, where Studio's MCP server is installed |
+| `get_api_docs` | Engine API reference for Studio 0.740, offline: `Part`, `Workspace:Raycast` (through inheritance), `Enum.Material`, `task.wait`, `wait` (with its deprecation note) |
+| `search_api` | find classes and members by name or summary words |
+| `read_guide` | the `roblox-studio` skill and its references, for clients that don't load skills |
+
+## Agent skill
+
+[`src/roblox_mcp/skills/roblox-studio/`](src/roblox_mcp/skills/roblox-studio/) teaches
+an agent to use both servers together: orient (`studio_id`, Rojo or not), which tool
+for what, undoable edits, client/server structure, remote validation, modern Luau,
+deprecated APIs. It works with Studio's server alone too.
+
+Claude Code: copy or link the folder into your skills directory.
+
+```sh
+ln -s /path/to/roblox-mcp/src/roblox_mcp/skills/roblox-studio ~/.claude/skills/roblox-studio
+```
+
+Other agents: point them at `SKILL.md`, or they can read the same text through
+`read_guide`.
 
 ## Development
 
@@ -83,4 +102,11 @@ uv sync
 uv run ruff check . && uv run ruff format --check .
 uv run pytest -q
 uv run python scripts/check_harness_schemas.py
+```
+
+Updating the API reference (a sparse checkout of `content/en-us/reference/engine` from
+[Roblox/creator-docs](https://github.com/Roblox/creator-docs) is enough):
+
+```sh
+uv run python scripts/build_api_index.py /path/to/creator-docs
 ```

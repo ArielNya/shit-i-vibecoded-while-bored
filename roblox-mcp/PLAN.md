@@ -10,7 +10,7 @@ at [`Roblox/creator-docs`](https://github.com/Roblox/creator-docs) `0b817b5`
 (2026-09-26, `reference/engine/STUDIO_VERSION` = `0.740.19`). Roblox ships weekly,
 so the pin is bumped by a script (§7), not by hand.
 
-Status: **M0 done** (see §8 notes). Next: M1 (docs grounding + skill v0).
+Status: **M0–M1 done** (see §8 notes). Next: M2 (project & code).
 
 ---
 
@@ -228,7 +228,7 @@ verified.
 | # | Milestone | Done when |
 | --- | --- | --- |
 | **M0** ✅ | Skeleton | uv project; `get_project_info`; stdio + HTTP; schema checker; README with both server configs |
-| **M1** | Docs grounding | `get_api_docs`, `search_api`, deprecated table from pinned `creator-docs`; **skill v0** (`SKILL.md` + 3 references) usable with the built-in server alone |
+| **M1** ✅ | Docs grounding | `get_api_docs`, `search_api`, deprecated table from pinned `creator-docs`; **skill v0** (`SKILL.md` + 3 references) usable with the built-in server alone |
 | **M2** | Project & code | `init_project`, `build_place`, `sync_status`, `check_code`, `format_code` on the fixture game; session hook installs the toolchain |
 | **M3** | Tests | `run_tests` local (Lune) and cloud (Luau Execution); acceptance: the agent fixes the fixture's failing spec using only tools |
 | **M4** | Assets | `upload_asset` + manifest for models, images, audio; acceptance: a local `.glb` ends up in Studio via `insert_asset` (manual Studio smoke) |
@@ -236,6 +236,38 @@ verified.
 | **M6** | Skill complete | all references + recipes; evals with vs. without skill; full-game smoke (small obby: build, code, test, publish to a private place) in Claude Code + one other harness |
 | **M7** | Wrapper | §9: `--wrap-studio` proxies the built-in server behind ours; the conflict rules there, each with a test against a fake built-in server; manual Studio smoke with only `roblox-mcp` configured |
 | **M8** | Stretch, only if M6 shows a real gap | own Studio plugin for what `execute_luau` can't do; multi-place universes; Packages; `.rbxm` insert without uploading |
+
+### M1 notes
+
+- `scripts/build_api_index.py <creator-docs checkout>` turns the 1,194 YAML files of
+  `content/en-us/reference/engine` (commit `0b817b5`, Studio `0.740.19`) into
+  `src/roblox_mcp/data/engine_api.json.gz` (1 MB, committed, shipped in the wheel) and
+  generates `references/deprecated.md`. A sparse checkout of that folder is enough.
+  Docs cross-references (`` `Class.X:Y()|Y()` ``) become plain names; docs-relative
+  links become `create.roblox.com/docs` URLs. Code samples (IDs only) are dropped.
+- Name clashes in the reference: `Instance` is both a class and a datatype (holding
+  only `Instance.new`/`fromExisting`), merged into the class; `Platform`, `Status`
+  (class + enum) and `Font` (datatype + enum): bare names find the class/datatype,
+  `Enum.X` the enum.
+- `get_api_docs` resolves members through superclasses (`Workspace:Raycast` →
+  `WorldRoot:Raycast`), `Enum.X.Item`, `task.wait`, bare globals (`wait`); lists own
+  members with signatures, inherited members by name per ancestor, deprecated ones
+  separately; skips `Hidden` / `NotScriptable`. Unknown names get search suggestions.
+- `search_api`: word matches on names (whole word > prefix) and summaries, deprecated
+  APIs excluded unless asked. Good for names and "what does X" queries; weak for
+  intent phrasing that shares no words with the summary ("save player data" doesn't
+  find DataStores). Revisit with the M6 evals.
+- The skill lives in the package (`src/roblox_mcp/skills/roblox-studio/`), so
+  `read_guide` serves the same files and there's one copy. v0: `SKILL.md`,
+  `project-layout.md`, `networking.md`, `deprecated.md`. Grounded in creator-docs
+  pages (cited at the top of each reference) and Rojo 7.7's docs and changelog; every
+  API they name was checked against the index (none deprecated). Correction found on
+  the way: Roblox now recommends a single `Script` with `RunContext = Client` in
+  `ReplicatedStorage` as the client entry, `LocalScript`s sparingly; with Rojo that
+  needs `"emitLegacyScripts": false`.
+- Smoke: Claude Code 2.1.283 (`claude -p`, only roblox-mcp connected) answered "what
+  replaces BodyGyro and Humanoid:LoadAnimation, and the new signature" correctly via
+  `get_api_docs`. The skill hasn't been used against a real Studio yet.
 
 ### M0 notes
 
