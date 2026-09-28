@@ -133,7 +133,7 @@ Uploads need `asset:read` and `asset:write`, and an owner: `ROBLOX_CREATOR_USER_
 an agent to use both servers together: orient (`studio_id`, Rojo or not), which tool
 for what, undoable edits, client/server structure, remote validation, modern Luau,
 deprecated APIs, text filtering, data saving; plus recipes (obby, round-based game,
-inventory with saved data) that CI type-checks and tests. It works with Studio's server
+inventory with saved data) that the integration tests type-check, test and build. It works with Studio's server
 alone too.
 
 Claude Code: copy or link the folder into your skills directory.

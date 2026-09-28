@@ -11,7 +11,7 @@ textures, lighting and cameras, and save/open/import/export files. The test suit
 models a mug with a handle using only tool calls. Every change is one named undo
 step in Blender (`MCP: …`). M5 adds reference notes, workflow prompts, and an
 opt-in `execute_python` escape hatch; M6 hardens it (automatic per-user auth, import
-checks, CI) — see [Security](#security). M7 adds animation, sculpt-style helpers,
+checks) — see [Security](#security). M7 adds animation, sculpt-style helpers,
 Geometry Nodes, several Blenders at once, and progress updates on long operations. See [`PLAN.md`](PLAN.md) for the roadmap.
 
 ```

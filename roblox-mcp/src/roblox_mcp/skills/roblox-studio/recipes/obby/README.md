@@ -4,7 +4,7 @@ Stages with checkpoints, kill parts, a `Stage` leaderboard stat, respawn at the 
 checkpoint. Code in files (Rojo), the course built in Studio, behaviour attached by
 **tags**, so the level designer never touches scripts.
 
-Files (type-check clean, specs pass; roblox-mcp's CI checks them):
+Files (type-check clean, specs pass; roblox-mcp's integration tests check them):
 
 - `src/shared/Stages.luau`: the rule "advance one stage at a time", pure, with
   `Stages.spec.luau`.
