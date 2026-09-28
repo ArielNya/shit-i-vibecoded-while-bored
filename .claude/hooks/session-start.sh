@@ -57,3 +57,11 @@ if [ -d godot-mcp ]; then
     echo "export GODOT_BIN=\"$GODOT_BIN\"" >> "$CLAUDE_ENV_FILE"
   fi
 fi
+
+# ponytail Claude Code plugin (github.com/DietrichGebert/ponytail), installed at user scope.
+if command -v claude >/dev/null 2>&1 && ! claude plugin list 2>/dev/null | grep -q "ponytail@ponytail"; then
+  echo "session-start: installing ponytail plugin" >&2
+  claude plugin marketplace add DietrichGebert/ponytail >/dev/null 2>&1 || true
+  claude plugin install ponytail@ponytail --scope user >/dev/null 2>&1 \
+    || echo "session-start: ponytail plugin install failed" >&2
+fi
