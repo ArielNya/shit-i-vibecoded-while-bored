@@ -6,8 +6,8 @@ asset search and insert. This server covers what it can't do: the game project o
 disk (Rojo), type-checking and linting, tests, uploading local assets, publishing,
 and offline Engine API docs. It needs no Studio, so it also runs on Linux and in CI.
 
-Status: **M2** (Rojo projects and live sync, type checking and formatting, offline Engine
-API docs, the `roblox-studio` agent skill).
+Status: **M3** (Rojo projects and live sync, type checking and formatting, tests, offline
+Engine API docs, the `roblox-studio` agent skill).
 See [`PLAN.md`](PLAN.md) for the roadmap.
 
 Targets Roblox Studio **0.740** (Sept 2026).
@@ -73,8 +73,10 @@ The code tools need the toolchain: in a game project, `rokit install` (it reads 
 `PATH`. On Linux without rokit (CI, sandboxes),
 `uv run python scripts/install_toolchain.py <dir>` downloads the pinned versions.
 
-Open Cloud (later milestones) reads `ROBLOX_API_KEY`, `ROBLOX_UNIVERSE_ID` and
-`ROBLOX_PLACE_ID`. The key is never logged or returned by a tool.
+Open Cloud reads `ROBLOX_API_KEY`, `ROBLOX_UNIVERSE_ID`, `ROBLOX_PLACE_ID` and, for cloud
+test runs, `ROBLOX_TEST_PLACE_ID` (a separate place: each run uploads a saved version to
+it). The key is never logged or returned by a tool. Scopes for cloud tests:
+`universe-places:write`, `universe.place.luau-execution-session:write` and `:read`.
 
 ## Tools
 
@@ -86,6 +88,7 @@ Open Cloud (later milestones) reads `ROBLOX_API_KEY`, `ROBLOX_UNIVERSE_ID` and
 | `sync_status` | start, stop or check `rojo serve` so Studio's Rojo plugin gets file changes |
 | `check_code` | luau-lsp type check + lints with Roblox's types (new type solver, requires resolved through the Rojo sourcemap); selene too if the project has a `selene.toml` |
 | `format_code` | StyLua; returns the files it changed |
+| `run_tests` | `*.spec.luau` specs locally under Lune (pure Luau), or in a real headless Roblox server through Open Cloud (`target="cloud"`, needs a separate test place) |
 | `get_api_docs` | Engine API reference for Studio 0.740, offline: `Part`, `Workspace:Raycast` (through inheritance), `Enum.Material`, `task.wait`, `wait` (with its deprecation note) |
 | `search_api` | find classes and members by name or summary words |
 | `read_guide` | the `roblox-studio` skill and its references, for clients that don't load skills |

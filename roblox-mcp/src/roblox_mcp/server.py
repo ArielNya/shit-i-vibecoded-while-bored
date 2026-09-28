@@ -11,7 +11,7 @@ from pathlib import Path
 from mcp.server.mcpserver import MCPServer
 
 from . import __version__, compat
-from .tools import code, docs, project
+from .tools import code, docs, project, tests
 
 INSTRUCTIONS = """\
 Companion to Roblox Studio's built-in MCP server ("Roblox_Studio"). That server works on
@@ -32,6 +32,7 @@ def create_server(root: Path | None = None) -> MCPServer:
     root = (root or Path.cwd()).resolve()
     project.register(mcp, root)
     code.register(mcp, root)
+    tests.register(mcp, root)
     docs.register(mcp)
     compat.make_portable(mcp._tool_manager)
     return mcp

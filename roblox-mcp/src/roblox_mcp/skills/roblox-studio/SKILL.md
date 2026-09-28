@@ -15,8 +15,8 @@ Two MCP servers, each with its own job:
   inside the place, `execute_luau`, play-testing, input, screenshots, asset
   search/insert/generation.
 - **roblox** (roblox-mcp, optional): the project on disk and Roblox's cloud.
-  Project info, Rojo setup and live sync, type checking and formatting, API docs,
-  guides; later tests, asset upload, publishing. Works without Studio.
+  Project info, Rojo setup and live sync, type checking, formatting, tests, API
+  docs, guides; later asset upload, publishing. Works without Studio.
 
 If only one of them is connected, use what's there and say what's missing when a
 task needs the other.
@@ -39,6 +39,7 @@ task needs the other.
 | Read code | your file tools | `script_read`, `script_grep` |
 | Write code | your file tools on the `.luau` files (**never `multi_edit`**: Rojo overwrites it) | `multi_edit` |
 | Check code | `check_code` (types + lints, Studio's API), `format_code` | read `get_console_output` after running |
+| Test logic | `*.spec.luau` next to the module, `run_tests` (local, or `target="cloud"` for engine code) | same, needs files |
 | Get code into Studio | `sync_status` (start `rojo serve`; the user connects Studio's Rojo plugin) | already there |
 | No project yet, user wants files/git | `init_project` | same |
 | Build the world, set properties, tags, attributes, lighting | `execute_luau` in `Edit` (undoable, §3) | same |
@@ -112,7 +113,7 @@ Where code runs decides what it can do. Details in `references/project-layout.md
 ## 6. The loop
 
 1. Make the change (code or world).
-2. Rojo mode: `check_code` and fix every error before running; `sync_status` shows
+2. Rojo mode: `check_code` and fix every error, `run_tests` for logic you touched; `sync_status` shows
    Rojo is serving so Studio has the new code. Studio mode: re-read what you wrote.
 3. `start_stop_play` → `get_console_output` (errors show script + line) →
    `screen_capture` to see it. Drive the game with `character_navigation`,
@@ -137,5 +138,6 @@ roblox-mcp):
 
 - `references/project-layout.md`: services, what goes where, Rojo layout.
 - `references/networking.md`: remotes, validation, replication, rate limits.
+- `references/testing.md`: spec format, local vs cloud runs, test place rules.
 - `references/deprecated.md`: deprecated APIs and their replacements
   (generated from the API reference).

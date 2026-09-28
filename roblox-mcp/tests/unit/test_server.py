@@ -13,7 +13,7 @@ async def test_every_tool_is_portable_to_every_client():
     listed = await create_server().list_tools()
     assert {t.name for t in listed} == {
         "get_project_info", "init_project", "build_place", "sync_status",
-        "check_code", "format_code", "get_api_docs", "search_api", "read_guide",
+        "check_code", "format_code", "run_tests", "get_api_docs", "search_api", "read_guide",
     }  # fmt: skip
     assert {t.name: compat.problems(t) for t in listed if compat.problems(t)} == {}
 

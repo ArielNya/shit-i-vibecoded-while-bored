@@ -10,7 +10,7 @@ at [`Roblox/creator-docs`](https://github.com/Roblox/creator-docs) `0b817b5`
 (2026-09-26, `reference/engine/STUDIO_VERSION` = `0.740.19`). Roblox ships weekly,
 so the pin is bumped by a script (§7), not by hand.
 
-Status: **M0–M2 done** (see §8 notes). Next: M3 (tests).
+Status: **M0–M3 done** (see §8 notes). Next: M4 (assets).
 
 ---
 
@@ -71,7 +71,7 @@ Challenge: if you only ever work Studio-only, no git, no tests, the skill alone
   `blender-mcp`. Copy their transport, schema-compat checker (`compat.py`) and
   config-by-flag-or-env code; don't share a package (repo convention).
 - **CLI tools, not reimplementations.** Rojo 7.7, luau-lsp 1.70, selene 0.31 (optional, M2 notes),
-  StyLua 2.5, Lune 0.10, jest-lua 3.10, pinned in the game project's
+  StyLua 2.5, Lune 0.10, pinned in the game project's
   `rokit.toml`. `roblox-mcp` shells out to them and parses their JSON output.
 - **Two project modes**, detected, never asked:
   - **Rojo mode** (`default.project.json` present): code is files, and Rojo
@@ -105,7 +105,7 @@ Small on purpose, ~16 tools. Names don't collide with the built-in ones.
 | --- | --- |
 | `check_code` | `rojo sourcemap` → `luau-lsp analyze` (Roblox definitions, new type solver), + `selene` if the project has a `selene.toml`; one list of `file:line:col severity code message` |
 | `format_code` | `stylua` on files or the project; returns changed files |
-| `run_tests` | `jest-lua` specs: pure modules under Lune locally; `target="cloud"` runs the built place via Open Cloud Luau Execution (real engine, headless, ≤5 min) and returns structured pass/fail + logs |
+| `run_tests` | `*.spec.luau` specs on roblox-mcp's own harness (M3 notes): pure modules under Lune locally; `target="cloud"` runs the built place via Open Cloud Luau Execution (real engine, headless, ≤5 min) and returns structured pass/fail + logs |
 
 ### 3.3 `assets`
 | Tool | Purpose |
@@ -182,7 +182,7 @@ replication), `ui.md` (ScreenGui, UIListLayout, scaling across devices),
 `physics-and-characters.md`, `data.md` (DataStores, session locking,
 `UpdateAsync`), `assets.md` (import rules, mesh/texture limits, packages),
 `performance.md` (StreamingEnabled, instance counts, MicroProfiler),
-`testing.md` (jest-lua, cloud runs), `publishing.md`, `recipes/` (obby,
+`testing.md` (spec format, local and cloud runs), `publishing.md`, `recipes/` (obby,
 round-based game, tycoon, inventory with DataStore).
 
 Evaluated with `skill-creator`-style evals: same tasks with and without the skill,
@@ -208,7 +208,7 @@ verified.
 - **Toolchain integration (here, Linux):** real Rojo/luau-lsp/selene/StyLua/Lune
   installed by `rokit` in the session hook; fixture game in
   `tests/fixtures/sample_game/` with deliberate type errors, lint hits and a
-  failing jest-lua spec.
+  failing spec.
 - **Open Cloud integration (CI, optional):** runs only when repo secrets
   `ROBLOX_API_KEY`, `ROBLOX_UNIVERSE_ID`, `ROBLOX_PLACE_ID` exist: build → upload
   test place → `run_tests target=cloud` → upload a tiny PNG. Note: this cloud
@@ -230,12 +230,49 @@ verified.
 | **M0** ✅ | Skeleton | uv project; `get_project_info`; stdio + HTTP; schema checker; README with both server configs |
 | **M1** ✅ | Docs grounding | `get_api_docs`, `search_api`, deprecated table from pinned `creator-docs`; **skill v0** (`SKILL.md` + 3 references) usable with the built-in server alone |
 | **M2** ✅ | Project & code | `init_project`, `build_place`, `sync_status`, `check_code`, `format_code` on the fixture game; session hook installs the toolchain |
-| **M3** | Tests | `run_tests` local (Lune) and cloud (Luau Execution); acceptance: the agent fixes the fixture's failing spec using only tools |
+| **M3** ✅ | Tests | `run_tests` local (Lune) and cloud (Luau Execution); acceptance: the agent fixes the fixture's failing spec using only tools |
 | **M4** | Assets | `upload_asset` + manifest for models, images, audio; acceptance: a local `.glb` ends up in Studio via `insert_asset` (manual Studio smoke) |
 | **M5** | Cloud ops | `publish_place`, `run_luau_cloud`, DataStore read (write opt-in) |
 | **M6** | Skill complete | all references + recipes; evals with vs. without skill; full-game smoke (small obby: build, code, test, publish to a private place) in Claude Code + one other harness |
 | **M7** | Wrapper | §9: `--wrap-studio` proxies the built-in server behind ours; the conflict rules there, each with a test against a fake built-in server; manual Studio smoke with only `roblox-mcp` configured |
 | **M8** | Stretch, only if M6 shows a real gap | own Studio plugin for what `execute_luau` can't do; multi-place universes; Packages; `.rbxm` insert without uploading |
+
+### M3 notes
+
+- `run_tests(paths, target, filter)`: `local` runs under Lune, `cloud` through Open Cloud.
+- **No jest-lua:** its README says it only runs inside Roblox (Lune support is an open
+  issue), so it can't be the local runner. roblox-mcp ships its own harness instead,
+  `data/test_harness.luau`: ~110 lines of plain Luau, prepended to both runners. A spec
+  is `X.spec.luau` returning `function(t)` with `t.describe`, `t.test`, `t.expect`
+  (`toBe`, `toEqual`, `toBeCloseTo`, `toBeNil`, `toBeTruthy`, `toThrow`). No globals and
+  no harness module to install, so specs type-check under `--!strict` and run anywhere.
+- **Same spec in both places** because Roblox now supports require-by-string (`./X`,
+  `../X`, `@self`, `@game`; creator-docs `LuaGlobals.require`), as does Lune, and Rojo
+  keeps disk and DataModel layouts aligned. Instance-path requires are Roblox-only.
+- Local: the runner file is written into the project root (so relative requires
+  resolve), run with `lune run`, deleted afterwards; results come back as one JSON line.
+  Lune has no engine globals (`Vector3` is nil), which the testing guide says plainly.
+- Cloud: `opencloud.py` (stdlib `urllib`) builds with `rojo build`, uploads a **Saved**
+  version (`POST universes/v1/{u}/places/{p}/versions?versionType=Saved`), creates a Luau
+  execution task on that version, polls until COMPLETE/FAILED, then reads the logs.
+  Shapes and scopes from creator-docs `reference/cloud/openapi.json` and
+  `universes-api/v1.json`; 5 task creations per minute per key owner. The driver finds
+  every ModuleScript named `*.spec` in the game's content services and returns the
+  results table as the task output.
+- **Safety:** cloud tests need `ROBLOX_TEST_PLACE_ID` and refuse when it equals
+  `ROBLOX_PLACE_ID`: a saved version is what Studio opens next, so uploading test builds
+  to the real place could replace someone's work.
+- Tested: local runs against real Lune (pass; a regression caught with the spec line;
+  filter; a spec returning a non-function; a failing require), with absolute paths and
+  Lune stack traces stripped from messages. **Cloud runs are not verified against Roblox**
+  (`apis.roblox.com` is blocked here): a fake Open Cloud server checks the exact request
+  sequence (key header, upload body and content type, task body, polling, logs), failure
+  states and HTTP error hints, and the generated cloud script type-checks against
+  Roblox's definitions. First real run needs a key and a test place (CI secrets or a
+  machine with network).
+- Acceptance: Claude Code 2.1.283 (`claude -p`, only roblox-mcp) on a copy of the fixture
+  with a broken `Damage.apply`: `get_project_info` → `run_tests` (1 failing) → read →
+  edit the module (not the spec) → `run_tests` 2/2 → `check_code` clean.
 
 ### M2 notes
 

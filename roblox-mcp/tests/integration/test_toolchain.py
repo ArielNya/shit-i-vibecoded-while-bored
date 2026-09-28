@@ -87,3 +87,20 @@ def test_selene_runs_when_the_project_has_a_config(game):
     (game / "src/shared/Shadow.luau").write_text("local x = 1\nlocal x = 2\nprint(x)\nreturn nil\n")
     text = "\n".join(code.check(game, "src/shared")["problems"])
     assert "src/shared/Shadow.luau:2:7 warning selene::shadowing" in text
+
+
+@pytest.mark.skipif(toolchain.find("lune") is None, reason="lune not installed")
+def test_local_tests_pass_then_catch_a_regression(game):
+    from roblox_mcp.tools import tests
+
+    assert tests.run_local(game, "", "") == {
+        "passed": 2, "failed": 0, "failures": [], "target": "local", "specs": 1}  # fmt: skip
+    damage = game / "src/shared/Damage.luau"
+    damage.write_text(damage.read_text().replace("math.max(0, health - amount)",
+                                                 "health - amount"))  # fmt: skip
+    result = tests.run_local(game, "", "")
+    assert (result["passed"], result["failed"]) == (1, 1)
+    assert result["failures"] == [
+        "src/shared/Damage.spec > apply > never goes below zero: "
+        "src/shared/Damage.spec:10: expected 0, got -20"
+    ]
