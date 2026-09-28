@@ -14,6 +14,7 @@ TOPOLOGY_STATS_MAX_VERTS = 200_000
 
 
 def _summary(obj: bpy.types.Object) -> dict[str, Any]:
+    bpy.context.view_layer.update()  # reflect edits made earlier in this same call
     return {
         "name": obj.name,
         "type": obj.type,

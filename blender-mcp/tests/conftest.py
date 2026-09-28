@@ -2,7 +2,9 @@ import threading
 import time
 
 import pytest
-from blender_mcp_addon.listener import Listener, MainThreadQueue
+from blender_mcp_addon.listener import HANDSHAKE_TIMEOUT, Listener, MainThreadQueue
+
+from blender_mcp import protocol
 
 
 @pytest.fixture
@@ -10,13 +12,26 @@ def anyio_backend():
     return "asyncio"
 
 
+@pytest.fixture(autouse=True)
+def private_token_file(tmp_path, monkeypatch):
+    """Never read or write the real ~/.config/blender-mcp/token in tests."""
+    path = tmp_path / "blender-mcp" / "token"
+    monkeypatch.setenv(protocol.TOKEN_FILE_ENV, str(path))
+    return path
+
+
 class FakeBlender:
     """A Listener with stub handlers and a thread standing in for Blender's main thread."""
 
-    def __init__(self, handlers, token=None):
+    def __init__(self, handlers, token=None, handshake_timeout=HANDSHAKE_TIMEOUT, port=0):
         self.queue = MainThreadQueue()
         self.listener = Listener(
-            handlers, self.queue, port=0, token=token, server_info={"blender_version": "fake"}
+            handlers,
+            self.queue,
+            port=port,
+            token=token,
+            server_info={"blender_version": "fake"},
+            handshake_timeout=handshake_timeout,
         )
         self._stop = threading.Event()
         self.main_thread = threading.Thread(target=self._drain_loop, name="fake-main")
@@ -41,8 +56,8 @@ class FakeBlender:
 def fake_blender():
     started = []
 
-    def make(handlers, token=None):
-        fb = FakeBlender(handlers, token).start()
+    def make(handlers, token=None, **kwargs):
+        fb = FakeBlender(handlers, token, **kwargs).start()
         started.append(fb)
         return fb
 

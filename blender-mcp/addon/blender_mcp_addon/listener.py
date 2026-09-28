@@ -8,6 +8,7 @@ bpy.app.timers callback (or a plain loop in --background mode).
 from __future__ import annotations
 
 import hmac
+import os
 import queue
 import socket
 import threading
@@ -19,6 +20,11 @@ from typing import Any
 from . import protocol
 
 Handler = Callable[[dict[str, Any]], Any]
+
+MAX_CLIENTS = 8
+# Seconds a new connection gets to complete the handshake, so idle unauthenticated
+# connections can't hold all MAX_CLIENTS slots.
+HANDSHAKE_TIMEOUT = 10.0
 
 
 class MainThreadQueue:
@@ -42,7 +48,9 @@ class MainThreadQueue:
                 continue
             try:
                 future.set_result(fn())
-            except Exception as exc:
+            except BaseException as exc:  # a stray SystemExit must not stop Blender's loop
+                if not isinstance(exc, Exception):
+                    exc = RuntimeError(f"handler raised {exc!r}")
                 future.set_exception(exc)
 
 
@@ -55,7 +63,9 @@ class Listener:
         port: int = protocol.DEFAULT_PORT,
         token: str | None = None,
         server_info: dict[str, Any] | None = None,
+        handshake_timeout: float = HANDSHAKE_TIMEOUT,
     ) -> None:
+        self.handshake_timeout = handshake_timeout
         self.handlers = handlers
         self.main_thread = main_thread
         self.host = host
@@ -81,9 +91,19 @@ class Listener:
         if self.running:
             return
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((self.host, self.port))
-        sock.listen()
+        if os.name == "nt":
+            # On Windows SO_REUSEADDR would let another process bind the same port
+            # (hijacking it); exclusive use makes a taken port fail as it should.
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        else:
+            # POSIX: only allows rebinding over TIME_WAIT, not over a live listener.
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((self.host, self.port))
+            sock.listen()
+        except OSError:
+            sock.close()
+            raise
         sock.settimeout(0.5)
         self.port = sock.getsockname()[1]  # resolves port 0 to the real port
         self._sock = sock
@@ -119,9 +139,12 @@ class Listener:
                 continue
             except OSError:
                 return
-            conn.settimeout(None)
             with self._clients_lock:
+                if len(self._clients) >= MAX_CLIENTS:
+                    conn.close()
+                    continue
                 self._clients.add(conn)
+            conn.settimeout(self.handshake_timeout)
             threading.Thread(
                 target=self._serve_client, args=(conn,), name="blender-mcp-client", daemon=True
             ).start()
@@ -130,15 +153,23 @@ class Listener:
         state = {"authenticated": False}
         try:
             while not self._stop.is_set():
+                limit = (
+                    protocol.MAX_MESSAGE_BYTES
+                    if state["authenticated"]
+                    else protocol.MAX_UNAUTHENTICATED_BYTES
+                )
                 try:
-                    message = protocol.read_message(conn)
+                    message = protocol.read_message(conn, max_bytes=limit)
                 except protocol.ProtocolError as exc:
                     reply = protocol.error(None, protocol.PARSE_ERROR, str(exc))
                     conn.sendall(protocol.encode(reply))
                     return
                 if message is None:
                     return
-                conn.sendall(protocol.encode(self._dispatch(message, state)))
+                was_authenticated = state["authenticated"]
+                conn.sendall(self._encode_reply(message.get("id"), self._dispatch(message, state)))
+                if state["authenticated"] and not was_authenticated:
+                    conn.settimeout(None)  # authenticated: no deadline between requests
         except OSError:
             pass
         finally:
@@ -146,7 +177,23 @@ class Listener:
                 self._clients.discard(conn)
             conn.close()
 
+    @staticmethod
+    def _encode_reply(msg_id: Any, reply: dict[str, Any]) -> bytes:
+        try:
+            return protocol.encode(reply)
+        except (protocol.ProtocolError, TypeError, ValueError) as exc:
+            # e.g. a result bigger than MAX_MESSAGE_BYTES: tell the client instead of hanging up.
+            return protocol.encode(
+                protocol.error(msg_id, protocol.HANDLER_ERROR, f"could not send result: {exc}")
+            )
+
     def _dispatch(self, message: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return self._dispatch_unchecked(message, state)
+        except Exception as exc:  # never let one bad request kill the connection thread
+            return protocol.error(message.get("id"), protocol.HANDLER_ERROR, repr(exc))
+
+    def _dispatch_unchecked(self, message: dict[str, Any], state: dict[str, Any]) -> dict:
         msg_id = message.get("id")
         method = message.get("method")
         params = message.get("params") or {}
@@ -177,7 +224,8 @@ class Listener:
                 f"protocol version mismatch: add-on speaks {protocol.PROTOCOL_VERSION}, "
                 f"server speaks {client_version}. Update whichever is older.",
             )
-        if self.token and not hmac.compare_digest(str(params.get("token") or ""), self.token):
+        given = str(params.get("token") or "").encode("utf-8")
+        if self.token and not hmac.compare_digest(given, self.token.encode("utf-8")):
             return protocol.error(msg_id, protocol.UNAUTHORIZED, "invalid token")
         state["authenticated"] = True
         return protocol.result(

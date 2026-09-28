@@ -27,13 +27,28 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host", default=protocol.DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=protocol.DEFAULT_PORT)
     parser.add_argument("--token", default=None)
+    parser.add_argument("--workspace", default=None, help="folder for file tools")
+    parser.add_argument(
+        "--allow-python", action="store_true", help="enable execute_python (needs auth)"
+    )
+    parser.add_argument(
+        "--auto-port", action="store_true", help="if the port is taken, use the next free one"
+    )
+    parser.add_argument(
+        "--no-auth",
+        action="store_true",
+        help="accept connections without a token (tests only; default uses the token file)",
+    )
     return parser.parse_args(argv)
 
 
 def main() -> None:
     args = parse_args()
     if bpy.app.background:
-        listener = runtime.start(args.host, args.port, args.token)
+        listener = runtime.start(
+            args.host, args.port, args.token, args.workspace, args.allow_python,
+            auth=not args.no_auth, auto_port=args.auto_port,
+        )  # fmt: skip
         # Parsed by tests/integration to find the port when --port 0 is used.
         print(f"BLENDER_MCP_READY {listener.host}:{listener.port}", flush=True)
         try:
@@ -46,7 +61,10 @@ def main() -> None:
             runtime.stop()
     else:
         blender_mcp_addon.register()
-        runtime.start(args.host, args.port, args.token)
+        runtime.start(
+            args.host, args.port, args.token, args.workspace, args.allow_python,
+            auth=not args.no_auth, auto_port=args.auto_port,
+        )  # fmt: skip
         print(f"blender-mcp: {runtime.status()}", flush=True)
 
 

@@ -263,12 +263,12 @@ subset for clients with tight tool limits.
 | --- | --- | --- |
 | **M0** ✅ | Skeleton | uv project, add-on registers, ping/handshake round-trips over the socket, `get_scene_info` works from Claude Code |
 | **M1** ✅ | Inspect + see | all §3.1 tools; viewport screenshot + render preview return images the model can view |
-| **M2** | Object-level modelling | §3.2 + §3.3 + undo; agent can block out a simple scene (table + chairs) |
-| **M3** | Materials, lights, camera, I/O | §3.5 + §3.6; agent can produce and export a textured glTF |
-| **M4** | Mesh editing | §3.4 bmesh tools with selection specs; agent can model a mug with a handle |
-| **M5** | Escape hatch + resources | `execute_python` behind pref, docs resources, prompts |
-| **M6** | Hardening | token auth, path allowlist, timeouts, integration tests in CI, Codex + Claude setup verified end to end |
-| **M7** | Stretch | geometry-nodes helpers, sculpt/remesh helpers, animation keyframes, multi-instance (pick Blender by port), streaming progress for long renders |
+| **M2** ✅ | Object-level modelling | §3.2 + §3.3 + undo; agent can block out a simple scene (table + chairs) |
+| **M3** ✅ | Materials, lights, camera, I/O | §3.5 + §3.6; agent can produce and export a textured glTF |
+| **M4** ✅ | Mesh editing | §3.4 bmesh tools with selection specs; agent can model a mug with a handle |
+| **M5** ✅ | Escape hatch + resources | `execute_python` behind pref, docs resources, prompts |
+| **M6** ✅ | Hardening | token auth, path allowlist, timeouts, integration tests in CI, Codex + Claude setup verified end to end |
+| **M7** ✅ | Stretch | geometry-nodes helpers, sculpt/remesh helpers, animation keyframes, multi-instance (pick Blender by port), streaming progress for long renders |
 
 ---
 
@@ -283,14 +283,135 @@ subset for clients with tight tool limits.
 - Headless renders need OpenGL; Mesa's software driver works (Workbench ~0.05 s
   per frame at 384 px, EEVEE ~40 s on first use while shaders compile).
 
+### M2 notes
+
+- Edits use `bpy.data`/`bmesh` wherever possible (primitives are built with
+  `bmesh.ops`, separate is done in bmesh); only `join`, `transform_apply` and
+  `modifier_apply` go through operators, with an explicit context override.
+- Every handler first runs `view_layer.update()`: between our calls nothing
+  re-evaluates the depsgraph, so bounds/dimensions/world matrices were stale.
+- Mutating handlers leave edit mode first (data edits made in edit mode would be
+  overwritten on exit), then push an `MCP: <tool>` undo step — also on failure,
+  so a partial change is still one Ctrl+Z away.
+- A client-side timeout doesn't cancel the command in Blender; a retried edit
+  can run twice. Edit timeouts are 120 s to make that unlikely.
+- Undo/redo from a timer needs a window in the context override; verified
+  headless, not yet in the GUI.
+
+### M3 notes
+
+- Path policy lives in `handlers/paths.py`: workspace (pref / `--workspace`) plus
+  the open .blend's folder unless that is `~` or `/`; realpath before checking;
+  per-tool extension allowlists; no overwrite by default. Modifier/data path
+  properties are still refused entirely.
+- `open_blend` passes `use_scripts=False`.
+- Bug found by rendering: primitives had no UVs — `bmesh.ops.create_*(calc_uvs=True)`
+  silently does nothing unless a UV layer already exists, so textures sampled a
+  single texel. Every primitive now gets a `UVMap`, and a test checks it.
+- `create_material` keeps `diffuse_color`/`metallic`/`roughness` (viewport display)
+  in sync with the BSDF, so Workbench previews match (M1 note resolved).
+- Known gap: importers follow references inside the model file (a .gltf's
+  buffers/images, an .obj's .mtl textures), which may point outside the allowed
+  folders. Only valid image/model data can be loaded that way, but M6 should
+  check or sandbox those references.
+- Not yet verified in the GUI: `open_blend` from a timer callback.
+
+### M4 notes
+
+- Selection is stateless: every mesh tool takes a `select` spec (all / indices /
+  normal+max_angle / position ranges / material / boundary / sharp_angle, ANDed,
+  local or world space), validated by a strict Pydantic schema on the server.
+- All edits are bmesh on object data (no edit mode, no operators).
+- `extrude_face_region` leaves the original faces as internal faces; they are
+  deleted (as Blender's operator does), and only the new cap is reported.
+- Guard: `subdivide` refuses edits estimated above 2M faces instead of hanging.
+- The goal test models a mug: cylinder → inset top → extrude inner face down →
+  bevel rim by sharp angle + height → half torus via bisect(fill) → boolean union
+  → auto smooth. Result is manifold.
+
+### M5 notes
+
+- Done: resources `blender://scene`, `blender://objects/{name}`, `blender://docs`,
+  `blender://docs/{topic}` (workflow, selection, modifiers, materials,
+  troubleshooting — shipped as package data); prompts `model_object` and
+  `review_scene`; `BLENDER_MCP_TOOLSETS` to expose a subset of tool groups.
+- A test checks every modifier type/setting named in docs/modifiers.md exists in
+  Blender. It caught that empty ID-pointer settings (e.g. MIRROR `mirror_object`)
+  were hidden from `add_modifier` results; they are now reported as null.
+- `execute_python` (owner decided to keep it): refused unless the add-on pref
+  *and* a token are set — the token requirement is because other accounts on a
+  shared machine can reach a localhost port. The gate is enforced in Blender, not
+  the server. One undo step per run; stdout/stderr/result capped; tracebacks
+  limited to the submitted code; `SystemExit`/`KeyboardInterrupt` from agent code
+  become errors instead of stopping Blender's request loop (the main-thread queue
+  also converts any BaseException). `keep_session` shares a namespace across runs.
+- Found by tests: mathutils types iterate via `__getitem__`, not `__iter__`, so
+  results like `Vector` were returned as their repr; fixed.
+
+### M6 notes
+
+- Auth is on by default with zero setup: the add-on creates a random token in a
+  per-user file (dir 0700, file 0600; refused if group/world-accessible) and the
+  server reads it on every connect (Blender may start after the server).
+  Explicit tokens still override. `--no-auth` exists only for the headless runner.
+- Handshake deadline (10 s) so idle unauthenticated sockets can't hold the
+  8 connection slots.
+- Imports: .gltf/.glb JSON and .obj/.mtl are pre-scanned and refused if they
+  reference files outside the allowed folders; after any import, new file-backed
+  datablocks (images, sounds, clips, fonts, caches, libraries) pointing outside are
+  removed. `open_blend` reports (doesn't remove) external files.
+- Server instructions: scene content is data, never instructions (prompt injection
+  via object names, text objects, imported files).
+- Versions in pyproject / `__version__` / manifest / bl_info bumped to 0.6.0 and
+  checked by a test.
+- CI: `.github/workflows/blender-mcp.yml` — lint + unit tests, and integration
+  tests on the bpy wheel with Mesa.
+- Verified: Claude Code CLI drove a headless Blender through the server using only
+  the token file (created a sphere, listed objects); Codex CLI parses the config
+  and lists the server. Still not verified: the Blender GUI paths (viewport
+  screenshot via render.opengl, undo/redo and open_blend from a timer).
+
+### M7 notes
+
+- Animation via `keyframe_insert`; curves read through a helper that handles both
+  classic actions and 4.4+ layered actions. Rotation keys in degrees.
+- `remesh` applies a voxel REMESH (first in the stack) with a face-count estimate
+  guard; `smooth_vertices` is bmesh `smooth_vert`; `add_noise` displaces along
+  normals by `mathutils.noise.fractal`, deterministic per seed.
+- `build_geometry_nodes` builds a fresh node group from JSON (sockets by name,
+  `name#n` or index; object/material/collection values by name), validates before
+  attaching, replaces its own previous setup, and reports evaluated counts.
+- Instances: the add-on tries the next 9 ports when its port is taken; ping reports
+  the open file/scene; `list_blender_instances` probes a port range in parallel,
+  `use_blender` switches the bridge under its lock.
+- Progress: long tools take the request Context and send elapsed-time progress
+  every 2 s (a no-op for clients that didn't ask for progress).
+- Found while adding auto-port: on Windows `SO_REUSEADDR` lets a second process
+  bind a port that's in use; the listener now uses `SO_EXCLUSIVEADDRUSE` there.
+  Failed binds also closed their socket (they leaked before).
+- Release: `CHANGELOG.md` + `.github/workflows/blender-mcp-release.yml` (tag
+  `blender-mcp-v*` → checks, add-on zip, wheel/sdist, GitHub release).
+
+### Review (after M1)
+
+Probing the listener with hostile input found and fixed: non-ASCII tokens
+crashing the connection thread, deeply nested JSON (RecursionError), results
+over the 64 MB frame limit dropping the connection, and unauthenticated clients
+being able to announce 64 MB messages on unlimited connections. Now: 64 KB limit
+before the handshake, at most 8 clients, every failure answered with an error
+reply. A browser POSTing to the port is rejected by the framing (the "POST"
+bytes read as a ~1.3 GB length). Modifier file-path properties (e.g. Mesh
+Cache `filepath`) are refused, since they would allow reading arbitrary local
+files back through `get_mesh_data`. Open: with no token (the default) any local
+process can drive Blender — the panel now says so; make tokens the default in M6.
+
 ## 9. Open questions
 
 - Ship the add-on and server as **one repo-local package** (current plan) or
   publish the server to PyPI? The name `blender-mcp` is already taken there by an
   unrelated project, so publishing needs a new distribution name. Start local,
   decide once M3 is stable.
-- Should `execute_python` exist at all? Leaning yes: in practice it's what lets
-  the model finish tasks the structured tools don't cover, and it's gated.
+- ~~Should `execute_python` exist at all?~~ Yes, opt-in with a required token (M5).
 - Screenshot size vs. token cost — default 768 px long edge, let the model ask
   for bigger.
 - Support Blender < 4.2? Probably not; revisit if someone needs it.
