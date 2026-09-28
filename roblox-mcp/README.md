@@ -6,10 +6,10 @@ asset search and insert. This server covers what it can't do: the game project o
 disk (Rojo), type-checking and linting, tests, uploading local assets, publishing,
 and offline Engine API docs. It needs no Studio, so it also runs on Linux and in CI.
 
-Status: **M5** (Rojo projects and live sync, type checking and formatting, tests, asset
-uploads, cloud Luau runs, data stores, publishing, offline Engine API docs, the
-`roblox-studio` agent skill). Open Cloud features are tested against a fake server only so
-far.
+Status: **M6** (Rojo projects and live sync, type checking and formatting, tests, asset
+uploads, cloud Luau runs, data stores, publishing, offline Engine API docs, and the
+`roblox-studio` agent skill with references and tested recipes). Open Cloud features are
+tested against a fake server only so far, and nothing has been run inside Studio yet.
 See [`PLAN.md`](PLAN.md) for the roadmap.
 
 Targets Roblox Studio **0.740** (Sept 2026).
@@ -112,7 +112,9 @@ Uploads need `asset:read` and `asset:write`, and an owner: `ROBLOX_CREATOR_USER_
 [`src/roblox_mcp/skills/roblox-studio/`](src/roblox_mcp/skills/roblox-studio/) teaches
 an agent to use both servers together: orient (`studio_id`, Rojo or not), which tool
 for what, undoable edits, client/server structure, remote validation, modern Luau,
-deprecated APIs. It works with Studio's server alone too.
+deprecated APIs, text filtering, data saving; plus recipes (obby, round-based game,
+inventory with saved data) that CI type-checks and tests. It works with Studio's server
+alone too.
 
 Claude Code: copy or link the folder into your skills directory.
 
@@ -132,6 +134,15 @@ uv run python scripts/install_toolchain.py ~/.cache/roblox-mcp/bin  # for tests/
 ROBLOX_MCP_BIN_DIR=~/.cache/roblox-mcp/bin uv run pytest -q
 uv run python scripts/check_harness_schemas.py
 ```
+
+Evals (the same tasks with and without the skill, graded on type errors, deprecated APIs,
+specs and task-specific safety checks; needs `claude` on PATH, costs a few dollars):
+
+```sh
+ROBLOX_MCP_BIN_DIR=~/.cache/roblox-mcp/bin uv run python evals/run_evals.py --runs 2
+```
+
+Results land in `evals/results/`.
 
 Updating the API reference (a sparse checkout of `content/en-us/reference/engine` from
 [Roblox/creator-docs](https://github.com/Roblox/creator-docs) is enough):

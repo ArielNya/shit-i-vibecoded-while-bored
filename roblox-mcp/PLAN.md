@@ -10,7 +10,7 @@ at [`Roblox/creator-docs`](https://github.com/Roblox/creator-docs) `0b817b5`
 (2026-09-26, `reference/engine/STUDIO_VERSION` = `0.740.19`). Roblox ships weekly,
 so the pin is bumped by a script (§7), not by hand.
 
-Status: **M0–M5 done** (see §8 notes; the Open Cloud parts of M3–M5 aren't verified against Roblox yet). Next: M6 (skill complete, evals, full-game smoke).
+Status: **M0–M5 done, M6 done except what needs Studio, Open Cloud or another client** (see §8 notes; the Open Cloud parts of M3–M5 aren't verified against Roblox yet). Next: M6's remaining manual checks, then M7 (the wrapper).
 
 ---
 
@@ -234,9 +234,54 @@ verified.
 | **M3** ✅ | Tests | `run_tests` local (Lune) and cloud (Luau Execution); acceptance: the agent fixes the fixture's failing spec using only tools |
 | **M4** ✅ | Assets | `upload_asset` + manifest for models, images, audio; acceptance: a local `.glb` ends up in Studio via `insert_asset` (manual Studio smoke) |
 | **M5** ✅ | Cloud ops | `publish_place`, `run_luau_cloud`, DataStore read (write opt-in) |
-| **M6** | Skill complete | all references + recipes; evals with vs. without skill; full-game smoke (small obby: build, code, test, publish to a private place) in Claude Code + one other harness |
+| **M6** ◐ | Skill complete | all references + recipes; evals with vs. without skill; full-game smoke (small obby: build, code, test, publish to a private place) in Claude Code + one other harness |
 | **M7** | Wrapper | §9: `--wrap-studio` proxies the built-in server behind ours; the conflict rules there, each with a test against a fake built-in server; manual Studio smoke with only `roblox-mcp` configured |
 | **M8** | Stretch, only if M6 shows a real gap | own Studio plugin for what `execute_luau` can't do; multi-place universes; Packages; `.rbxm` insert without uploading |
+
+### M6 notes
+
+- **Done:** all planned references (`data`, `ui`, `physics-and-characters`,
+  `performance`, `luau-types` added), three recipes, evals, a full-game smoke run without
+  Studio. **Open:** the Studio half of the smoke test, publishing to a private place (needs
+  Open Cloud), and a second client (no other MCP client is installed here). Those need your
+  machine.
+- **Recipes are projects, not prose:** `recipes/obby`, `round-based`, `inventory` are Rojo
+  projects inside the skill. The integration tests copy each one and require
+  `check_code` clean, `format_code` clean, specs passing and `build_place` working;
+  `read_guide("recipe-<name>")` returns the README plus every file. Writing them caught
+  five of my own mistakes: `hit.Parent` isn't a `Model` for `GetPlayerFromCharacter`, a
+  type annotation on a table field (not valid Luau), `Player:LoadCharacter` (deprecated),
+  an `UpdateAsync` "read" that was really a write on every join (now `GetAsync`), and
+  untyped spec parameters.
+- **Specs take `t: any`:** with the new solver an unannotated `t` is inferred from its
+  first use and the other matchers become errors. The M3 fixture passed only by luck;
+  every spec, the testing guide and `run_tests`' hint now say `function(t: any)`.
+- Every API the references name was checked against the index; `PhysicsService`
+  collision-group methods and `TextFilterResult:GetChatForUserAsync` are deprecated and the
+  references say so.
+- **Evals** (`evals/run_evals.py`): fresh `init_project` per run, `claude -p` with only
+  roblox-mcp; "with" installs the skill, "without" blocks `read_guide`. Graded
+  automatically: type errors, deprecated APIs (luau-lsp + patterns), specs, task checks.
+  - Round 1 (3 tasks × 2 × 2): the agent loaded the skill in only 2 of 6 "with" runs. Two
+    graders were too narrow (`type()` validation, truncation with `:sub`) and the
+    container's ponytail plugin was active in both conditions. Re-graded: 5/6 vs 5/6.
+  - Fixes: a directive skill description naming the rules agents get wrong; server
+    instructions to read the skill before writing code; user plugins disabled in eval runs;
+    the skill name recorded per run.
+  - Round 2 (5 tasks incl. two deprecated-API traps × 2 × 2): skill loaded in 10/10 "with"
+    runs. One more grader was presumptuous (it required collision groups; every run used
+    anchored parts with raycast exclude filters, which is as good or better); corrected.
+    **Result: 10/10 vs 9/10 runs pass every check** — within noise. No run in either
+    condition used a deprecated API, even on the trap tasks. The "without" condition still
+    has `check_code`, `run_tests` and `get_api_docs`, which catch those; on automatable
+    checks the tools do most of the work. The skill's value is in things these checks
+    can't see (structure, studio_id discipline, undoable edits, safe publishing), which
+    need Studio runs to measure.
+  - Small n (2 per cell), one model; results and graded outputs are in `evals/results/`.
+- **Smoke** (`examples/smoke/2026-09-28-obby.md`): from an empty folder, with the skill,
+  Claude Code loaded the skill, read `recipe-obby`, ran `init_project`, wrote 8 modules and
+  3 specs, then `format_code` → `check_code` → `run_tests` → `build_place`. Re-verified
+  independently: 0 errors, 16/16 tests, place built. Not played in Studio.
 
 ### M5 notes
 

@@ -1,6 +1,6 @@
 ---
 name: roblox-studio
-description: Build and change Roblox games with Roblox Studio's built-in MCP server ("Roblox_Studio") and the roblox-mcp companion server. Use for any Roblox Studio, Luau or Roblox game task: scripting, building the world, UI, importing assets, play-testing, debugging, testing, publishing.
+description: Required rules for writing Roblox games with Roblox Studio's built-in MCP server ("Roblox_Studio") and the roblox-mcp server. Load it BEFORE writing or changing any Roblox Luau code, UI, remotes, data saving or world content, even for small tasks - it has rules agents get wrong without it (text filtering is mandatory, remote validation, safe DataStore saving, undoable edits, deprecated APIs) and tested recipes (obby, rounds, inventory).
 ---
 
 # Roblox Studio
