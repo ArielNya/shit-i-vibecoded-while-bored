@@ -15,13 +15,15 @@ locally; test engine glue in the cloud.
 ## Writing a spec
 
 Put the spec next to the module: `src/shared/Damage.luau` →
-`src/shared/Damage.spec.luau`. It returns a function that receives the harness `t`:
+`src/shared/Damage.spec.luau`. It returns a function that receives the harness `t`,
+annotated `t: any` (otherwise the type checker infers `t` from its first use and flags
+the rest):
 
 ```lua
 --!strict
 local Damage = require("./Damage")
 
-return function(t)
+return function(t: any)
 	t.describe("apply", function()
 		t.test("subtracts the amount", function()
 			t.expect(Damage.apply(100, 30)).toBe(70)

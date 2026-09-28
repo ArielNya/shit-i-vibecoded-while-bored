@@ -1,7 +1,7 @@
 --!strict
 local Damage = require("./Damage")
 
-return function(t)
+return function(t: any)
 	t.describe("apply", function()
 		t.test("subtracts the amount", function()
 			t.expect(Damage.apply(100, 30)).toBe(70)

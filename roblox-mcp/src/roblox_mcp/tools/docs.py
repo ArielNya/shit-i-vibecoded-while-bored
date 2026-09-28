@@ -185,16 +185,31 @@ def search(query: str, limit: int = 10, include_deprecated: bool = False) -> lis
     ]
 
 
+RECIPE_FILES = ("*.json", "*.luau")
+
+
 def guide_topics() -> list[str]:
-    return ["skill", *sorted(p.stem for p in (SKILL / "references").glob("*.md"))]
+    references = sorted(p.stem for p in (SKILL / "references").glob("*.md"))
+    recipes = sorted(f"recipe-{p.name}" for p in (SKILL / "recipes").iterdir() if p.is_dir())
+    return ["skill", *references, *recipes]
 
 
 def read_guide_text(topic: str) -> str:
     topics = guide_topics()
     if topic not in topics:
         return f"Unknown topic '{topic}'. Topics: {', '.join(topics)}"
-    path = SKILL / "SKILL.md" if topic == "skill" else SKILL / "references" / f"{topic}.md"
-    return path.read_text(encoding="utf-8")
+    if topic == "skill":
+        return (SKILL / "SKILL.md").read_text(encoding="utf-8")
+    if not topic.startswith("recipe-"):
+        return (SKILL / "references" / f"{topic}.md").read_text(encoding="utf-8")
+    recipe = SKILL / "recipes" / topic.removeprefix("recipe-")
+    parts = [(recipe / "README.md").read_text(encoding="utf-8")]
+    files = (p for pattern in RECIPE_FILES for p in recipe.rglob(pattern))
+    for path in sorted(p for p in files if p.name != "sourcemap.json"):
+        lang = "json" if path.suffix == ".json" else "lua"
+        text = path.read_text(encoding="utf-8")
+        parts.append(f"## {path.relative_to(recipe)}\n\n```{lang}\n{text}```")
+    return "\n\n".join(parts)
 
 
 def register(mcp: MCPServer) -> None:
@@ -241,8 +256,9 @@ def register(mcp: MCPServer) -> None:
         ] = "",  # fmt: skip
     ) -> str:
         """Guides for building Roblox games with Studio's MCP server and this one: the
-        roblox-studio skill and its references (project layout, networking, deprecated
-        APIs, ...). For clients that don't load agent skills."""
+        roblox-studio skill, its references (layout, networking, data, UI, ...) and
+        recipes (complete, type-checked example projects: recipe-obby, ...). For clients
+        that don't load agent skills."""
         if not topic:
             return "Topics: " + ", ".join(guide_topics())
         return read_guide_text(topic)

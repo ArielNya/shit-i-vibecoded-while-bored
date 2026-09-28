@@ -141,8 +141,26 @@ roblox-mcp):
 
 - `references/project-layout.md`: services, what goes where, Rojo layout.
 - `references/networking.md`: remotes, validation, replication, rate limits.
+- `references/data.md`: saving player data (load once, save on leave/shutdown, retries,
+  session locking).
+- `references/ui.md`: device-proof layout, and **text filtering** (required).
+- `references/physics-and-characters.md`: constraints, ownership, collision groups,
+  characters, pathfinding.
+- `references/performance.md`: per-frame work, networking, instance streaming.
+- `references/luau-types.md`: strict mode and annotations that pass `check_code`.
 - `references/assets.md`: getting local files into the game, limits, using the ids.
-- `references/publishing.md`: publishing safely, cloud Luau runs, data stores.
 - `references/testing.md`: spec format, local vs cloud runs, test place rules.
+- `references/publishing.md`: publishing safely, cloud Luau runs, data stores.
 - `references/deprecated.md`: deprecated APIs and their replacements
   (generated from the API reference).
+
+## Recipes
+
+Complete small projects in `recipes/` (`read_guide("recipe-<name>")` returns the README
+and every file). Each one type-checks, is formatted and passes its specs. Start from the
+closest one instead of a blank file, and keep its shape: pure rules in a tested
+module, thin server glue, behaviour attached by tags.
+
+- `recipe-obby`: checkpoints, kill parts, stage leaderboard, respawn at checkpoint.
+- `recipe-round-based`: lobby → intermission → timed round → results loop, status UI.
+- `recipe-inventory`: stacked items, saved per player, a validated remote.

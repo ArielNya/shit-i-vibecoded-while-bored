@@ -104,3 +104,22 @@ def test_local_tests_pass_then_catch_a_regression(game):
         "src/shared/Damage.spec > apply > never goes below zero: "
         "src/shared/Damage.spec:10: expected 0, got -20"
     ]
+
+
+RECIPES = Path(__file__).parents[2] / "src/roblox_mcp/skills/roblox-studio/recipes"
+
+
+@pytest.mark.parametrize("recipe", sorted(p.name for p in RECIPES.iterdir() if p.is_dir()))
+@pytest.mark.skipif(toolchain.find("lune") is None, reason="lune not installed")
+def test_recipes_are_clean_and_pass(recipe, tmp_path):
+    """The skill's recipes are what agents copy: they must type-check, be formatted, pass
+    their specs and build."""
+    from roblox_mcp.tools import tests
+
+    copy = tmp_path / recipe
+    shutil.copytree(RECIPES / recipe, copy)
+    assert code.check(copy, "")["problems"] == []
+    assert code.format_files(copy, "", True)["unformatted"] == []
+    result = tests.run_local(copy, "", "")
+    assert result["failed"] == 0 and result["passed"] >= 3, result
+    assert project.build(copy, "")["bytes"] > 500

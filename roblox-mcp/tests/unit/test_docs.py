@@ -60,8 +60,13 @@ def test_search():
 
 def test_guides():
     assert guide_topics() == [
-        "skill", "assets", "deprecated", "networking", "project-layout", "publishing", "testing"
+        "skill", "assets", "data", "deprecated", "luau-types", "networking", "performance",
+        "physics-and-characters", "project-layout", "publishing", "testing", "ui",
+        "recipe-inventory", "recipe-obby", "recipe-round-based",
     ]  # fmt: skip
+    recipe = read_guide_text("recipe-obby")
+    assert recipe.startswith("# Recipe: obby") and "## src/server/Obby.luau" in recipe
+    assert "sourcemap" not in recipe
     assert read_guide_text("skill").startswith("---\nname: roblox-studio\n")
     assert read_guide_text("../SKILL").startswith("Unknown topic")
 

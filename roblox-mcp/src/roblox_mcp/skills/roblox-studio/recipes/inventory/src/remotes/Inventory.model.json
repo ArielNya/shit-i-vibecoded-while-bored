@@ -1,0 +1,4 @@
+{
+  "ClassName": "Folder",
+  "Children": [{ "Name": "DropItem", "ClassName": "RemoteEvent" }]
+}

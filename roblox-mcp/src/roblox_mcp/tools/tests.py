@@ -89,7 +89,7 @@ def summarize(results: list[dict], extra: dict[str, Any], root: Path | None = No
         **extra,
     }
     if not results:
-        out["note"] = "no tests ran: add *.spec.luau files that return function(t) (see "\
+        out["note"] = "no tests ran: add *.spec.luau files that return function(t: any) (see "\
             "read_guide('testing'))"  # fmt: skip
     return out
 
