@@ -39,6 +39,11 @@ class BlenderMCPPreferences(bpy.types.AddonPreferences):
         "code runs with your user's full permissions",
         default=False,
     )
+    auto_port: bpy.props.BoolProperty(
+        name="Use next free port",
+        description="If the port is taken (e.g. by another Blender), use the next free one",
+        default=True,
+    )
     auto_start: bpy.props.BoolProperty(
         name="Start automatically",
         description="Start listening when Blender starts",
@@ -48,6 +53,7 @@ class BlenderMCPPreferences(bpy.types.AddonPreferences):
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "port")
+        layout.prop(self, "auto_port")
         layout.prop(self, "token")
         layout.prop(self, "workspace")
         layout.prop(self, "auto_start")
@@ -69,7 +75,13 @@ class BLENDERMCP_OT_start(bpy.types.Operator):
         workspace = bpy.path.abspath(prefs.workspace) if prefs and prefs.workspace else None
         allow_python = bool(prefs and prefs.allow_python)
         try:
-            runtime.start(port=port, token=token, workspace=workspace, allow_python=allow_python)
+            runtime.start(
+                port=port,
+                token=token,
+                workspace=workspace,
+                allow_python=allow_python,
+                auto_port=bool(prefs.auto_port) if prefs else True,
+            )
         except OSError:
             self.report({"ERROR"}, runtime.last_error)
             return {"CANCELLED"}
@@ -155,6 +167,7 @@ def _auto_start():
                 token=prefs.token,
                 workspace=workspace,
                 allow_python=prefs.allow_python,
+                auto_port=prefs.auto_port,
             )
         except OSError:
             pass  # surfaced in the panel via runtime.last_error

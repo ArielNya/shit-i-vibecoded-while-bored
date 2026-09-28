@@ -36,6 +36,15 @@ def _command() -> list[str] | None:
 
 
 @pytest.fixture(scope="module")
+def blender_command():
+    """The command that starts a headless Blender running the add-on (args go after --)."""
+    cmd = _command()
+    if cmd is None:
+        pytest.skip("set BLENDER_BIN or BLENDER_PYTHON to run Blender integration tests")
+    return cmd
+
+
+@pytest.fixture(scope="module")
 def workspace(tmp_path_factory):
     """The folder file tools may use in this module's Blender."""
     return tmp_path_factory.mktemp("workspace")

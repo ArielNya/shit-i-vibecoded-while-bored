@@ -80,6 +80,12 @@ class BlenderBridge:
                 await self.close()
                 raise BlenderConnectionError(f"Lost connection to Blender: {exc}") from exc
 
+    async def switch_port(self, port: int) -> None:
+        """Talk to the Blender on another port from the next call on."""
+        async with self._lock:
+            await self.close()
+            self.config.port = port
+
     async def close(self) -> None:
         writer, self._reader, self._writer = self._writer, None, None
         self.server_info = None

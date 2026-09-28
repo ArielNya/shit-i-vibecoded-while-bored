@@ -8,6 +8,7 @@ bpy.app.timers callback (or a plain loop in --background mode).
 from __future__ import annotations
 
 import hmac
+import os
 import queue
 import socket
 import threading
@@ -90,9 +91,19 @@ class Listener:
         if self.running:
             return
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((self.host, self.port))
-        sock.listen()
+        if os.name == "nt":
+            # On Windows SO_REUSEADDR would let another process bind the same port
+            # (hijacking it); exclusive use makes a taken port fail as it should.
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        else:
+            # POSIX: only allows rebinding over TIME_WAIT, not over a live listener.
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((self.host, self.port))
+            sock.listen()
+        except OSError:
+            sock.close()
+            raise
         sock.settimeout(0.5)
         self.port = sock.getsockname()[1]  # resolves port 0 to the real port
         self._sock = sock

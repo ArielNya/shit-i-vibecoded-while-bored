@@ -12,12 +12,15 @@ from typing import Any
 import bpy
 
 from . import (
+    animation,
     editing,
     files,
+    geonodes,
     materials,
     mesh_edit,
     modifiers,
     objects,
+    organic,
     paths,
     python_exec,
     render,
@@ -29,8 +32,14 @@ from . import (
 
 def ping(params: dict[str, Any]) -> dict[str, Any]:
     # Goes through the main-thread queue like every other handler, so a reply proves
-    # Blender's event loop is actually draining requests.
-    return {"pong": True}
+    # Blender's event loop is actually draining requests. File/scene let a client tell
+    # several running Blenders apart.
+    return {
+        "pong": True,
+        "file": bpy.data.filepath or None,
+        "scene": bpy.context.scene.name,
+        "objects": len(bpy.context.scene.objects),
+    }
 
 
 def _fresh(fn: Callable[[dict[str, Any]], Any]) -> Callable[[dict[str, Any]], Any]:
@@ -107,6 +116,17 @@ _HANDLERS = {
     "create_mesh_from_data": mesh_edit.create_mesh_from_data,
     # M5
     "execute_python": python_exec.execute_python,
+    # M7
+    "set_keyframe": animation.set_keyframe,
+    "list_keyframes": animation.list_keyframes,
+    "clear_animation": animation.clear_animation,
+    "set_frame_range": animation.set_frame_range,
+    "remesh": organic.remesh,
+    "smooth_vertices": organic.smooth_vertices,
+    "add_noise": organic.add_noise,
+    "find_node_types": geonodes.find_node_types,
+    "build_geometry_nodes": geonodes.build_geometry_nodes,
+    "get_geometry_nodes": geonodes.get_geometry_nodes,
 }
 
 HANDLERS = {name: _fresh(fn) for name, fn in _HANDLERS.items()}

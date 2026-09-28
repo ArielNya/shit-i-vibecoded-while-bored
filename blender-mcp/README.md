@@ -11,7 +11,8 @@ textures, lighting and cameras, and save/open/import/export files. The test suit
 models a mug with a handle using only tool calls. Every change is one named undo
 step in Blender (`MCP: …`). M5 adds reference notes, workflow prompts, and an
 opt-in `execute_python` escape hatch; M6 hardens it (automatic per-user auth, import
-checks, CI) — see [Security](#security). See [`PLAN.md`](PLAN.md) for the roadmap.
+checks, CI) — see [Security](#security). M7 adds animation, sculpt-style helpers,
+Geometry Nodes, several Blenders at once, and progress updates on long operations. See [`PLAN.md`](PLAN.md) for the roadmap.
 
 ```
 agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──▶ Blender add-on ──▶ bpy (main thread)
@@ -51,6 +52,14 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 | `save_blend` / `open_blend` | Save (in place or to a path) / open a .blend — embedded scripts never run |
 | `import_file` / `export_file` | .obj .fbx .glb/.gltf .stl .ply .usd*; export chosen objects or everything |
 | `execute_python` | Run Python in Blender for anything the tools don't cover — **off by default**, see below |
+| `set_keyframe` / `list_keyframes` / `clear_animation` / `set_frame_range` | Keyframe location/rotation (degrees)/scale or object properties; frame range, FPS, current frame |
+| `remesh` / `smooth_vertices` / `add_noise` | Voxel remesh, relax vertices, fractal noise displacement — rocks, terrain, clay |
+| `find_node_types` / `build_geometry_nodes` / `get_geometry_nodes` | Search node types; build a Geometry Nodes setup from nodes + links; inspect it |
+| `list_blender_instances` / `use_blender` | Find every running Blender with the add-on (each takes the next free port) and switch between them |
+
+Long operations (renders, file I/O, booleans, remesh, `execute_python`, …) send
+progress notifications with the elapsed time, so clients show activity while Blender
+works.
 
 ### `execute_python` (opt-in)
 
@@ -115,7 +124,16 @@ stay valid until the next topology change, so steps chain without guessing.
 
 ## Setup
 
-### 1. Install the Blender add-on
+### Quick install from a release
+
+Download from the [Releases](https://github.com/ArielNya/shit-i-vibecoded-while-bored/releases) page (tags `blender-mcp-v*`):
+
+1. `blender_mcp_addon-<version>.zip` → Blender: *Edit → Preferences → Get Extensions →
+   ⌄ → Install from Disk…*, then 3D Viewport sidebar (`N`) → **MCP** → **Start**.
+2. The server wheel: `claude mcp add blender -- uvx --from <wheel URL> blender-mcp`
+   (Codex: the same `uvx --from <wheel URL> blender-mcp` as the command).
+
+### 1. Install the Blender add-on (from source)
 
 ```bash
 cd blender-mcp
@@ -168,7 +186,7 @@ the server) and with Codex CLI 0.157 (`codex mcp list` shows the server enabled)
 | `BLENDER_MCP_TOKEN` | token file | Only needed if the add-on uses a custom token |
 | `BLENDER_MCP_TOKEN_FILE` | per-user path above | Where to find the token file (both sides honour it) |
 | `BLENDER_MCP_TIMEOUT` | `30` | Seconds to wait for Blender per call |
-| `BLENDER_MCP_TOOLSETS` | all | Comma-separated subset to expose, for clients with tool limits: `inspect`, `view`, `edit`, `mesh`, `look`, `files`, `python` |
+| `BLENDER_MCP_TOOLSETS` | all | Comma-separated subset to expose, for clients with tool limits: `inspect`, `view`, `edit`, `mesh`, `sculpt`, `nodes`, `animate`, `look`, `files`, `python`, `instances` |
 
 ## Development
 
@@ -188,6 +206,13 @@ BLENDER_BIN=/path/to/blender uv run pytest tests/integration
 uv venv -p 3.11 /tmp/bpyenv && uv pip install -p /tmp/bpyenv/bin/python "bpy>=4.2,<4.3"
 BLENDER_PYTHON=/tmp/bpyenv/bin/python uv run pytest tests/integration
 ```
+
+### Releasing
+
+Bump the version (pyproject, `__init__`, add-on manifest and `bl_info` — a test checks
+they match), add a `CHANGELOG.md` section, then push a tag `blender-mcp-v<version>`.
+The release workflow checks, builds the add-on zip and the server wheel/sdist, and
+publishes a GitHub release with the changelog section as notes.
 
 `src/blender_mcp/protocol.py` is vendored into the add-on. After editing it, run
 `python3 scripts/build_addon.py --sync` (a unit test fails if the copies drift).

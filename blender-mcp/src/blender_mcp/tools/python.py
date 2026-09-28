@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Context, MCPServer
 from pydantic import Field
 
 from ._common import Blender
@@ -13,6 +13,7 @@ from ._common import Blender
 def register(mcp: MCPServer, blender: Blender) -> None:
     @mcp.tool()
     async def execute_python(
+        ctx: Context,
         code: Annotated[str, Field(min_length=1, max_length=100_000)],
         keep_session: Annotated[
             bool,
@@ -37,6 +38,7 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         preferences and set a token."""
         return await blender.call(
             "execute_python",
+            progress=ctx,
             timeout=timeout,
             code=code,
             keep_session=keep_session,

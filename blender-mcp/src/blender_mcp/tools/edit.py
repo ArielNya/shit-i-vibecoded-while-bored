@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Context, MCPServer
 from pydantic import Field
 
 from ._common import Blender
@@ -21,8 +21,8 @@ Primitive = Literal[
 
 
 def register(mcp: MCPServer, blender: Blender) -> None:
-    async def edit(method: str, **params: Any) -> Any:
-        return await blender.call(method, timeout=EDIT_TIMEOUT, **params)
+    async def edit(method: str, ctx: Context | None = None, **params: Any) -> Any:
+        return await blender.call(method, timeout=EDIT_TIMEOUT, progress=ctx, **params)
 
     @mcp.tool()
     async def create_primitive(
@@ -175,6 +175,7 @@ def register(mcp: MCPServer, blender: Blender) -> None:
 
     @mcp.tool()
     async def boolean(
+        ctx: Context,
         target: Annotated[str, Field(description="Object to modify")],
         cutter: Annotated[str, Field(description="Object used as the tool")],
         operation: Literal["DIFFERENCE", "UNION", "INTERSECT"] = "DIFFERENCE",
@@ -184,7 +185,7 @@ def register(mcp: MCPServer, blender: Blender) -> None:
     ) -> dict[str, Any]:
         """Boolean between two meshes, e.g. cut a hole with DIFFERENCE."""
         return await edit(
-            "boolean", target=target, cutter=cutter, operation=operation, solver=solver,
+            "boolean", ctx=ctx, target=target, cutter=cutter, operation=operation, solver=solver,
             apply=apply, cutter_action=cutter_action,
         )  # fmt: skip
 
@@ -227,9 +228,9 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         return await edit("remove_modifier", object=object, modifier=modifier)
 
     @mcp.tool()
-    async def apply_modifier(object: Name, modifier: str) -> dict[str, Any]:
+    async def apply_modifier(ctx: Context, object: Name, modifier: str) -> dict[str, Any]:
         """Apply a modifier, baking its result into the mesh."""
-        return await edit("apply_modifier", object=object, modifier=modifier)
+        return await edit("apply_modifier", ctx=ctx, object=object, modifier=modifier)
 
     @mcp.tool()
     async def move_modifier(

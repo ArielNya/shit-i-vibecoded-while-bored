@@ -10,6 +10,7 @@ from .listener import Listener, MainThreadQueue
 
 ADDON_VERSION = ".".join(str(part) for part in bl_info["version"])
 DRAIN_INTERVAL = 0.02
+AUTO_PORT_RANGE = 10
 
 main_thread = MainThreadQueue()
 _listener: Listener | None = None
@@ -24,6 +25,7 @@ def start(
     workspace: str | None = None,
     allow_python: bool = False,
     auth: bool = True,
+    auto_port: bool = False,
 ) -> Listener:
     """Start listening. With auth (the default) and no explicit token, the shared token
     file is used, created if needed, so only this OS user's processes can connect."""
@@ -57,11 +59,18 @@ def start(
             "python_enabled": allow_python and bool(token),
         },
     )
-    try:
-        listener.start()
-    except OSError as exc:
-        last_error = f"Could not listen on {host}:{port}: {exc}"
-        raise
+    # With auto_port, a second Blender takes the next free port (9877, ...), so several
+    # can run at once; the server's list_blender_instances finds them.
+    attempts = AUTO_PORT_RANGE if auto_port and port else 1
+    for offset in range(attempts):
+        listener.port = port + offset
+        try:
+            listener.start()
+            break
+        except OSError as exc:
+            if offset == attempts - 1:
+                last_error = f"Could not listen on {host}:{port}: {exc}"
+                raise
     last_error = ""
     _listener = listener
     return listener

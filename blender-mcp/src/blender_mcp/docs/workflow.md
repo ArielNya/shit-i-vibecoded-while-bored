@@ -27,6 +27,18 @@ A loop that works well with these tools:
 
 Mistakes are cheap: every tool call is one undo step, and `undo` reverts it.
 
+## Beyond basic modelling
+
+- **Organic shapes**: start from an `ico_sphere` (subdivisions 4–5) or `remesh` a
+  blockout, then `add_noise` (strength ≈ 10–30 % of the size) and `smooth_vertices`;
+  `shade` with an auto-smooth angle around 60.
+- **Many copies** (pebbles, grass, bolts): `build_geometry_nodes` with
+  DistributePointsOnFaces → InstanceOnPoints; `find_node_types` finds type ids and
+  the result lists every socket name to link.
+- **Animation**: `set_keyframe` at two or more frames, `set_frame_range`, then check
+  with `set_frame_range(current=...)` + `get_viewport_screenshot`.
+- **Several Blenders**: `list_blender_instances`, then `use_blender(port)`.
+
 ## Size and placement tips
 
 - `dimensions` on `transform_object` sets the final bounding-box size directly.

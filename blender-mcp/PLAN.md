@@ -268,7 +268,7 @@ subset for clients with tight tool limits.
 | **M4** ✅ | Mesh editing | §3.4 bmesh tools with selection specs; agent can model a mug with a handle |
 | **M5** ✅ | Escape hatch + resources | `execute_python` behind pref, docs resources, prompts |
 | **M6** ✅ | Hardening | token auth, path allowlist, timeouts, integration tests in CI, Codex + Claude setup verified end to end |
-| **M7** | Stretch | geometry-nodes helpers, sculpt/remesh helpers, animation keyframes, multi-instance (pick Blender by port), streaming progress for long renders |
+| **M7** ✅ | Stretch | geometry-nodes helpers, sculpt/remesh helpers, animation keyframes, multi-instance (pick Blender by port), streaming progress for long renders |
 
 ---
 
@@ -370,6 +370,27 @@ subset for clients with tight tool limits.
   the token file (created a sphere, listed objects); Codex CLI parses the config
   and lists the server. Still not verified: the Blender GUI paths (viewport
   screenshot via render.opengl, undo/redo and open_blend from a timer).
+
+### M7 notes
+
+- Animation via `keyframe_insert`; curves read through a helper that handles both
+  classic actions and 4.4+ layered actions. Rotation keys in degrees.
+- `remesh` applies a voxel REMESH (first in the stack) with a face-count estimate
+  guard; `smooth_vertices` is bmesh `smooth_vert`; `add_noise` displaces along
+  normals by `mathutils.noise.fractal`, deterministic per seed.
+- `build_geometry_nodes` builds a fresh node group from JSON (sockets by name,
+  `name#n` or index; object/material/collection values by name), validates before
+  attaching, replaces its own previous setup, and reports evaluated counts.
+- Instances: the add-on tries the next 9 ports when its port is taken; ping reports
+  the open file/scene; `list_blender_instances` probes a port range in parallel,
+  `use_blender` switches the bridge under its lock.
+- Progress: long tools take the request Context and send elapsed-time progress
+  every 2 s (a no-op for clients that didn't ask for progress).
+- Found while adding auto-port: on Windows `SO_REUSEADDR` lets a second process
+  bind a port that's in use; the listener now uses `SO_EXCLUSIVEADDRUSE` there.
+  Failed binds also closed their socket (they leaked before).
+- Release: `CHANGELOG.md` + `.github/workflows/blender-mcp-release.yml` (tag
+  `blender-mcp-v*` → checks, add-on zip, wheel/sdist, GitHub release).
 
 ### Review (after M1)
 

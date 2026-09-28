@@ -23,12 +23,12 @@ def private_token_file(tmp_path, monkeypatch):
 class FakeBlender:
     """A Listener with stub handlers and a thread standing in for Blender's main thread."""
 
-    def __init__(self, handlers, token=None, handshake_timeout=HANDSHAKE_TIMEOUT):
+    def __init__(self, handlers, token=None, handshake_timeout=HANDSHAKE_TIMEOUT, port=0):
         self.queue = MainThreadQueue()
         self.listener = Listener(
             handlers,
             self.queue,
-            port=0,
+            port=port,
             token=token,
             server_info={"blender_version": "fake"},
             handshake_timeout=handshake_timeout,

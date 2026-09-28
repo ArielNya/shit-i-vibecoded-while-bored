@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Context, MCPServer
 from pydantic import Field
 
 from ._common import Blender
@@ -29,6 +29,7 @@ def register(mcp: MCPServer, blender: Blender) -> None:
 
     @mcp.tool(description=f"Save the .blend file. Without a path, saves in place. {PATH_HELP}")
     async def save_blend(
+        ctx: Context,
         path: Annotated[str | None, Field(description="Must end in .blend")] = None,
         overwrite: bool = False,
         copy: Annotated[
@@ -36,24 +37,33 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         ] = False,
     ) -> dict[str, Any]:
         return await blender.call(
-            "save_blend", timeout=FILE_TIMEOUT, path=path, overwrite=overwrite, copy=copy
+            "save_blend",
+            progress=ctx,
+            timeout=FILE_TIMEOUT,
+            path=path,
+            overwrite=overwrite,
+            copy=copy,
         )
 
     @mcp.tool(
         description="Open a .blend file, replacing the current scene. Refuses when there are "
         f"unsaved changes unless discard_unsaved. Embedded scripts never run. {PATH_HELP}"
     )
-    async def open_blend(path: str, discard_unsaved: bool = False) -> dict[str, Any]:
+    async def open_blend(ctx: Context, path: str, discard_unsaved: bool = False) -> dict[str, Any]:
         return await blender.call(
-            "open_blend", timeout=FILE_TIMEOUT, path=path, discard_unsaved=discard_unsaved
+            "open_blend",
+            progress=ctx,
+            timeout=FILE_TIMEOUT,
+            path=path,
+            discard_unsaved=discard_unsaved,
         )
 
     @mcp.tool(
         description="Import a model (.obj .fbx .glb .gltf .stl .ply .usd/.usda/.usdc/.usdz). "
         f"Returns the names of the new objects. {PATH_HELP}"
     )
-    async def import_file(path: str) -> dict[str, Any]:
-        return await blender.call("import_file", timeout=FILE_TIMEOUT, path=path)
+    async def import_file(ctx: Context, path: str) -> dict[str, Any]:
+        return await blender.call("import_file", progress=ctx, timeout=FILE_TIMEOUT, path=path)
 
     @mcp.tool(
         description="Export objects to a model file; the format comes from the extension "
@@ -61,6 +71,7 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         f"overwrite. {PATH_HELP}"
     )
     async def export_file(
+        ctx: Context,
         path: str,
         objects: Annotated[
             list[str] | None,
@@ -71,7 +82,7 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         overwrite: bool = False,
     ) -> dict[str, Any]:
         return await blender.call(
-            "export_file", timeout=FILE_TIMEOUT, path=path, objects=objects,
+            "export_file", progress=ctx, timeout=FILE_TIMEOUT, path=path, objects=objects,
             include_children=include_children, apply_modifiers=apply_modifiers,
             overwrite=overwrite,
         )  # fmt: skip

@@ -9,7 +9,7 @@ at the root is shared unless it's genuinely repo-wide (this README, the license,
 
 | Folder | What it is | Status |
 | --- | --- | --- |
-| [`blender-mcp/`](blender-mcp/) | MCP server that lets Claude / Codex inspect and model inside Blender | M6 done (hardened: automatic auth, import checks, CI) — see [`PLAN.md`](blender-mcp/PLAN.md) |
+| [`blender-mcp/`](blender-mcp/) | MCP server that lets Claude / Codex inspect and model inside Blender | M7 done (all milestones) — releases tagged `blender-mcp-v*` — see [`PLAN.md`](blender-mcp/PLAN.md) |
 
 ## Conventions
 

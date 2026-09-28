@@ -6,7 +6,7 @@ import base64
 import json
 from typing import Annotated, Any, Literal
 
-from mcp.server.mcpserver import Image, MCPServer
+from mcp.server.mcpserver import Context, Image, MCPServer
 from pydantic import Field
 
 from ._common import Blender
@@ -29,6 +29,7 @@ def _image_result(reply: dict[str, Any]) -> list[Any]:
 def register(mcp: MCPServer, blender: Blender) -> None:
     @mcp.tool(structured_output=False)  # image + JSON text, not a schema
     async def get_viewport_screenshot(
+        ctx: Context,
         view: Annotated[
             View | None,
             Field(
@@ -48,6 +49,7 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         back to a quick Workbench render."""
         reply = await blender.call(
             "get_viewport_screenshot",
+            progress=ctx,
             timeout=RENDER_TIMEOUT,
             view=view,
             size=size,
@@ -58,6 +60,7 @@ def register(mcp: MCPServer, blender: Blender) -> None:
 
     @mcp.tool(structured_output=False)  # image + JSON text, not a schema
     async def render_preview(
+        ctx: Context,
         engine: Annotated[
             Literal["workbench", "eevee", "cycles"],
             Field(
@@ -80,6 +83,7 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         camera that auto-frames the scene (or `object`)."""
         reply = await blender.call(
             "render_preview",
+            progress=ctx,
             timeout=RENDER_TIMEOUT,
             engine=engine,
             view=view,
