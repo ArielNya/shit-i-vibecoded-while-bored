@@ -1,9 +1,10 @@
 {
   "mcpServers": {
     "blender": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/shit-i-vibecoded-while-bored/blender-mcp", "blender-mcp"],
-      "env": { "BLENDER_MCP_PORT": "9876" }
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/ArielNya/shit-i-vibecoded-while-bored@main#subdirectory=blender-mcp", "blender-mcp"],
+      "env": {}
     }
   }
 }
