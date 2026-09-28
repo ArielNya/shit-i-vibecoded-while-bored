@@ -124,58 +124,177 @@ stay valid until the next topology change, so steps chain without guessing.
 
 ## Setup
 
-### Quick install from a release
+Two parts: the **add-on** runs inside Blender, and the **server** is started by your
+AI client. Install the add-on once, then register the server with every client you
+use. No token setup is needed: the add-on writes a private token file and the
+server reads it (see [Security](#security)).
 
-Download from the [Releases](https://github.com/ArielNya/shit-i-vibecoded-while-bored/releases) page (tags `blender-mcp-v*`):
+### 1. Install the Blender add-on
 
-1. `blender_mcp_addon-<version>.zip` → Blender: *Edit → Preferences → Get Extensions →
-   ⌄ → Install from Disk…*, then 3D Viewport sidebar (`N`) → **MCP** → **Start**.
-2. The server wheel: `claude mcp add blender -- uvx --from <wheel URL> blender-mcp`
-   (Codex: the same `uvx --from <wheel URL> blender-mcp` as the command).
-
-### 1. Install the Blender add-on (from source)
+Get `blender_mcp_addon-<version>.zip` from the
+[Releases](https://github.com/ArielNya/shit-i-vibecoded-while-bored/releases) page, or
+build it from a clone:
 
 ```bash
-cd blender-mcp
+git clone https://github.com/ArielNya/shit-i-vibecoded-while-bored.git
+cd shit-i-vibecoded-while-bored/blender-mcp
 python3 scripts/build_addon.py        # writes dist/blender_mcp_addon-<version>.zip
 ```
 
-In Blender: *Edit → Preferences → Get Extensions → ⌄ → Install from Disk…* and pick the
-zip. Then open the 3D Viewport sidebar (`N`) → **MCP** tab → **Start MCP Listener**.
-Tick *Start automatically* in the add-on preferences to skip that step next time.
+In Blender: *Edit → Preferences → Get Extensions → ⌄ (top right) → Install from Disk…*
+and pick the zip. Then open the 3D Viewport sidebar (`N`) → **MCP** tab → **Start MCP
+Listener**. Tick *Start automatically* in the add-on preferences to skip that step
+next time.
 
 For development, load the add-on straight from the repo instead of installing it:
+`blender --python scripts/run_in_blender.py`.
+
+### 2. The server command
+
+Every client below runs the same command. It needs [uv](https://docs.astral.sh/uv/);
+`uvx` downloads the server into a cache on first use.
 
 ```bash
-blender --python scripts/run_in_blender.py
+uvx --from "git+https://github.com/ArielNya/shit-i-vibecoded-while-bored@main#subdirectory=blender-mcp" blender-mcp
 ```
 
-### 2. Point your agent at the server
+- **Pin a release:** replace `@main` with a tag, e.g. `@blender-mcp-v0.7.0`, or use
+  the release's wheel URL: `uvx --from https://github.com/ArielNya/shit-i-vibecoded-while-bored/releases/download/blender-mcp-v0.7.0/blender_mcp-0.7.0-py3-none-any.whl blender-mcp`.
+- **From a clone** (for development): `uv run --directory /path/to/blender-mcp blender-mcp`.
+- **Don't** use `uvx blender-mcp` alone: that name on PyPI is a different project.
+- **GUI apps and `uvx`:** desktop apps often don't inherit your shell's PATH. If a
+  client says it can't find `uvx`, use its full path (`which uvx` on macOS/Linux,
+  `where uvx` on Windows) as the command.
 
-**Claude Code**
+In the snippets below, `SERVER_SPEC` stands for
+`git+https://github.com/ArielNya/shit-i-vibecoded-while-bored@main#subdirectory=blender-mcp`.
+Ready-to-copy versions with it filled in are in [`examples/`](examples/):
+`claude-code.mcp.json`, `claude_desktop_config.json`, `codex.config.toml`,
+`dsh.cordis.patch.yml`.
+
+### 3. Register it with your client
+
+<details open>
+<summary><b>Claude Code</b></summary>
+
+Command (available in all your projects):
 
 ```bash
-claude mcp add blender -- uv run --directory /path/to/blender-mcp blender-mcp
+claude mcp add blender -s user -- uvx --from "SERVER_SPEC" blender-mcp
+claude mcp list          # blender … ✓ Connected
 ```
 
-**Codex CLI** — add to `~/.codex/config.toml`:
+Use `-s project` instead to share it with a repository's collaborators; that writes
+`.mcp.json` in the project root. Or create that file by hand:
+
+```json
+{
+  "mcpServers": {
+    "blender": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "SERVER_SPEC", "blender-mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+Start a new session afterwards; `/mcp` inside Claude Code shows the server and its tools.
+</details>
+
+<details>
+<summary><b>Claude Desktop</b></summary>
+
+*Settings → Developer → Edit Config* opens `claude_desktop_config.json`:
+
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+Add (merge into an existing `mcpServers` block if there is one):
+
+```json
+{
+  "mcpServers": {
+    "blender": {
+      "command": "uvx",
+      "args": ["--from", "SERVER_SPEC", "blender-mcp"]
+    }
+  }
+}
+```
+
+Quit and restart Claude Desktop. The tools appear under the tools/connectors menu in
+the chat box. If it can't start the server, put the full path to `uvx` in `command`.
+</details>
+
+<details>
+<summary><b>Codex CLI</b></summary>
+
+Command:
+
+```bash
+codex mcp add blender -- uvx --from "SERVER_SPEC" blender-mcp
+codex mcp list           # blender … enabled
+```
+
+That writes `~/.codex/config.toml`. By hand, plus a longer tool timeout so renders
+and remeshes can finish:
 
 ```toml
 [mcp_servers.blender]
-command = "uv"
-args = ["run", "--directory", "/path/to/blender-mcp", "blender-mcp"]
+command = "uvx"
+args = ["--from", "SERVER_SPEC", "blender-mcp"]
+tool_timeout_sec = 300
 ```
 
-**Claude Desktop** — see [`examples/claude-code.mcp.json`](examples/claude-code.mcp.json);
-the same `mcpServers` block goes in `claude_desktop_config.json`.
+Environment variables go in an `env` table, e.g.
+`env = { BLENDER_MCP_TOOLSETS = "inspect,view,edit,mesh,look" }` (or `--env KEY=VALUE`
+on `codex mcp add`).
+</details>
 
-Then ask the agent something like *"what's in my Blender scene?"*. No token setup is
-needed: the server finds the add-on's token file on its own.
+<details>
+<summary><b>DeepSeek Harness (dsh)</b></summary>
+
+dsh connects MCP servers through its official `@deepseek-ai/dsh-mcp-client` plugin:
+one entry per server in `cordis.patch.yml` (or a file passed with `--patch`):
+
+```yaml
+- id: mcp-blender
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    serverName: blender
+    transport: stdio
+    command: /full/path/to/uvx                 # `which uvx`
+    args: ['--from', 'SERVER_SPEC', 'blender-mcp']
+    env:
+      HOME: !!js process.env.HOME              # the server finds the token file here
+    toolCallTimeoutMs: 300000                  # renders/remesh can exceed the 60 s default
+```
+
+Tools appear as `mcp__blender__<tool>`, e.g. `mcp__blender__create_primitive`.
+Notes: dsh starts servers with a scrubbed environment (hence the full `uvx` path and
+`HOME`); it doesn't support MCP prompt templates, so `model_object` / `review_scene`
+aren't available there (tools and `blender://docs` resources are). This entry follows
+the [dsh MCP client docs](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-client/README.md)
+and hasn't been tested here yet.
+</details>
+
+<details>
+<summary><b>Any other MCP client</b></summary>
+
+It's a standard stdio server: command `uvx`, arguments
+`--from SERVER_SPEC blender-mcp`, plus any of the environment variables under
+[Configuration](#configuration).
+</details>
+
+### 4. Try it
+
+With Blender running and the add-on started, ask the agent something like *"ping
+Blender and tell me what's in the scene"*, then *"model a mug with a handle"*.
 
 Verified end to end with Claude Code 2.1 (the agent created objects in Blender through
-the server) and with Codex CLI 0.157 (`codex mcp list` shows the server enabled).
-
-> Don't use `uvx blender-mcp`: that name on PyPI belongs to a different project.
+the server) and Codex CLI 0.157 (config parsed, server listed as enabled).
 
 ### Configuration
 

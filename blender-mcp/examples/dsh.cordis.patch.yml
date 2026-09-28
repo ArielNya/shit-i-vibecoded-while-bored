@@ -1,0 +1,11 @@
+# DeepSeek Harness: add to cordis.patch.yml (or pass with --patch)
+- id: mcp-blender
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    serverName: blender
+    transport: stdio
+    command: /full/path/to/uvx                 # `which uvx`
+    args: ['--from', 'git+https://github.com/ArielNya/shit-i-vibecoded-while-bored@main#subdirectory=blender-mcp', 'blender-mcp']
+    env:
+      HOME: !!js process.env.HOME              # the server finds the token file here
+    toolCallTimeoutMs: 300000                  # renders/remesh can exceed the 60 s default

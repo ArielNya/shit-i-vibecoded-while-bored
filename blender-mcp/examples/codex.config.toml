@@ -1,5 +1,5 @@
-# Add to ~/.codex/config.toml
+# Add to ~/.codex/config.toml (or run: codex mcp add blender -- uvx --from "<spec>" blender-mcp)
 [mcp_servers.blender]
-command = "uv"
-args = ["run", "--directory", "/path/to/shit-i-vibecoded-while-bored/blender-mcp", "blender-mcp"]
-env = { BLENDER_MCP_PORT = "9876" }
+command = "uvx"
+args = ["--from", "git+https://github.com/ArielNya/shit-i-vibecoded-while-bored@main#subdirectory=blender-mcp", "blender-mcp"]
+tool_timeout_sec = 300
