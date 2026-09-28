@@ -17,7 +17,7 @@ const Protocol := preload("protocol.gd")
 const Listener := preload("listener.gd")
 const LogCapture := preload("log_capture.gd")
 const Dock := preload("dock.gd")
-const History := preload("history.gd")
+const Paths := preload("paths.gd")
 const DebuggerPlugin := preload("debugger_plugin.gd")
 const ExportPlugin := preload("export_plugin.gd")
 
@@ -43,7 +43,7 @@ var log_capture: LogCapture
 var dock: Dock
 ## Where the token came from, for the dock ("token file", "Editor Settings", ...).
 var token_source := ""
-var history := History.new()
+var history := {"done": [], "undone": []}
 var debugger: DebuggerPlugin
 var exporter: ExportPlugin
 var _handlers: Array = []
@@ -184,7 +184,7 @@ func _define_settings() -> void:
 func _ensure_runtime_autoload() -> void:
 	var path: String = get_script().resource_path.get_base_dir().path_join(RUNTIME_SCRIPT)
 	var current := String(ProjectSettings.get_setting("autoload/" + RUNTIME_AUTOLOAD, "")).trim_prefix("*")
-	if uid_path(current) != path:
+	if Paths.uid_to_path(current) != path:
 		add_autoload_singleton(RUNTIME_AUTOLOAD, path)
 		ProjectSettings.save()  # the editor would save later; a game started now needs it
 
@@ -193,10 +193,3 @@ func _disable_plugin() -> void:
 	if ProjectSettings.has_setting("autoload/" + RUNTIME_AUTOLOAD):
 		remove_autoload_singleton(RUNTIME_AUTOLOAD)
 
-
-static func uid_path(value: String) -> String:
-	if value.begins_with("uid://"):
-		var id := ResourceUID.text_to_id(value)
-		if ResourceUID.has_id(id):
-			return ResourceUID.get_id_path(id)
-	return value

@@ -6,12 +6,12 @@ const McpError := preload("../mcp_error.gd")
 const Protocol := preload("../protocol.gd")
 const Codec := preload("../codec.gd")
 const Paths := preload("../paths.gd")
-const History := preload("../history.gd")
 const DebuggerPlugin := preload("../debugger_plugin.gd")
 
 var plugin: EditorPlugin
-## Shared history.gd instance: the MCP actions available to undo/redo.
-var history: History
+## MCP actions available to undo/redo, shared by all handlers (see edit.gd `_step`):
+## {"done": [{history, name}], "undone": [...]}.
+var history: Dictionary
 ## The editor side of the running-game bridge.
 var debugger: DebuggerPlugin
 
@@ -39,7 +39,10 @@ func begin_action(action_name: String, context: Object) -> EditorUndoRedoManager
 
 func commit_action(ur: EditorUndoRedoManager, action_name: String, context: Object) -> void:
 	ur.commit_action()
-	history.record(ur.get_object_history_id(context), "MCP: " + action_name)
+	history["done"].append({"history": ur.get_object_history_id(context), "name": "MCP: " + action_name})
+	if history["done"].size() > 200:
+		history["done"].remove_at(0)
+	history["undone"].clear()
 
 
 ## The scene to edit: the edited scene, or `scene` (a res:// path), which is opened in the
@@ -126,14 +129,6 @@ func find_node(root: Node, path: String) -> Node:
 
 func node_path(root: Node, node: Node) -> String:
 	return "." if node == root else String(root.get_path_to(node))
-
-
-func uid_to_path(value: String) -> String:
-	if value.begins_with("uid://"):
-		var id := ResourceUID.text_to_id(value)
-		if ResourceUID.has_id(id):
-			return ResourceUID.get_id_path(id)
-	return value
 
 
 static func page(items: Array, offset: int, limit: int) -> Dictionary:

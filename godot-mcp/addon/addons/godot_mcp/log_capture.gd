@@ -71,10 +71,4 @@ func entries_since(seq: int) -> Array[Dictionary]:
 
 
 func errors_since(seq: int) -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	_mutex.lock()
-	for e in _entries:
-		if int(e["seq"]) > seq and e["level"] in ["error", "script_error", "shader_error"]:
-			out.append(e)
-	_mutex.unlock()
-	return out
+	return entries_since(seq).filter(func(e: Dictionary) -> bool: return e["level"] in ["error", "script_error", "shader_error"])

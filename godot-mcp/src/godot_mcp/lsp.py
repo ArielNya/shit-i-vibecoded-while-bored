@@ -73,30 +73,15 @@ class GDScriptLSP:
 
     async def diagnostics(self, res_path: str, text: str, timeout: float = 10.0) -> list[dict]:
         """Send the file's text to the server and return the diagnostics it publishes."""
-        await self._ensure_connected()
+        await self._ensure_connected()  # before the waiter: (re)connecting fails waiters
         uri = self.res_to_uri(res_path)
         async with self._diag_lock:
             waiter: asyncio.Future = asyncio.get_running_loop().create_future()
             self._diag_waiters[uri] = waiter
             try:
-                if uri in self._open_versions:
-                    # Re-open rather than didChange: the server re-analyses on open, and a
-                    # fresh open can't be confused with an older publish.
-                    await self._notify("textDocument/didClose", {"textDocument": {"uri": uri}})
-                version = self._open_versions.get(uri, 0) + 1
-                self._open_versions[uri] = version
-                self._open_texts[uri] = text
-                await self._notify(
-                    "textDocument/didOpen",
-                    {
-                        "textDocument": {
-                            "uri": uri,
-                            "languageId": "gdscript",
-                            "version": version,
-                            "text": text,
-                        }
-                    },
-                )
+                # Always re-open: the server re-analyses on open, and a fresh open can't
+                # be confused with an older publish.
+                await self.open_document(res_path, text, force=True)
                 return await asyncio.wait_for(waiter, timeout)
             except TimeoutError:
                 raise LSPError(
@@ -106,12 +91,12 @@ class GDScriptLSP:
             finally:
                 self._diag_waiters.pop(uri, None)
 
-    async def open_document(self, res_path: str, text: str) -> str:
+    async def open_document(self, res_path: str, text: str, force: bool = False) -> str:
         """Make sure the server has the current text of a file (needed before
         definition/references/documentSymbol). Returns the document URI."""
         await self._ensure_connected()
         uri = self.res_to_uri(res_path)
-        if self._open_texts.get(uri) == text:
+        if not force and self._open_texts.get(uri) == text:
             return uri
         if uri in self._open_versions:
             await self._notify("textDocument/didClose", {"textDocument": {"uri": uri}})

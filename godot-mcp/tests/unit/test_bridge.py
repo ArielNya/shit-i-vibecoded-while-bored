@@ -6,7 +6,6 @@ import json
 import pytest
 from mcp import Client
 
-from godot_mcp import protocol
 from godot_mcp.bridge import BridgeConfig, GodotBridge, GodotCommandError, GodotConnectionError
 from godot_mcp.server import create_server
 
@@ -56,8 +55,10 @@ async def test_token_from_env_and_file(private_token_file):
             await bridge_for(fake, token="wrong").call("ping")
         assert (await bridge_for(fake, token="s3cret").call("ping"))["pong"]
         # No explicit token: the shared token file (as created by the plugin) is used.
-        protocol.ensure_token_file(private_token_file)
-        fake.token = protocol.read_token_file(private_token_file)
+        private_token_file.parent.mkdir(parents=True)
+        private_token_file.write_text("from-file\n")
+        private_token_file.chmod(0o600)
+        fake.token = "from-file"
         bridge = bridge_for(fake)
         assert (await bridge.call("ping"))["pong"]
         await bridge.close()

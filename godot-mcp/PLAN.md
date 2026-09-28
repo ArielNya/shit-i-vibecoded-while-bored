@@ -488,7 +488,7 @@ Release tags: `godot-mcp-v*`, mirroring `blender-mcp`'s release workflow.
   unsaved tab). Edits reach disk only on `save_scene`, like in the editor.
 - Every mutation is one `EditorUndoRedoManager` action; owners are restored on undo
   (remove/move/save-branch). **Undo/redo:** no public "undo newest" exists, so
-  `history.gd` records (history id, action name) for MCP actions; `undo` takes the newest
+  a shared history dictionary records (history id, action name) for MCP actions; `undo` takes the newest
   one in the current scene's or the global history (like Ctrl+Z) and refuses if that
   history's newest action isn't ours any more (someone edited since).
 - Non-`@tool` scripts can't be `new()`ed inside the editor: nodes of a project

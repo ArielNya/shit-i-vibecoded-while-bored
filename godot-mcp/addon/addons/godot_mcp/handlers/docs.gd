@@ -200,10 +200,7 @@ func _literal(v: Variant) -> String:
 func _user_class_path(cls: String) -> String:
 	if cls.begins_with("res://") and FileAccess.file_exists(cls):
 		return cls
-	for entry in ProjectSettings.get_global_class_list():
-		if String(entry["class"]) == cls:
-			return String(entry["path"])
-	return ""
+	return Paths.global_class_path(cls)
 
 
 func _script_docs(cls: String, path: String) -> Variant:

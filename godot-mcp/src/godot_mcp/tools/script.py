@@ -13,6 +13,12 @@ READ_BATCH = 50
 SEVERITY = {1: "error", 2: "warning", 3: "info", 4: "hint"}
 
 
+def _split(diags: list[dict]) -> tuple[list[str], list[str]]:
+    """(errors, warnings) as 'line:col message' strings."""
+    errors = [_format(d) for d in diags if d.get("severity", 1) == 1]
+    return errors, [_format(d) for d in diags if d.get("severity", 1) == 2]
+
+
 def _format(diag: dict[str, Any]) -> str:
     start = (diag.get("range") or {}).get("start") or {}
     line = int(start.get("line", 0)) + 1
@@ -78,8 +84,7 @@ def register(mcp: MCPServer, godot: Godot) -> None:
                 except LSPError as exc:
                     raise ToolError(str(exc)) from exc
                 checked += 1
-                file_errors = [_format(d) for d in diags if d.get("severity", 1) == 1]
-                file_warnings = [_format(d) for d in diags if d.get("severity", 1) == 2]
+                file_errors, file_warnings = _split(diags)
                 errors += len(file_errors)
                 warnings += len(file_warnings)
                 entry: dict[str, Any] = {"path": res_path}
@@ -140,8 +145,7 @@ def register_editing(mcp: MCPServer, godot: Godot) -> None:
             diags = await lsp.diagnostics(path, text)
         except (LSPError, ToolError) as exc:
             return {"diagnostics_unavailable": str(exc)}
-        errors = [_format(d) for d in diags if d.get("severity", 1) == 1]
-        warnings = [_format(d) for d in diags if d.get("severity", 1) == 2]
+        errors, warnings = _split(diags)
         out: dict[str, Any] = {"errors": errors}
         if warnings:
             out["warnings"] = warnings

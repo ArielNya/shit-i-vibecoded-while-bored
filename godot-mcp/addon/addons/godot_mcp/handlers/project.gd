@@ -11,12 +11,6 @@ const WRITABLE_SETTING_PREFIXES := [
 	"autoload/",
 ]
 
-const MOUSE_BUTTONS := {
-	"left": MOUSE_BUTTON_LEFT, "right": MOUSE_BUTTON_RIGHT, "middle": MOUSE_BUTTON_MIDDLE,
-	"wheel_up": MOUSE_BUTTON_WHEEL_UP, "wheel_down": MOUSE_BUTTON_WHEEL_DOWN,
-	"wheel_left": MOUSE_BUTTON_WHEEL_LEFT, "wheel_right": MOUSE_BUTTON_WHEEL_RIGHT,
-	"xbutton1": MOUSE_BUTTON_XBUTTON1, "xbutton2": MOUSE_BUTTON_XBUTTON2,
-}
 const JOY_BUTTONS := {
 	"a": JOY_BUTTON_A, "b": JOY_BUTTON_B, "x": JOY_BUTTON_X, "y": JOY_BUTTON_Y,
 	"back": JOY_BUTTON_BACK, "guide": JOY_BUTTON_GUIDE, "start": JOY_BUTTON_START,
@@ -68,7 +62,7 @@ func get_project_info(_p: Dictionary) -> Variant:
 			if pname == "autoload/McpRuntime":
 				continue  # this plugin's own runtime, not part of the game
 			var value := String(ProjectSettings.get_setting(pname))
-			autoloads[pname.substr(9)] = uid_to_path(value.trim_prefix("*"))
+			autoloads[pname.substr(9)] = Paths.uid_to_path(value.trim_prefix("*"))
 		elif pname.begins_with("input/"):
 			var action := pname.substr(6)
 			if action.begins_with("ui_"):
@@ -89,7 +83,7 @@ func get_project_info(_p: Dictionary) -> Variant:
 		for n in EditorInterface.get_selection().get_selected_nodes():
 			selected.append(node_path(edited, n))
 
-	var main_scene := uid_to_path(String(ProjectSettings.get_setting("application/run/main_scene", "")))
+	var main_scene := Paths.uid_to_path(String(ProjectSettings.get_setting("application/run/main_scene", "")))
 	return {
 		"name": ProjectSettings.get_setting("application/config/name", ""),
 		"description": ProjectSettings.get_setting("application/config/description", ""),
@@ -343,14 +337,14 @@ func _set_autoload(autoload_name: String, value: Variant) -> Variant:
 		if not ProjectSettings.has_setting(key):
 			return fail("No autoload named '%s'." % autoload_name)
 		plugin.remove_autoload_singleton(autoload_name)
-		return {"name": key, "removed": true, "previous": uid_to_path(old)}
+		return {"name": key, "removed": true, "previous": Paths.uid_to_path(old)}
 	var path := Paths.normalize(String(value).trim_prefix("*"))
 	if path == "" or not FileAccess.file_exists(path):
 		return fail("No script or scene at '%s' to use as autoload." % value)
 	if ProjectSettings.has_setting(key):
 		plugin.remove_autoload_singleton(autoload_name)
 	plugin.add_autoload_singleton(autoload_name, path)
-	return {"name": key, "value": path, "previous": uid_to_path(old)}
+	return {"name": key, "value": path, "previous": Paths.uid_to_path(old)}
 
 
 ## Changes a project setting as one undoable editor action and saves project.godot.
@@ -399,7 +393,7 @@ func _event_to_spec(ev: InputEvent) -> Dictionary:
 		spec = {"type": "key", "key": OS.get_keycode_string(k.physical_keycode if physical else k.keycode), "physical": physical}
 	elif ev is InputEventMouseButton:
 		var b := (ev as InputEventMouseButton).button_index
-		spec = {"type": "mouse_button", "button": MOUSE_BUTTONS.find_key(b) if MOUSE_BUTTONS.find_key(b) != null else b}
+		spec = {"type": "mouse_button", "button": Codec.MOUSE_BUTTONS.find_key(b) if Codec.MOUSE_BUTTONS.find_key(b) != null else b}
 	elif ev is InputEventJoypadButton:
 		var jb := (ev as InputEventJoypadButton).button_index
 		spec = {"type": "joypad_button", "button": JOY_BUTTONS.find_key(jb) if JOY_BUTTONS.find_key(jb) != null else jb}
@@ -440,9 +434,9 @@ func _spec_to_event(spec: Variant) -> Variant:
 			ev = k
 		"mouse_button":
 			var b: Variant = spec.get("button", "left")
-			var idx: int = MOUSE_BUTTONS.get(b, -1) if b is String else int(b)
+			var idx: int = Codec.MOUSE_BUTTONS.get(b, -1) if b is String else int(b)
 			if idx <= 0:
-				return "unknown mouse button '%s' (%s)" % [b, ", ".join(MOUSE_BUTTONS.keys())]
+				return "unknown mouse button '%s' (%s)" % [b, ", ".join(Codec.MOUSE_BUTTONS.keys())]
 			var mb := InputEventMouseButton.new()
 			mb.button_index = idx
 			ev = mb

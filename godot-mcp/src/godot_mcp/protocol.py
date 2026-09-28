@@ -11,8 +11,6 @@ from __future__ import annotations
 
 import json
 import os
-import secrets
-import socket
 import stat
 import struct
 import sys
@@ -68,50 +66,14 @@ def parse_header(header: bytes, max_bytes: int = MAX_MESSAGE_BYTES) -> int:
     return length
 
 
-def _recv_exact(sock: socket.socket, n: int) -> bytes | None:
-    chunks = []
-    remaining = n
-    while remaining:
-        chunk = sock.recv(min(remaining, 1024 * 1024))
-        if not chunk:
-            if remaining == n:
-                return None
-            raise ProtocolError("connection closed mid-message")
-        chunks.append(chunk)
-        remaining -= len(chunk)
-    return b"".join(chunks)
-
-
-def read_message(sock: socket.socket, max_bytes: int = MAX_MESSAGE_BYTES) -> dict[str, Any] | None:
-    """Blocking read of one message. Returns None on clean EOF."""
-    header = _recv_exact(sock, HEADER.size)
-    if header is None:
-        return None
-    body = _recv_exact(sock, parse_header(header, max_bytes))
-    if body is None:
-        raise ProtocolError("connection closed mid-message")
-    return decode_body(body)
-
-
 def request(msg_id: int, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": msg_id, "method": method, "params": params or {}}
 
 
-def result(msg_id: Any, value: Any) -> dict[str, Any]:
-    return {"jsonrpc": "2.0", "id": msg_id, "result": value}
-
-
-def error(msg_id: Any, code: int, message: str, data: Any = None) -> dict[str, Any]:
-    err: dict[str, Any] = {"code": code, "message": message}
-    if data is not None:
-        err["data"] = data
-    return {"jsonrpc": "2.0", "id": msg_id, "error": err}
-
-
 # --- shared token file ---------------------------------------------------------------------
 #
-# By default the plugin generates a random token and stores it in a file only this user
-# can read; the server reads the same file. Other accounts on the machine can reach the
+# The plugin generates a random token and stores it in a file only this user can read;
+# the server reads the same file. Other accounts on the machine can reach the
 # localhost port but not the file, so they can't connect. GODOT_MCP_TOKEN (server) or
 # the plugin's token setting override it.
 
@@ -154,20 +116,3 @@ def read_token_file(path: Path | None = None) -> str | None:
     _check_private(path)
     token = path.read_text(encoding="utf-8").strip()
     return token or None
-
-
-def ensure_token_file(path: Path | None = None) -> str:
-    """Read the token file, creating it with a new random token if it doesn't exist."""
-    path = path or token_file_path()
-    existing = read_token_file(path)
-    if existing:
-        return existing
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    token = secrets.token_urlsafe(32)
-    try:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    except FileExistsError:  # another editor created it first
-        return read_token_file(path) or token
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write(token + "\n")
-    return token

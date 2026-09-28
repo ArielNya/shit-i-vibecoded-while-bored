@@ -61,11 +61,11 @@ func _scene_path(raw: String) -> Variant:
 
 
 func open_scene(p: Dictionary) -> Variant:
-	var root: Variant = await edited_root(String(p.get("path", "")))
-	if root is McpError:
-		return root
 	if String(p.get("path", "")) == "":
 		return invalid("`path` is required")
+	var root: Variant = await edited_root(String(p["path"]))
+	if root is McpError:
+		return root
 	return _scene_summary(root)
 
 
@@ -83,9 +83,7 @@ func _instantiate_type(type: String) -> Variant:
 	if type.begins_with("res://") or type.ends_with(".gd") or type.ends_with(".cs"):
 		script_path = Paths.normalize(type)
 	else:
-		for entry in ProjectSettings.get_global_class_list():
-			if String(entry["class"]) == type:
-				script_path = String(entry["path"])
+		script_path = Paths.global_class_path(type)
 	if script_path == "" or not ResourceLoader.exists(script_path):
 		return "unknown node type '%s' (not an engine class or project class_name)" % type
 	var script := load(script_path) as Script
@@ -623,8 +621,8 @@ func redo(p: Dictionary) -> Variant:
 ## (project settings, input map) are candidates; MCP actions in other open scenes wait
 ## until that scene is current again.
 func _step(steps: int, backwards: bool) -> Variant:
-	var source: Array[Dictionary] = history.done if backwards else history.undone
-	var dest: Array[Dictionary] = history.undone if backwards else history.done
+	var source: Array = history["done"] if backwards else history["undone"]
+	var dest: Array = history["undone"] if backwards else history["done"]
 	var manager := plugin.get_undo_redo()
 	var allowed := [EditorUndoRedoManager.GLOBAL_HISTORY]
 	var root := EditorInterface.get_edited_scene_root()
@@ -666,8 +664,8 @@ func _step(steps: int, backwards: bool) -> Variant:
 
 func _stale(entry: Dictionary, done_so_far: Array[String], newest: String) -> Variant:
 	# That history moved on without us: forget our entries for it.
-	history.done = history.done.filter(func(e: Dictionary) -> bool: return e["history"] != entry["history"])
-	history.undone = history.undone.filter(func(e: Dictionary) -> bool: return e["history"] != entry["history"])
+	for key in ["done", "undone"]:
+		history[key] = history[key].filter(func(e: Dictionary) -> bool: return e["history"] != entry["history"])
 	var msg := "Stopped: '%s' is no longer the newest change in its history" % entry["name"]
 	if newest != "":
 		msg += " (newest is '%s')" % newest

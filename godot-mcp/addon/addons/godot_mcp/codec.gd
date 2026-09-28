@@ -12,6 +12,13 @@ extends RefCounted
 ## - Large arrays are cut to their first items with a {"_truncated": total} marker.
 
 const MAX_DEPTH := 6
+## Mouse button names used by the input-map tools and send_input.
+const MOUSE_BUTTONS := {
+	"left": MOUSE_BUTTON_LEFT, "right": MOUSE_BUTTON_RIGHT, "middle": MOUSE_BUTTON_MIDDLE,
+	"wheel_up": MOUSE_BUTTON_WHEEL_UP, "wheel_down": MOUSE_BUTTON_WHEEL_DOWN,
+	"wheel_left": MOUSE_BUTTON_WHEEL_LEFT, "wheel_right": MOUSE_BUTTON_WHEEL_RIGHT,
+	"xbutton1": MOUSE_BUTTON_XBUTTON1, "xbutton2": MOUSE_BUTTON_XBUTTON2,
+}
 const MAX_ITEMS := 64
 const PACKED_TYPES := [
 	TYPE_PACKED_BYTE_ARRAY, TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_INT64_ARRAY,
@@ -322,10 +329,7 @@ static func _new_resource(spec: Dictionary) -> Array:
 			return [false, "'%s' is not a resource class that can be created" % cls]
 		res = ClassDB.instantiate(cls)
 	else:
-		var script_path := ""
-		for entry in ProjectSettings.get_global_class_list():
-			if String(entry["class"]) == cls:
-				script_path = entry["path"]
+		var script_path := preload("paths.gd").global_class_path(cls)
 		if script_path == "":
 			return [false, "unknown resource class '%s'" % cls]
 		var obj: Variant = load(script_path).new()

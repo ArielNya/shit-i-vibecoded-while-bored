@@ -8,6 +8,17 @@ import json
 from godot_mcp import protocol
 
 
+def _result(msg_id, value):
+    return {"jsonrpc": "2.0", "id": msg_id, "result": value}
+
+
+def _error(msg_id, code, message, data=None):
+    err = {"code": code, "message": message}
+    if data is not None:
+        err["data"] = data
+    return {"jsonrpc": "2.0", "id": msg_id, "error": err}
+
+
 class FakeGodot:
     """Speaks the plugin's framed JSON-RPC: handshake (with token) + stub handlers.
 
@@ -47,27 +58,25 @@ class FakeGodot:
                 msg_id, method, params = msg["id"], msg["method"], msg.get("params") or {}
                 if method == protocol.HANDSHAKE_METHOD:
                     if params.get("protocol_version") != self.protocol_version:
-                        reply = protocol.error(
-                            msg_id, protocol.VERSION_MISMATCH, "version mismatch"
-                        )
+                        reply = _error(msg_id, protocol.VERSION_MISMATCH, "version mismatch")
                     elif self.token and params.get("token") != self.token:
-                        reply = protocol.error(msg_id, protocol.UNAUTHORIZED, "invalid token")
+                        reply = _error(msg_id, protocol.UNAUTHORIZED, "invalid token")
                     else:
                         authed = True
-                        reply = protocol.result(msg_id, self.info)
+                        reply = _result(msg_id, self.info)
                 elif not authed:
-                    reply = protocol.error(msg_id, protocol.UNAUTHORIZED, "handshake required")
+                    reply = _error(msg_id, protocol.UNAUTHORIZED, "handshake required")
                 elif method not in self.handlers:
-                    reply = protocol.error(msg_id, protocol.METHOD_NOT_FOUND, "unknown method")
+                    reply = _error(msg_id, protocol.METHOD_NOT_FOUND, "unknown method")
                 else:
                     self.calls.append((method, params))
                     try:
                         value = self.handlers[method](params)
                         if asyncio.iscoroutine(value):
                             value = await value
-                        reply = protocol.result(msg_id, value)
+                        reply = _result(msg_id, value)
                     except FakeError as exc:
-                        reply = protocol.error(msg_id, exc.code, str(exc), exc.data)
+                        reply = _error(msg_id, exc.code, str(exc), exc.data)
                 writer.write(protocol.encode(reply))
                 await writer.drain()
         except (asyncio.IncompleteReadError, ConnectionError):

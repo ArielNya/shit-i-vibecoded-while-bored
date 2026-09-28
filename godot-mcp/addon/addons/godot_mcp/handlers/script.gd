@@ -155,9 +155,8 @@ func _wait_for_class_name(path: String, text: String) -> void:
 	var cls := m.get_string(1)
 	for attempt in 2:
 		for i in 60:
-			for entry in ProjectSettings.get_global_class_list():
-				if String(entry["class"]) == cls and String(entry["path"]) == path:
-					return
+			if Paths.global_class_path(cls) == path:
+				return
 			await plugin.get_tree().process_frame
 		EditorInterface.get_resource_filesystem().scan()
 		await plugin.get_tree().process_frame
@@ -258,10 +257,7 @@ func create_script(p: Dictionary) -> Variant:
 
 
 func _is_global_class(cls: String) -> bool:
-	for entry in ProjectSettings.get_global_class_list():
-		if String(entry["class"]) == cls:
-			return true
-	return false
+	return Paths.global_class_path(cls) != ""
 
 
 func attach_script(p: Dictionary) -> Variant:

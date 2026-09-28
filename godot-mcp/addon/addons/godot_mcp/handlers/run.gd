@@ -53,7 +53,7 @@ func run_project(p: Dictionary) -> Variant:
 
 	var scene_path := ""
 	if target == "":
-		scene_path = uid_to_path(String(ProjectSettings.get_setting("application/run/main_scene", "")))
+		scene_path = Paths.uid_to_path(String(ProjectSettings.get_setting("application/run/main_scene", "")))
 		if scene_path == "":
 			return fail("The project has no main scene. Pass `scene`, or set application/run/main_scene.")
 	elif target == "current":

@@ -256,9 +256,6 @@ func _screenshot(p: Dictionary) -> Variant:
 
 # --- input ---------------------------------------------------------------------------------
 
-const MOUSE_BUTTONS := {"left": MOUSE_BUTTON_LEFT, "right": MOUSE_BUTTON_RIGHT, "middle": MOUSE_BUTTON_MIDDLE, "wheel_up": MOUSE_BUTTON_WHEEL_UP, "wheel_down": MOUSE_BUTTON_WHEEL_DOWN}
-
-
 ## Each event: {"action": "jump"} | {"key": "Space"} | {"mouse_button": "left", "position": [x, y]}
 ## | {"mouse_motion": [x, y]} (+ "strength" for actions). mode: "tap" (press, hold for
 ## `frames`, release), "press", or "release".
@@ -317,7 +314,7 @@ func _build_event(spec: Dictionary) -> Variant:
 	if spec.has("mouse_button"):
 		var b := MouseButton.MOUSE_BUTTON_NONE
 		var raw: Variant = spec["mouse_button"]
-		b = MOUSE_BUTTONS.get(raw, MOUSE_BUTTON_NONE) if raw is String else int(raw)
+		b = Codec.MOUSE_BUTTONS.get(raw, MOUSE_BUTTON_NONE) if raw is String else int(raw)
 		if b == MOUSE_BUTTON_NONE:
 			return "unknown mouse button '%s'" % raw
 		var mb := InputEventMouseButton.new()
@@ -339,13 +336,10 @@ func _build_event(spec: Dictionary) -> Variant:
 	return "an event needs one of: action, key, mouse_button, mouse_motion"
 
 
+## [x, y] or "Vector2(x, y)" -> Vector2, or null.
 static func _vec(v: Variant) -> Variant:
-	if v is Array and v.size() == 2:
-		return Vector2(float(v[0]), float(v[1]))
-	if v is String and String(v).begins_with("Vector2("):
-		var parsed: Variant = Codec.decode(v, TYPE_VECTOR2)
-		return parsed[1] if parsed[0] else null
-	return null
+	var parsed := Codec.decode(v, TYPE_VECTOR2)
+	return parsed[1] if parsed[0] else null
 
 
 func _send(ev: InputEvent, pressed: bool) -> void:

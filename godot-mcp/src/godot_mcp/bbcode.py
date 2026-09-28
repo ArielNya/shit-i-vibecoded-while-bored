@@ -43,8 +43,3 @@ def to_markdown(text: str) -> str:
     out = _CLASS.sub(lambda m: f"`{m.group(1)}`", out)
     out = out.replace("[lb]", "[").replace("[rb]", "]")
     return re.sub(r"\n{3,}", "\n\n", out).strip()
-
-
-def first_paragraph(text: str, limit: int = 600) -> str:
-    para = text.split("\n", 1)[0].strip()
-    return para if len(para) <= limit else para[: limit - 1].rstrip() + "…"

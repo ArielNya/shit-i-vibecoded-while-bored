@@ -77,3 +77,20 @@ static func skip_dir(dir_path: String, name: String) -> bool:
 	if dir != null and dir.is_link(name):
 		return true
 	return FileAccess.file_exists(dir_path.path_join(name).path_join(".gdignore"))
+
+
+## res:// path of a uid:// reference (other values are returned unchanged).
+static func uid_to_path(value: String) -> String:
+	if value.begins_with("uid://"):
+		var id := ResourceUID.text_to_id(value)
+		if ResourceUID.has_id(id):
+			return ResourceUID.get_id_path(id)
+	return value
+
+
+## Script path of a project `class_name`, or "" if there is none.
+static func global_class_path(cls: String) -> String:
+	for entry in ProjectSettings.get_global_class_list():
+		if String(entry["class"]) == cls:
+			return String(entry["path"])
+	return ""

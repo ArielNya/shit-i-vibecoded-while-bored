@@ -1,4 +1,4 @@
-from godot_mcp.bbcode import first_paragraph, to_markdown
+from godot_mcp.bbcode import to_markdown
 
 
 def test_references_and_formatting():
@@ -24,7 +24,5 @@ def test_code_blocks_keep_gdscript_drop_csharp():
     assert md.endswith("Done.")
 
 
-def test_links_and_first_paragraph():
+def test_links():
     assert to_markdown("[url=https://x.org]docs[/url]") == "docs (https://x.org)"
-    assert first_paragraph("One.\nTwo.") == "One."
-    assert first_paragraph("x" * 50, limit=10) == "x" * 9 + "…"

@@ -6,10 +6,6 @@ extends EditorDebuggerPlugin
 
 const MAX_LOG := 3000
 
-## Emitted when the runtime in a newly started game has said hello.
-signal runtime_ready(info: Dictionary)
-signal session_ended
-
 var run_id := 0
 var session_id := -1
 var runtime_info: Dictionary = {}
@@ -49,7 +45,6 @@ func _on_stopped(id: int) -> void:
 		return
 	running = false
 	ended_msec = Time.get_ticks_msec()
-	session_ended.emit()
 
 
 func _capture(message: String, data: Array, id: int) -> bool:
@@ -58,7 +53,6 @@ func _capture(message: String, data: Array, id: int) -> bool:
 	match message:
 		"mcp:hello":
 			runtime_info = data[0] if not data.is_empty() and data[0] is Dictionary else {}
-			runtime_ready.emit(runtime_info)
 		"mcp:res":
 			if not data.is_empty() and data[0] is Dictionary:
 				_replies[int(data[0].get("id", -1))] = data[0]
