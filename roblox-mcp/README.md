@@ -6,9 +6,10 @@ asset search and insert. This server covers what it can't do: the game project o
 disk (Rojo), type-checking and linting, tests, uploading local assets, publishing,
 and offline Engine API docs. It needs no Studio, so it also runs on Linux and in CI.
 
-Status: **M4** (Rojo projects and live sync, type checking and formatting, tests, asset
-uploads, offline Engine API docs, the `roblox-studio` agent skill). Open Cloud features
-(cloud tests, uploads) are tested against a fake server only so far.
+Status: **M5** (Rojo projects and live sync, type checking and formatting, tests, asset
+uploads, cloud Luau runs, data stores, publishing, offline Engine API docs, the
+`roblox-studio` agent skill). Open Cloud features are tested against a fake server only so
+far.
 See [`PLAN.md`](PLAN.md) for the roadmap.
 
 Targets Roblox Studio **0.740** (Sept 2026).
@@ -68,6 +69,8 @@ Every option is a flag and an environment variable.
 | `--http-port` | `ROBLOX_MCP_HTTP_PORT` | `7090` |
 | `--http-token` | `ROBLOX_MCP_HTTP_TOKEN` | required with `--http` |
 | `--no-http-auth` | | loopback only |
+| `--allow-publish` | `ROBLOX_MCP_ALLOW_PUBLISH=1` | off: adds `publish_place`, `run_luau_cloud place="live"` |
+| `--allow-datastore-writes` | `ROBLOX_MCP_ALLOW_DATASTORE_WRITES=1` | off: adds `datastore_set` |
 
 The code tools need the toolchain: in a game project, `rokit install` (it reads the
 `rokit.toml` that `init_project` writes). Tools are looked up in `ROBLOX_MCP_BIN_DIR`, then
@@ -79,7 +82,9 @@ test runs, `ROBLOX_TEST_PLACE_ID` (a separate place: each run uploads a saved ve
 it). The key is never logged or returned by a tool. Scopes for cloud tests:
 `universe-places:write`, `universe.place.luau-execution-session:write` and `:read`.
 Uploads need `asset:read` and `asset:write`, and an owner: `ROBLOX_CREATOR_USER_ID` or
-`ROBLOX_CREATOR_GROUP_ID`.
+`ROBLOX_CREATOR_GROUP_ID`. Data stores: `universe-datastores.control:list`,
+`universe-datastores.objects:list`, `:read` (and `:update` for writes). Publishing:
+`universe-places:write`.
 
 ## Tools
 
@@ -94,6 +99,10 @@ Uploads need `asset:read` and `asset:write`, and an owner: `ROBLOX_CREATOR_USER_
 | `run_tests` | `*.spec.luau` specs locally under Lune (pure Luau), or in a real headless Roblox server through Open Cloud (`target="cloud"`, needs a separate test place) |
 | `upload_asset` | upload a local model/image/audio/video/animation file with Open Cloud; returns the `rbxassetid://` and where to use it; unchanged files reuse their id (`assets.lock.json`) |
 | `list_uploaded_assets` | the manifest: ids, moderation state (optionally refreshed), files changed since upload |
+| `run_luau_cloud` | run Luau in a headless server on the latest version of the test place (`place="live"` needs `--allow-publish`) |
+| `datastore_list` / `datastore_read` | list data stores and keys, read an entry (value, revision, etag) |
+| `datastore_set` | **opt-in** (`--allow-datastore-writes`): write one entry, keeping its users and attributes; pass the etag you read |
+| `publish_place` | **opt-in** (`--allow-publish`): upload a place file as a Saved or Published version; refuses Rojo builds that would drop the world |
 | `get_api_docs` | Engine API reference for Studio 0.740, offline: `Part`, `Workspace:Raycast` (through inheritance), `Enum.Material`, `task.wait`, `wait` (with its deprecation note) |
 | `search_api` | find classes and members by name or summary words |
 | `read_guide` | the `roblox-studio` skill and its references, for clients that don't load skills |

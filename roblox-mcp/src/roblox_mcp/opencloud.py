@@ -16,7 +16,9 @@ BASE_ENV = "ROBLOX_MCP_OPEN_CLOUD_URL"
 
 
 class CloudError(Exception):
-    pass
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
 
 
 def config(*names: str) -> dict[str, str]:
@@ -45,29 +47,31 @@ def request(method: str, path: str, body: bytes | None = None,
             403: " (the key isn't allowed for this experience/place, or lacks a scope)",
             429: " (rate limited: Luau execution allows 5 tasks per minute)",
         }.get(e.code, "")
-        raise CloudError(f"Open Cloud {method} {path}: HTTP {e.code}{hint}: {detail}") from None
+        message = f"Open Cloud {method} {path}: HTTP {e.code}{hint}: {detail}"
+        raise CloudError(message, e.code) from None
     except urllib.error.URLError as e:
         raise CloudError(f"can't reach Open Cloud ({e.reason})") from None
     return json.loads(text) if text else None
 
 
-def save_place_version(universe: str, place: str, rbxl: bytes) -> int:
-    """Upload a place file as a Saved (not published) version; returns its number.
+def save_place_version(universe: str, place: str, data: bytes, version_type: str = "Saved",
+                       xml: bool = False) -> int:  # fmt: skip
+    """Upload a place file as a Saved or Published version; returns its number.
     Scope: universe-places:write."""
-    reply = request("POST", f"universes/v1/{universe}/places/{place}/versions?versionType=Saved",
-                    rbxl, "application/octet-stream")  # fmt: skip
-    return int(reply["versionNumber"])
+    path = f"universes/v1/{universe}/places/{place}/versions?versionType={version_type}"
+    content_type = "application/xml" if xml else "application/octet-stream"
+    return int(request("POST", path, data, content_type)["versionNumber"])
 
 
-def run_luau(universe: str, place: str, version: int, script: str,
+def run_luau(universe: str, place: str, version: int | None, script: str,
              timeout_s: int = 300) -> dict[str, Any]:  # fmt: skip
-    """Run a script against a place version headless; waits for the task to finish and
-    returns {"state", "results", "error", "logs"}. Scope:
-    universe.place.luau-execution-session:write."""
+    """Run a script headless against a place version (None: the latest); waits for the
+    task and returns {"state", "results", "error", "logs"}. Scopes:
+    universe.place.luau-execution-session:write and :read."""
+    at = f"versions/{version}/" if version is not None else ""
     task = request(
         "POST",
-        f"cloud/v2/universes/{universe}/places/{place}/versions/{version}/"
-        "luau-execution-session-tasks",
+        f"cloud/v2/universes/{universe}/places/{place}/{at}luau-execution-session-tasks",
         json.dumps({"script": script, "timeout": f"{timeout_s}s"}).encode(),
     )
     deadline = time.monotonic() + timeout_s + 60

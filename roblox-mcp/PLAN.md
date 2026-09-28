@@ -10,7 +10,7 @@ at [`Roblox/creator-docs`](https://github.com/Roblox/creator-docs) `0b817b5`
 (2026-09-26, `reference/engine/STUDIO_VERSION` = `0.740.19`). Roblox ships weekly,
 so the pin is bumped by a script (§7), not by hand.
 
-Status: **M0–M4 done** (see §8 notes; M3 cloud runs and M4 uploads not yet verified against Roblox). Next: M5 (cloud ops).
+Status: **M0–M5 done** (see §8 notes; the Open Cloud parts of M3–M5 aren't verified against Roblox yet). Next: M6 (skill complete, evals, full-game smoke).
 
 ---
 
@@ -116,9 +116,9 @@ Small on purpose, ~16 tools. Names don't collide with the built-in ones.
 ### 3.4 `cloud`
 | Tool | Purpose |
 | --- | --- |
-| `publish_place` | upload a built `.rbxl` as a Saved or Published version; **off unless enabled** |
-| `run_luau_cloud` | Open Cloud Luau Execution against a place version; returns output/logs |
-| `datastore_read` / `datastore_list` | read-only DataStore inspection (entries, keys, versions); writes are an explicit opt-in toolset |
+| `publish_place` | upload a `.rbxl`/`.rbxlx` as a Saved or Published version; **off unless `--allow-publish`** |
+| `run_luau_cloud` | Open Cloud Luau Execution on the latest version of the test place (live needs `--allow-publish`); returns results/output |
+| `datastore_read` / `datastore_list` | read-only DataStore inspection (stores, keys, entries); `datastore_set` only with `--allow-datastore-writes` |
 
 ### 3.5 `docs`
 | Tool | Purpose |
@@ -136,8 +136,9 @@ files) and shipped in the wheel: no network, no Studio.
 
 - Open Cloud API key from `ROBLOX_API_KEY` only, never logged or returned. The tool
   says which **scopes** are missing instead of failing opaquely.
-- `publish_place`, DataStore writes and `run_luau_cloud` against a *Published*
-  version are separate toolsets, **off by default** (`--toolsets +publish`).
+- `publish_place`, `datastore_set` and `run_luau_cloud` against the live place exist
+  only when the server is started with `--allow-publish` / `--allow-datastore-writes`
+  (**off by default**; M5 notes).
   Publishing is what players see.
 - File tools confined to the project root; the uploader reads only files under
   it (or an explicit `--asset-dir`), rejects symlink escapes and `..`.
@@ -232,10 +233,41 @@ verified.
 | **M2** ✅ | Project & code | `init_project`, `build_place`, `sync_status`, `check_code`, `format_code` on the fixture game; session hook installs the toolchain |
 | **M3** ✅ | Tests | `run_tests` local (Lune) and cloud (Luau Execution); acceptance: the agent fixes the fixture's failing spec using only tools |
 | **M4** ✅ | Assets | `upload_asset` + manifest for models, images, audio; acceptance: a local `.glb` ends up in Studio via `insert_asset` (manual Studio smoke) |
-| **M5** | Cloud ops | `publish_place`, `run_luau_cloud`, DataStore read (write opt-in) |
+| **M5** ✅ | Cloud ops | `publish_place`, `run_luau_cloud`, DataStore read (write opt-in) |
 | **M6** | Skill complete | all references + recipes; evals with vs. without skill; full-game smoke (small obby: build, code, test, publish to a private place) in Claude Code + one other harness |
 | **M7** | Wrapper | §9: `--wrap-studio` proxies the built-in server behind ours; the conflict rules there, each with a test against a fake built-in server; manual Studio smoke with only `roblox-mcp` configured |
 | **M8** | Stretch, only if M6 shows a real gap | own Studio plugin for what `execute_luau` can't do; multi-place universes; Packages; `.rbxm` insert without uploading |
+
+### M5 notes
+
+- 5 tools: `run_luau_cloud`, `datastore_list`, `datastore_read` always; `datastore_set`
+  with `--allow-datastore-writes`, `publish_place` with `--allow-publish` (flags or
+  `ROBLOX_MCP_ALLOW_*=1`). Gated tools aren't registered at all, rather than refusing at
+  call time, so an agent (or text in a place it reads) can't talk its way into using
+  them. `run_luau_cloud place="live"` also needs `--allow-publish`: a script can call
+  `AssetService:SavePlaceAsync`.
+- `run_luau_cloud` uses the version-less task endpoint (latest saved version), test place
+  by default. `opencloud.run_luau` takes an optional version; M3's test runs still pin the
+  version they uploaded.
+- **Publishing hazard found in the docs:** the API replaces the whole place with the file,
+  and our template keeps the world out of the Rojo project, so publishing a Rojo build
+  would delete the world. `publish_place` needs an explicit file and refuses files under
+  `build/` when the project tree has no `Workspace`; the skill routes Studio-built places
+  to Studio's own publish. The API also skips `Editable*`, `PartOperation`,
+  `SurfaceAppearance` and `BaseWrap` (documented in `references/publishing.md`).
+- **Data store write hazard found in the docs:** an entry update that omits `users` or
+  `attributes` clears them (losing the user association that GDPR deletion relies on).
+  `datastore_set` reads the entry first and carries both over; a 404 means create. The
+  caller's `etag` makes the write fail if a live server changed the entry in between.
+  Keys and store names are URL-encoded (a key can contain `/`); prefix listing uses the
+  API's only filter, `id.startsWith("…")`.
+- Default-scope standard data stores only (no `/scopes/`, ordered stores, deletes or
+  revisions): enough to inspect and fix player data; add when needed.
+- `CloudError` now carries the HTTP status. The schema checker covers the opt-in tools
+  too (17 tools, ~2k tokens).
+- Tested against a fake Open Cloud: endpoints, query strings, encoding, bodies, the
+  read-then-write, create on 404, publish guard and content types, gating of the tool
+  list and flags. **Not verified against Roblox** (`apis.roblox.com` blocked here).
 
 ### M4 notes
 

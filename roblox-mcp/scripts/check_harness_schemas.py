@@ -18,7 +18,7 @@ async def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--server-name", default=compat.SERVER_NAME)
     args = parser.parse_args()
-    tools = await create_server().list_tools()
+    tools = await create_server(allow_publish=True, allow_datastore_writes=True).list_tools()
     found = {t.name: compat.problems(t, args.server_name) for t in tools}
     bad = {name: p for name, p in found.items() if p}
     size = sum(len(json.dumps(t.input_schema)) + len(t.description or "") for t in tools)

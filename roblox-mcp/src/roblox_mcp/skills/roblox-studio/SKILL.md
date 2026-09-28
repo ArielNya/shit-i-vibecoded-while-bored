@@ -16,7 +16,7 @@ Two MCP servers, each with its own job:
   search/insert/generation.
 - **roblox** (roblox-mcp, optional): the project on disk and Roblox's cloud.
   Project info, Rojo setup and live sync, type checking, formatting, tests, asset
-  uploads, API docs, guides; later publishing. Works without Studio.
+  uploads, cloud Luau runs, data stores, publishing (opt-in), API docs, guides. Works without Studio.
 
 If only one of them is connected, use what's there and say what's missing when a
 task needs the other.
@@ -40,6 +40,8 @@ task needs the other.
 | Write code | your file tools on the `.luau` files (**never `multi_edit`**: Rojo overwrites it) | `multi_edit` |
 | Check code | `check_code` (types + lints, Studio's API), `format_code` | read `get_console_output` after running |
 | Test logic | `*.spec.luau` next to the module, `run_tests` (local, or `target="cloud"` for engine code) | same, needs files |
+| Inspect a place without Studio, or live data | `run_luau_cloud` (test place), `datastore_list` / `datastore_read` | same |
+| Publish | ask the user to publish from Studio; `publish_place` only for a place fully in files (see `references/publishing.md`) | Studio |
 | Get code into Studio | `sync_status` (start `rojo serve`; the user connects Studio's Rojo plugin) | already there |
 | No project yet, user wants files/git | `init_project` | same |
 | Build the world, set properties, tags, attributes, lighting | `execute_luau` in `Edit` (undoable, §3) | same |
@@ -140,6 +142,7 @@ roblox-mcp):
 - `references/project-layout.md`: services, what goes where, Rojo layout.
 - `references/networking.md`: remotes, validation, replication, rate limits.
 - `references/assets.md`: getting local files into the game, limits, using the ids.
+- `references/publishing.md`: publishing safely, cloud Luau runs, data stores.
 - `references/testing.md`: spec format, local vs cloud runs, test place rules.
 - `references/deprecated.md`: deprecated APIs and their replacements
   (generated from the API reference).
