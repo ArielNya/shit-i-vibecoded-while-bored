@@ -10,7 +10,7 @@ at [`Roblox/creator-docs`](https://github.com/Roblox/creator-docs) `0b817b5`
 (2026-09-26, `reference/engine/STUDIO_VERSION` = `0.740.19`). Roblox ships weekly,
 so the pin is bumped by a script (§7), not by hand.
 
-Status: **planning.**
+Status: **M0 done** (see §8 notes). Next: M1 (docs grounding + skill v0).
 
 ---
 
@@ -95,7 +95,7 @@ Small on purpose, ~16 tools. Names don't collide with the built-in ones.
 ### 3.1 `project`
 | Tool | Purpose |
 | --- | --- |
-| `get_project_info` | mode (Rojo/Studio), project tree from `*.project.json`, toolchain versions, missing tools, Open Cloud key present + scopes, whether the built-in server is configured in this harness |
+| `get_project_info` | mode (Rojo/Studio), project tree from `*.project.json`, toolchain versions, missing tools, Open Cloud key present (scopes checked from M4, when a tool first uses the key), where Studio's built-in server is installed |
 | `init_project` | `rojo init` + `rokit.toml` + `selene.toml` (`std = "roblox"`) + `.luaurc` (`--!strict` default, aliases) + `stylua.toml`; idempotent |
 | `build_place` | `rojo build` → `.rbxl` / `.rbxm` in the project's `build/` |
 | `sync_status` | is `rojo serve` running, port, sourcemap fresh; can start/stop it |
@@ -227,21 +227,73 @@ verified.
 
 | # | Milestone | Done when |
 | --- | --- | --- |
-| **M0** | Skeleton | uv project; `get_project_info`; stdio + HTTP; schema checker; README with both server configs; session hook installs the toolchain |
+| **M0** ✅ | Skeleton | uv project; `get_project_info`; stdio + HTTP; schema checker; README with both server configs |
 | **M1** | Docs grounding | `get_api_docs`, `search_api`, deprecated table from pinned `creator-docs`; **skill v0** (`SKILL.md` + 3 references) usable with the built-in server alone |
-| **M2** | Project & code | `init_project`, `build_place`, `sync_status`, `check_code`, `format_code` on the fixture game |
+| **M2** | Project & code | `init_project`, `build_place`, `sync_status`, `check_code`, `format_code` on the fixture game; session hook installs the toolchain |
 | **M3** | Tests | `run_tests` local (Lune) and cloud (Luau Execution); acceptance: the agent fixes the fixture's failing spec using only tools |
 | **M4** | Assets | `upload_asset` + manifest for models, images, audio; acceptance: a local `.glb` ends up in Studio via `insert_asset` (manual Studio smoke) |
 | **M5** | Cloud ops | `publish_place`, `run_luau_cloud`, DataStore read (write opt-in) |
 | **M6** | Skill complete | all references + recipes; evals with vs. without skill; full-game smoke (small obby: build, code, test, publish to a private place) in Claude Code + one other harness |
-| **M7** | Stretch, only if M6 shows a real gap | own Studio plugin for what `execute_luau` can't do; multi-place universes; Packages; `.rbxm` insert without uploading |
+| **M7** | Wrapper | §9: `--wrap-studio` proxies the built-in server behind ours; the conflict rules there, each with a test against a fake built-in server; manual Studio smoke with only `roblox-mcp` configured |
+| **M8** | Stretch, only if M6 shows a real gap | own Studio plugin for what `execute_luau` can't do; multi-place universes; Packages; `.rbxm` insert without uploading |
+
+### M0 notes
+
+- `get_project_info` is the only tool: mode (`rojo` if a `*.project.json` exists,
+  `default.project.json` preferred), the Rojo tree (class + synced path, 3 levels),
+  toolchain versions via `--version` (null when missing), Open Cloud env presence
+  (the key's value never appears), and Studio's `StudioMCP` / `mcp.bat` path
+  (null on Linux).
+- Transport, bearer auth and schema checks are `godot-mcp`'s, copied. HTTP always
+  needs a token (`--http-token`); there's no shared token file since there's no
+  plugin to create one. Port 7090, so it can run next to `godot-mcp` on 7080.
+- No toolsets/presets yet: one tool. They come back when the tool count needs them.
+- Tested: unit tests, plus the server as a separate process over stdio (with an
+  empty environment) and HTTP (with and without the token). Not yet tried in a
+  harness next to Studio's server.
 
 ---
 
-## 9. Open questions
+## 9. The wrapper (M7): managing conflicts between the two servers
+
+Until M7 the two servers are configured side by side and the skill (§5) keeps
+them out of each other's way. Rules in a skill are requests; M7 makes the
+important ones enforced.
+
+`roblox-mcp --wrap-studio` starts the built-in server (`StudioMCP` /
+`mcp.bat`, auto-detected or `--studio-mcp <path>`) as a **child process**, talks
+to it as an MCP client over stdio, and lists its tools next to ours. The user
+configures one server. Tool lists are fetched from the child at startup and on
+its `tools/list_changed`, so new or renamed Roblox tools pass through with no
+code change. Off by default; without Studio (Linux) it logs one line and serves
+our tools only.
+
+Calls pass through untouched, except where the servers can conflict:
+
+| Conflict | What the wrapper does |
+| --- | --- |
+| `multi_edit` on a script Rojo owns (Rojo would overwrite it on the next sync) | refuse, naming the file to edit instead (path from the sourcemap) |
+| Play-testing while Rojo still has unsynced file changes (the test runs old code) | before `start_stop_play`: if `rojo serve` runs, wait until Studio has the latest files (bounded), else warn in the result |
+| `execute_luau` Edit changes not undoable | wrap the code in `ChangeHistoryService:TryBeginRecording` / `FinishRecording` unless it already records |
+| Wrong Studio window (several open) | when `studio_id` is omitted and more than one Studio is connected, pick the one whose place ID matches the project, else refuse and list them |
+| Inserting an uploaded asset still in moderation | `insert_asset` of an ID from our manifest that isn't approved yet → explain instead of failing opaquely |
+
+Each rule is a small function over (tool name, arguments) → pass, rewrite, or
+refuse, so rules can be added as smoke tests find new conflicts. Tested against a
+fake child server implementing the built-in tools' names and schemas.
+
+Not doing: renaming, merging or hiding the built-in tools. The skill and Roblox's
+own docs describe them by their real names.
+
+---
+
+## 10. Open questions
 
 - **Is a companion server the right call vs. replacing the built-in one?**
   Recommended yes (§1). Revisit at M6 with the smoke transcripts.
+- **Wrapper and Studio's client indicator:** does Studio still show the
+  connection (and does quick connect still work) when its server is a child of
+  ours? Check at M7.
 - **Local `.rbxm` into Studio without uploading:** can a plugin or `execute_luau`
   use `SerializationService` on bytes we pass in? If yes, a later tool can skip
   Open Cloud for rbxm. Verify in Studio 0.740.
