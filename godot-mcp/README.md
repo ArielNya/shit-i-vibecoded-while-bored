@@ -4,11 +4,13 @@ MCP server that lets AI agents inspect, edit, run and debug a live **Godot 4.7+*
 project. It's meant to work with any MCP client (Claude Code, Claude Desktop, Codex CLI,
 Gemini CLI, Cursor, VS Code / Copilot, Windsurf, Zed, opencode, dsh, …).
 
-**Status: M0–M2 done.** The agent can explore the project, read and **edit** scenes
+**Status: M0–M3 done.** The agent can explore the project, read and **edit** scenes
 (nodes, properties, signals, groups, instancing, save-branch-as-scene), **write**
 scripts and get the editor's errors and warnings back right away, navigate code
 (definitions, references, symbols), look up the Godot 4.7 API, screenshot the editor,
-and undo its own changes. Running and play-testing the game comes in M3. See
+and undo its own changes. It can also **run the game and play-test it**: read its
+output and runtime errors (with file:line and backtrace), inspect and tweak the live
+scene, send input, wait for conditions, and take screenshots of the game. See
 [`PLAN.md`](PLAN.md) for the roadmap.
 
 ```
@@ -26,6 +28,7 @@ AI client ──stdio──▶ godot-mcp (Python) ──TCP 127.0.0.1:9080──
 | `script` | `read_script`, `get_diagnostics`, `write_script`, `edit_script`, `create_script`, `attach_script`, `detach_script`, `find_symbol`, `get_definition`, `get_references` |
 | `docs` | `get_class_docs`, `search_docs` |
 | `view` | `get_editor_screenshot` |
+| `run` | `run_project`, `stop_project`, `get_run_status`, `get_output`, `get_runtime_errors`, `get_game_screenshot`, `get_live_tree`, `get_live_properties`, `set_live_properties`, `send_input`, `wait_for`, `get_performance` |
 
 - **`get_diagnostics`** asks the editor's own GDScript analyzer (through the built-in
   language server) for errors and warnings in one file or the whole project. You get the
@@ -45,6 +48,15 @@ AI client ──stdio──▶ godot-mcp (Python) ──TCP 127.0.0.1:9080──
   has unsaved changes in Godot's script editor (`force=true` overrides), and they can't
   write scenes, `project.godot` or this plugin's own files.
 - **`set_project_setting` / `edit_input_map`** save `project.godot`.
+- **Running the game:** `run_project` presses Play in the editor. The game talks back
+  through Godot's own debugger connection to a small **`McpRuntime` autoload**, which
+  the plugin adds to your project (it does nothing unless the game was started from
+  the editor, and it's left out of exported games). Script errors don't pause the game
+  the way a normal debug run would; they're logged, and `get_runtime_errors` returns
+  them with file:line and a backtrace. When the editor has no display, the game runs
+  headless: input, live properties and waits work, but screenshots need a window.
+  A typical play-test is `send_input` (hold `move_right` for 60 frames), then
+  `get_live_properties` or `wait_for` a condition.
 - **Values** are plain JSON where possible. Engine types are written as GDScript
   literals (`"Vector2(100, 200)"`, `"Color(1, 0, 0, 1)"`). Resources are
   `{"_type": "Resource", "class": "...", "path": "res://..."}`.
@@ -156,7 +168,7 @@ Cursor: `.cursor/mcp.json` in the project (or `~/.cursor/mcp.json`). Windsurf:
 { "mcpServers": { "godot": { "command": "uvx", "args": ["--from", "SERVER_SPEC", "godot-mcp"] } } }
 ```
 
-Cursor slows down with many tools across servers (godot-mcp has 40). If needed, trim
+Cursor slows down with many tools across servers (godot-mcp has 52). If needed, trim
 with `"env": {"GODOT_MCP_TOOLSETS": "project,scene,edit,script"}`.
 </details>
 
@@ -215,7 +227,7 @@ Server (environment variables):
 | `GODOT_MCP_PORT` / `GODOT_MCP_HOST` | `9080` / `127.0.0.1` | where the editor plugin listens |
 | `GODOT_MCP_TOKEN` | *(token file)* | only if you set a custom token in the plugin |
 | `GODOT_MCP_TIMEOUT` | `30` | seconds per call |
-| `GODOT_MCP_TOOLSETS` | all | comma-separated subset: `project,scene,edit,script,docs,view` |
+| `GODOT_MCP_TOOLSETS` | all | comma-separated subset: `project,scene,edit,script,docs,view,run` |
 | `GODOT_MCP_LSP_PORT` / `GODOT_MCP_LSP_HOST` | from the editor | override the GDScript language server address |
 
 Plugin: *Editor → Editor Settings → Godot Mcp* has `port`, `auto_start`,
@@ -242,6 +254,8 @@ member docs.
   rendering, audio, input devices, layer names, autoloads, …). It can't touch
   `editor_plugins/` or editor settings, so an agent can't turn this plugin off or
   change it.
+- The runtime in the game only answers the editor it was started from (over Godot's
+  debugger connection); it opens no ports of its own and is inert in exported builds.
 - The server's instructions tell the model that project contents are data, not
   instructions.
 

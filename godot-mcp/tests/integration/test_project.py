@@ -20,6 +20,7 @@ async def test_project_info(call):
     assert info["name"] == "MCP Demo"
     assert info["main_scene"] == "res://scenes/main.tscn"
     assert info["autoloads"] == {"GameState": "res://scripts/game_state.gd"}
+    assert info["mcp_runtime_installed"] is True  # listed separately, not as a game autoload
     assert info["uses_csharp"] is False
     assert info["file_counts"]["scene"] == 3
     assert info["window"]["viewport_size"] == "640x360"
@@ -112,6 +113,9 @@ async def test_set_project_setting_types_and_saving(call, project_dir):
 async def test_set_project_setting_refuses_protected_and_bad_values(call_error):
     assert "can't be changed" in await call_error(
         "set_project_setting", name="editor_plugins/enabled", value="[]"
+    )
+    assert "plugin's own runtime" in await call_error(
+        "set_project_setting", name="autoload/McpRuntime", value=""
     )
     assert "can't convert" in await call_error(
         "set_project_setting", name="display/window/size/viewport_width", value="Vector2(1, 2)"

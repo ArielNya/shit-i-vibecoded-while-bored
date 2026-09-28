@@ -375,3 +375,75 @@ static func unknown_property_message(obj: Object, pname: String, infos: Dictiona
 			close.append(k)
 	var hint := " Did you mean: %s?" % ", ".join(close.slice(0, 5)) if not close.is_empty() else ""
 	return "%s has no property '%s'.%s" % [class_label(obj), pname, hint]
+
+
+# --- property listings (editor and running game) ------------------------------------------
+
+
+## Editor-visible properties of `obj`. By default only values that differ from the class /
+## script default, which is what the Inspector would show in bold.
+static func describe_properties(obj: Object, scene_root: Node, filter: String, include_defaults: bool) -> Dictionary:
+	var props: Array[Dictionary] = []
+	var section := ""
+	var skipped_defaults := 0
+	var filter_lower := filter.to_lower()
+	var script: Script = obj.get_script()
+	var native_props := {}
+	for prop in ClassDB.class_get_property_list(obj.get_class()):
+		native_props[prop["name"]] = true
+	for prop in obj.get_property_list():
+		var usage: int = prop["usage"]
+		var pname: String = prop["name"]
+		if usage & PROPERTY_USAGE_CATEGORY:
+			section = pname
+			continue
+		if usage & (PROPERTY_USAGE_GROUP | PROPERTY_USAGE_SUBGROUP):
+			continue
+		if not (usage & PROPERTY_USAGE_EDITOR) or pname.begins_with("metadata/_"):
+			continue
+		if filter_lower != "" and not pname.to_lower().contains(filter_lower):
+			continue
+		var value: Variant = obj.get(pname)
+		if not include_defaults and _is_default(obj, script, native_props, pname, value):
+			skipped_defaults += 1
+			continue
+		var entry := {"name": pname, "type": type_label(prop), "value": encode(value, scene_root)}
+		if prop.get("hint", 0) in [PROPERTY_HINT_ENUM, PROPERTY_HINT_FLAGS]:
+			entry["options"] = prop.get("hint_string", "")
+		if section != "" and section != obj.get_class():
+			entry["section"] = section
+		props.append(entry)
+	var out := {"properties": props}
+	if skipped_defaults > 0:
+		out["default_values_hidden"] = skipped_defaults
+	return out
+
+
+static func _is_default(obj: Object, script: Script, native_props: Dictionary, pname: String, value: Variant) -> bool:
+	var default: Variant = null
+	var known := false
+	if script != null:
+		var script_default: Variant = script.get_property_default_value(pname)
+		if script_default != null or _script_has_property(script, pname):
+			default = script_default
+			known = true
+	if not known and native_props.has(pname):
+		default = ClassDB.class_get_property_default_value(obj.get_class(), pname)
+		known = true
+	if not known and obj.property_can_revert(pname):
+		default = obj.property_get_revert(pname)
+		known = true
+	if not known:
+		return false
+	if typeof(default) != typeof(value):
+		return false
+	if value is float:
+		return is_equal_approx(value, default)
+	return value == default
+
+
+static func _script_has_property(script: Script, pname: String) -> bool:
+	for prop in script.get_script_property_list():
+		if prop["name"] == pname:
+			return true
+	return false

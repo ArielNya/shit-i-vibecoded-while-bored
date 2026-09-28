@@ -12,7 +12,7 @@ var _entries: Array[Dictionary] = []
 var _serial := 0
 
 
-func _log_error(function: String, file: String, line: int, code: String, rationale: String, _editor_notify: bool, error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
+func _log_error(function: String, file: String, line: int, code: String, rationale: String, _editor_notify: bool, error_type: int, script_backtraces: Array[ScriptBacktrace]) -> void:
 	var kind := "error"
 	match error_type:
 		ERROR_TYPE_WARNING:
@@ -22,7 +22,19 @@ func _log_error(function: String, file: String, line: int, code: String, rationa
 		ERROR_TYPE_SHADER:
 			kind = "shader_error"
 	var text := rationale if rationale != "" else code
-	_add({"level": kind, "message": text, "file": file, "line": line, "function": function})
+	var entry := {"level": kind, "message": text, "file": file, "line": line, "function": function}
+	var frames: Array = []
+	for bt in script_backtraces:
+		for i in min(bt.get_frame_count(), 8):
+			frames.append("%s:%d in %s()" % [bt.get_frame_file(i), bt.get_frame_line(i), bt.get_frame_function(i)])
+	if not frames.is_empty():
+		entry["backtrace"] = frames
+		# Point at the script line rather than the engine's C++ source when we can.
+		var top: ScriptBacktrace = script_backtraces[0]
+		if top.get_frame_count() > 0 and not file.begins_with("res://"):
+			entry["file"] = top.get_frame_file(0)
+			entry["line"] = top.get_frame_line(0)
+	_add(entry)
 
 
 func _log_message(message: String, error: bool) -> void:
@@ -45,6 +57,17 @@ func mark() -> int:
 	var n := _serial
 	_mutex.unlock()
 	return n
+
+
+## Every entry (errors, warnings and printed output) newer than `seq`.
+func entries_since(seq: int) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	_mutex.lock()
+	for e in _entries:
+		if int(e["seq"]) > seq:
+			out.append(e)
+	_mutex.unlock()
+	return out
 
 
 func errors_since(seq: int) -> Array[Dictionary]:

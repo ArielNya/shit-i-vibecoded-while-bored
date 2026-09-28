@@ -65,6 +65,8 @@ func get_project_info(_p: Dictionary) -> Variant:
 	for prop in ProjectSettings.get_property_list():
 		var pname: String = prop["name"]
 		if pname.begins_with("autoload/"):
+			if pname == "autoload/McpRuntime":
+				continue  # this plugin's own runtime, not part of the game
 			var value := String(ProjectSettings.get_setting(pname))
 			autoloads[pname.substr(9)] = uid_to_path(value.trim_prefix("*"))
 		elif pname.begins_with("input/"):
@@ -105,6 +107,7 @@ func get_project_info(_p: Dictionary) -> Variant:
 		"input_actions": actions,
 		"builtin_ui_actions": builtin_actions,
 		"enabled_plugins": Array(ProjectSettings.get_setting("editor_plugins/enabled", PackedStringArray())),
+		"mcp_runtime_installed": ProjectSettings.has_setting("autoload/McpRuntime"),
 		"uses_csharp": _uses_csharp(),
 		"file_counts": counts,
 		"editor": {
@@ -330,6 +333,8 @@ func set_project_setting(p: Dictionary) -> Variant:
 
 
 func _set_autoload(autoload_name: String, value: Variant) -> Variant:
+	if autoload_name == "McpRuntime":
+		return fail("McpRuntime is the godot-mcp plugin's own runtime; it can't be changed through MCP.")
 	if not autoload_name.is_valid_identifier():
 		return invalid("autoload name '%s' must be a valid identifier" % autoload_name)
 	var key := "autoload/" + autoload_name

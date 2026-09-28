@@ -18,6 +18,11 @@ const Listener := preload("listener.gd")
 const LogCapture := preload("log_capture.gd")
 const Dock := preload("dock.gd")
 const History := preload("history.gd")
+const DebuggerPlugin := preload("debugger_plugin.gd")
+const ExportPlugin := preload("export_plugin.gd")
+
+const RUNTIME_AUTOLOAD := "McpRuntime"
+const RUNTIME_SCRIPT := "runtime/mcp_runtime.gd"
 const HANDLER_SCRIPTS := [
 	preload("handlers/project.gd"),
 	preload("handlers/scene.gd"),
@@ -25,6 +30,7 @@ const HANDLER_SCRIPTS := [
 	preload("handlers/docs.gd"),
 	preload("handlers/view.gd"),
 	preload("handlers/edit.gd"),
+	preload("handlers/run.gd"),
 ]
 
 const SETTING_PORT := "godot_mcp/port"
@@ -38,6 +44,8 @@ var dock: Dock
 ## Where the token came from, for the dock ("token file", "Editor Settings", ...).
 var token_source := ""
 var history := History.new()
+var debugger: DebuggerPlugin
+var exporter: ExportPlugin
 var _handlers: Array = []
 
 
@@ -48,10 +56,16 @@ func _enter_tree() -> void:
 	listener = Listener.new()
 	listener.name = "GodotMcpListener"
 	listener.log_capture = log_capture
+	debugger = DebuggerPlugin.new()
+	add_debugger_plugin(debugger)
+	exporter = ExportPlugin.new()
+	add_export_plugin(exporter)
+	_ensure_runtime_autoload()
 	for script: GDScript in HANDLER_SCRIPTS:
 		var handler: RefCounted = script.new()
 		handler.plugin = self
 		handler.history = history
+		handler.debugger = debugger
 		handler.register(listener.handlers)
 		_handlers.append(handler)
 	add_child(listener)
@@ -72,6 +86,12 @@ func _exit_tree() -> void:
 	if log_capture != null:
 		OS.remove_logger(log_capture)
 		log_capture = null
+	if debugger != null:
+		remove_debugger_plugin(debugger)
+		debugger = null
+	if exporter != null:
+		remove_export_plugin(exporter)
+		exporter = null
 	_handlers.clear()
 
 
@@ -157,3 +177,26 @@ func _define_settings() -> void:
 			es.set_setting(d[0], d[1])
 		es.set_initial_value(d[0], d[1], false)
 		es.add_property_info({"name": d[0], "type": d[2], "hint": d[3], "hint_string": d[4]})
+
+
+## The McpRuntime autoload lets MCP tools see and drive the running game. It is inert
+## unless the game runs from the editor with the debugger, and exports leave it out.
+func _ensure_runtime_autoload() -> void:
+	var path: String = get_script().resource_path.get_base_dir().path_join(RUNTIME_SCRIPT)
+	var current := String(ProjectSettings.get_setting("autoload/" + RUNTIME_AUTOLOAD, "")).trim_prefix("*")
+	if uid_path(current) != path:
+		add_autoload_singleton(RUNTIME_AUTOLOAD, path)
+		ProjectSettings.save()  # the editor would save later; a game started now needs it
+
+
+func _disable_plugin() -> void:
+	if ProjectSettings.has_setting("autoload/" + RUNTIME_AUTOLOAD):
+		remove_autoload_singleton(RUNTIME_AUTOLOAD)
+
+
+static func uid_path(value: String) -> String:
+	if value.begins_with("uid://"):
+		var id := ResourceUID.text_to_id(value)
+		if ResourceUID.has_id(id):
+			return ResourceUID.get_id_path(id)
+	return value

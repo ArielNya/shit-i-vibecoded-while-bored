@@ -18,6 +18,12 @@ class Godot:
         self._lsp: GDScriptLSP | None = None
 
     async def call(self, method: str, /, timeout: float | None = None, **params: Any) -> Any:
+        return await self.call_with(method, params, timeout)
+
+    async def call_with(
+        self, method: str, params: dict[str, Any], timeout: float | None = None
+    ) -> Any:
+        """Like call(), with params as a dict (for params named like call's own kwargs)."""
         params = {key: value for key, value in params.items() if value is not None}
         try:
             return await self.bridge.call(method, params, timeout=timeout)

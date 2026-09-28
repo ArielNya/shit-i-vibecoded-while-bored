@@ -7,10 +7,13 @@ const Protocol := preload("../protocol.gd")
 const Codec := preload("../codec.gd")
 const Paths := preload("../paths.gd")
 const History := preload("../history.gd")
+const DebuggerPlugin := preload("../debugger_plugin.gd")
 
 var plugin: EditorPlugin
 ## Shared history.gd instance: the MCP actions available to undo/redo.
 var history: History
+## The editor side of the running-game bridge.
+var debugger: DebuggerPlugin
 
 
 ## Adds this module's methods to `handlers` (method name -> Callable).

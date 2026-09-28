@@ -1,6 +1,8 @@
 """M1: editor screenshots. Needs an editor with a window: runs it under Xvfb with Mesa's
 software OpenGL (skipped when xvfb-run is missing)."""
 
+import os
+
 import pytest
 
 pytestmark = pytest.mark.anyio
@@ -31,3 +33,22 @@ async def test_screenshot_is_not_blank(bridge):
     png = base64.b64decode(reply["image_base64"])
     # Crude but dependency-free: a real editor frame compresses far worse than a flat one.
     assert len(png) > 2000 and len(zlib.compress(png)) > 1000
+
+
+async def test_game_screenshot_with_a_window(call, call_image, bridge):
+    import base64
+
+    run = await call("run_project")
+    assert run["running"] and run["headless"] is False  # the editor has a display
+    try:
+        await call("wait_for", until="frames", frames=10)
+        meta = await call_image("get_game_screenshot", size=320)
+        assert meta["width"] == 320  # the 640x360 project window, scaled to fit
+        assert meta["height"] == 180
+        # Keep a copy for eyeballing when the env var is set.
+        if out := os.environ.get("GODOT_MCP_SHOT_DIR"):
+            reply = await bridge.call("get_game_screenshot", {"size": 640})
+            with open(f"{out}/game.png", "wb") as f:
+                f.write(base64.b64decode(reply["image_base64"]))
+    finally:
+        await call("stop_project")

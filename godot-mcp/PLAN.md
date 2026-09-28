@@ -9,7 +9,7 @@ game, look at it, read the errors, fix them, repeat.
 Target engine: **Godot 4.7** (current stable is 4.7.2, Aug 2026). Minimum supported:
 4.7. The 4.8 dev snapshots run in a non-blocking CI job so we see breakage early.
 
-Status: **M0–M2 done** (see §8 notes). Next: M3 (run & observe the game).
+Status: **M0–M3 done** (see §8 notes). Next: M4 (harness hardening).
 
 ---
 
@@ -396,7 +396,7 @@ per milestone in each harness we can access; transcripts + screenshots kept in
 | **M0** ✅ | Skeleton | uv project; plugin enables, dock shows status; `hello` handshake + `get_project_info` works from Claude Code *and* one non-Claude harness |
 | **M1** ✅ | Read the project | §3.1 + `get_scene_tree`, `get_node_properties`, `read_script`, `get_class_docs`, `get_diagnostics` (LSP); editor screenshots |
 | **M2** ✅ | Edit scenes & scripts | rest of §3.2 + §3.3 with undo; typed-JSON codec; agent builds a small 2D scene with a moving player |
-| **M3** | Run & observe | runtime bridge: run/stop, output, runtime errors, game screenshot, live tree, `send_input`, `wait`; the *fix-errors loop* works end to end |
+| **M3** ✅ | Run & observe | runtime bridge: run/stop, output, runtime errors, game screenshot, live tree, `send_input`, `wait`; the *fix-errors loop* works end to end |
 | **M4** | Harness hardening | Streamable HTTP, toolsets, schema checker in CI, image-file fallback, configs + smoke run on ≥6 harnesses |
 | **M5** | Resources, tiles, assets | §3.4; agent makes a tile-based level with imported pixel art |
 | **M6** | Build & test | §3.8 export + GUT/GdUnit4 runner + headless fallback mode with no editor open |
@@ -429,6 +429,53 @@ Release tags: `godot-mcp-v*`, mirroring `blender-mcp`'s release workflow.
   it), so the plugin can only report the Editor Settings port. Editors started with
   `--lsp-port N` also take `-- --mcp-lsp-port=N`; the server has `GODOT_MCP_LSP_PORT`.
 - Uses `EditorDock` + `add_dock()` (4.6+) for the dock.
+
+### M3 notes
+
+- 12 new tools (52 total) in a `run` toolset: `run_project`, `stop_project`,
+  `get_run_status`, `get_output`, `get_runtime_errors`, `get_game_screenshot`,
+  `get_live_tree`, `get_live_properties`, `set_live_properties`, `send_input`,
+  `wait_for`, `get_performance`. (`run_scene` folded into `run_project(scene=...)`;
+  `wait` became `wait_for` with an explicit `until` so its schema stays flat.)
+- **Runtime bridge as planned:** `debugger_plugin.gd` (EditorDebuggerPlugin) + the
+  `McpRuntime` autoload (`EngineDebugger.register_message_capture("mcp")`). The editor
+  sends `mcp:req {id, method, params}`; the game answers `mcp:res`, says `mcp:hello` when
+  up, and forwards its log (`mcp:log`) from its own `Logger` every frame, including
+  script errors with file:line and backtraces. No extra port, no auth needed.
+- **Headless editor → headless game:** a game launched from a `--headless` editor does
+  *not* inherit it (it tries X11/Wayland and dies). The editor takes extra game args only
+  from the Run Instances dialog's main-arguments field (read at launch;
+  `editor/run/main_run_args` is only read into that field at startup, so setting it
+  does nothing). `run_project` puts `--headless` there just for the launch and restores
+  the user's text immediately; nothing is saved.
+- **Error breaks:** a debug run pauses at script errors, which would freeze an agent's
+  game. Agent runs pass `--ignore-error-breaks --skip-breakpoints` the same way
+  (`break_on_errors=true` opts out).
+- The autoload is added on plugin load if missing, and `project.godot` is saved right
+  away. The editor otherwise saves settings on a timer, and a game started in that
+  window ran without the runtime (found by the integration tests). `run_project`
+  also saves project settings before launching, like the editor does.
+- Game log is kept per run (the last run's survives stop) with cursors (`since` /
+  `next_since`); `get_runtime_errors` groups repeats with a count (a per-frame error
+  shows once, with `count: 57`).
+- `send_input` uses `Input.parse_input_event` (so `_input` handlers see it) plus
+  `action_press/release` for actions (so `is_action_pressed`/`get_axis` hold between
+  frames); `tap` holds for N physics frames and returns after release. `wait_for` is
+  evaluated in the game every physics frame (property comparisons support components
+  like `position:x`).
+- **Exports:** `export_plugin.gd` removes the autoload from the exported project
+  settings (in memory, restored after), verified with a real `--export-pack`. Godot's
+  script exporter still packs the plugin's scripts (`skip()` in `_export_file` had no
+  effect on them); they're never loaded. Excluding `addons/godot_mcp/*` in the preset
+  drops them.
+- **Acceptance test** (`test_m3_scenario.py`): through MCP tools only, build a player
+  whose script has a runtime-only bug (mistyped node path, clean for the static
+  checker), run, play-test (the player doesn't move), read the error
+  (`res://game/player.gd:11`, "Invalid assignment of property 'flip_h' … on null
+  instance"), fix that line with `edit_script`, rerun, hold `move_right`, and
+  `wait_for` the player to pass x+150 with no runtime errors.
+- Game screenshots verified under Xvfb (the game gets a real window when the editor has
+  a display).
 
 ### M2 notes
 
