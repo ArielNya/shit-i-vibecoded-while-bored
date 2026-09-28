@@ -10,7 +10,7 @@ at [`Roblox/creator-docs`](https://github.com/Roblox/creator-docs) `0b817b5`
 (2026-09-26, `reference/engine/STUDIO_VERSION` = `0.740.19`). Roblox ships weekly,
 so the pin is bumped by a script (§7), not by hand.
 
-Status: **M0–M3 done** (see §8 notes). Next: M4 (assets).
+Status: **M0–M4 done** (see §8 notes; M3 cloud runs and M4 uploads not yet verified against Roblox). Next: M5 (cloud ops).
 
 ---
 
@@ -110,7 +110,7 @@ Small on purpose, ~16 tools. Names don't collide with the built-in ones.
 ### 3.3 `assets`
 | Tool | Purpose |
 | --- | --- |
-| `upload_asset` | local file (`.fbx .gltf .glb .rbxm .rbxmx .png .jpg .tga .bmp .ogg .mp3 .wav`) → Open Cloud Assets API → polls the operation → `rbxassetid://…`. Then the agent calls the built-in `insert_asset` |
+| `upload_asset` | local file (`.fbx .gltf .glb .rbxm .rbxmx .png .jpg .tga .bmp .ogg .mp3 .wav .flac .mp4 .mov`) → Open Cloud Assets API → polls the operation → `rbxassetid://…`. Then the agent calls the built-in `insert_asset` |
 | `list_uploaded_assets` | the project's `assets.lock.json` manifest: path, content hash, asset id; skips re-uploading unchanged files |
 
 ### 3.4 `cloud`
@@ -231,11 +231,40 @@ verified.
 | **M1** ✅ | Docs grounding | `get_api_docs`, `search_api`, deprecated table from pinned `creator-docs`; **skill v0** (`SKILL.md` + 3 references) usable with the built-in server alone |
 | **M2** ✅ | Project & code | `init_project`, `build_place`, `sync_status`, `check_code`, `format_code` on the fixture game; session hook installs the toolchain |
 | **M3** ✅ | Tests | `run_tests` local (Lune) and cloud (Luau Execution); acceptance: the agent fixes the fixture's failing spec using only tools |
-| **M4** | Assets | `upload_asset` + manifest for models, images, audio; acceptance: a local `.glb` ends up in Studio via `insert_asset` (manual Studio smoke) |
+| **M4** ✅ | Assets | `upload_asset` + manifest for models, images, audio; acceptance: a local `.glb` ends up in Studio via `insert_asset` (manual Studio smoke) |
 | **M5** | Cloud ops | `publish_place`, `run_luau_cloud`, DataStore read (write opt-in) |
 | **M6** | Skill complete | all references + recipes; evals with vs. without skill; full-game smoke (small obby: build, code, test, publish to a private place) in Claude Code + one other harness |
 | **M7** | Wrapper | §9: `--wrap-studio` proxies the built-in server behind ours; the conflict rules there, each with a test against a fake built-in server; manual Studio smoke with only `roblox-mcp` configured |
 | **M8** | Stretch, only if M6 shows a real gap | own Studio plugin for what `execute_luau` can't do; multi-place universes; Packages; `.rbxm` insert without uploading |
+
+### M4 notes
+
+- `upload_asset(path, name, description, asset_type)` and
+  `list_uploaded_assets(refresh)`. Types, content types and limits come from creator-docs
+  `cloud/guides/usage-assets.md`; request shape from `reference/cloud/assets/v1.json`:
+  multipart `request` (JSON Asset) + `fileContent`, returns an Operation polled at
+  `assets/v1/operations/{id}` until `done`, then the Asset (`assetId`,
+  `moderationResult`). Multipart is encoded by hand (stdlib has no encoder); no new
+  dependency.
+- Extension decides the type (Model/Image/Audio/Video); `asset_type` overrides only
+  where the docs allow (`.rbxm` → Animation, images → Decal). 20 MB cap (except video),
+  confined to the project root. Owner from `ROBLOX_CREATOR_USER_ID` or
+  `ROBLOX_CREATOR_GROUP_ID`.
+- `assets.lock.json` (committed with the game) maps file → sha256, id, type,
+  moderation, time. Same bytes and type → the recorded id, no upload. That matters
+  beyond speed: unverified accounts get 10 audio uploads a month.
+- Results say where the id goes. Checking those hints against the index caught
+  `Decal.Texture` as deprecated (→ `ColorMapContent`); image hints use the `Content`
+  properties (`Content.fromAssetId`).
+- Tested against a fake Assets API that parses the multipart body with the stdlib email
+  parser: fields, filename, content type and bytes; caching; re-upload on change; type
+  overrides and refusals (extension, outside the project, size, missing owner) before any
+  request; group owner; moderation refresh. **Not verified against Roblox**
+  (`apis.roblox.com` blocked here), and the acceptance step (a local `.glb` inserted
+  into Studio with `insert_asset`) needs Studio: both are for a machine with network and
+  Studio.
+- Skill: `references/assets.md` (which route for which asset, limits, where each id goes),
+  plus a routing row in `SKILL.md`.
 
 ### M3 notes
 

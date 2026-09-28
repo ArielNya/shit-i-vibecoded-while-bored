@@ -59,7 +59,9 @@ def test_search():
 
 
 def test_guides():
-    assert guide_topics() == ["skill", "deprecated", "networking", "project-layout", "testing"]
+    assert guide_topics() == [
+        "skill", "assets", "deprecated", "networking", "project-layout", "testing"
+    ]  # fmt: skip
     assert read_guide_text("skill").startswith("---\nname: roblox-studio\n")
     assert read_guide_text("../SKILL").startswith("Unknown topic")
 

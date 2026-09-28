@@ -11,7 +11,7 @@ at the root is shared unless it's genuinely repo-wide (this README, the license,
 | --- | --- | --- |
 | [`blender-mcp/`](blender-mcp/) | MCP server that lets Claude / Codex inspect and model inside Blender | M7 done (all milestones) — releases tagged `blender-mcp-v*` — see [`PLAN.md`](blender-mcp/PLAN.md) |
 | [`godot-mcp/`](godot-mcp/) | MCP server that lets agents in any major harness edit, run and debug Godot 4.7+ projects | M4 done (edit, run & play-test, docs; stdio + HTTP; smoke-tested with Claude Code, Gemini CLI, opencode) — see [`PLAN.md`](godot-mcp/PLAN.md) |
-| [`roblox-mcp/`](roblox-mcp/) | Companion MCP server + agent skill for building Roblox games alongside Studio's built-in MCP server | M3 done (Rojo projects + live sync, type checking and formatting, tests (local; Open Cloud runs untested against Roblox yet), offline Engine API docs for Studio 0.740, agent skill v0; stdio + HTTP) — see [`PLAN.md`](roblox-mcp/PLAN.md) |
+| [`roblox-mcp/`](roblox-mcp/) | Companion MCP server + agent skill for building Roblox games alongside Studio's built-in MCP server | M4 done (Rojo projects + live sync, type checking and formatting, tests, asset uploads; Open Cloud parts untested against Roblox yet; offline Engine API docs for Studio 0.740, agent skill v0; stdio + HTTP) — see [`PLAN.md`](roblox-mcp/PLAN.md) |
 
 ## Conventions
 

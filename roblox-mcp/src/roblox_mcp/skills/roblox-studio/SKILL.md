@@ -15,8 +15,8 @@ Two MCP servers, each with its own job:
   inside the place, `execute_luau`, play-testing, input, screenshots, asset
   search/insert/generation.
 - **roblox** (roblox-mcp, optional): the project on disk and Roblox's cloud.
-  Project info, Rojo setup and live sync, type checking, formatting, tests, API
-  docs, guides; later asset upload, publishing. Works without Studio.
+  Project info, Rojo setup and live sync, type checking, formatting, tests, asset
+  uploads, API docs, guides; later publishing. Works without Studio.
 
 If only one of them is connected, use what's there and say what's missing when a
 task needs the other.
@@ -45,6 +45,7 @@ task needs the other.
 | Build the world, set properties, tags, attributes, lighting | `execute_luau` in `Edit` (undoable, §3) | same |
 | Instances that belong in git | `.model.json` / `.meta.json` files | `execute_luau` |
 | Marketplace asset | `search_asset` → `insert_asset` | same |
+| Local model / image / audio file | `upload_asset` → `insert_asset` (models) or set the id on a property | same |
 | Check an API | `get_api_docs`, `search_api` | same, or `http_get` |
 | Run the game | `start_stop_play`, then `get_console_output` | same |
 
@@ -138,6 +139,7 @@ roblox-mcp):
 
 - `references/project-layout.md`: services, what goes where, Rojo layout.
 - `references/networking.md`: remotes, validation, replication, rate limits.
+- `references/assets.md`: getting local files into the game, limits, using the ids.
 - `references/testing.md`: spec format, local vs cloud runs, test place rules.
 - `references/deprecated.md`: deprecated APIs and their replacements
   (generated from the API reference).

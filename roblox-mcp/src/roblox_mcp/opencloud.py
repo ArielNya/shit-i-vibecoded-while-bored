@@ -8,6 +8,7 @@ import os
 import time
 import urllib.error
 import urllib.request
+import uuid
 from typing import Any
 
 # Overridable so tests can point at a fake server.
@@ -85,3 +86,45 @@ def run_luau(universe: str, place: str, version: int, script: str,
         "error": task.get("error"),
         "logs": messages,
     }
+
+
+def multipart(fields: dict[str, str], file_field: str, filename: str, file_type: str,
+              data: bytes) -> tuple[bytes, str]:  # fmt: skip
+    """multipart/form-data body and its content type (stdlib has no encoder)."""
+    boundary = f"----roblox-mcp-{uuid.uuid4().hex}"
+    parts = [
+        f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'
+        .encode() for name, value in fields.items()
+    ]  # fmt: skip
+    parts.append(
+        f'--{boundary}\r\nContent-Disposition: form-data; name="{file_field}"; '
+        f'filename="{filename}"\r\nContent-Type: {file_type}\r\n\r\n'.encode()
+        + data
+        + b"\r\n"
+    )
+    body = b"".join(parts) + f"--{boundary}--\r\n".encode()
+    return body, f"multipart/form-data; boundary={boundary}"
+
+
+def create_asset(asset: dict[str, Any], filename: str, file_type: str, data: bytes,
+                 wait_s: int = 60) -> dict[str, Any]:  # fmt: skip
+    """Create an asset and wait for its operation; returns the Asset. Scopes: asset:read,
+    asset:write."""
+    body, content_type = multipart({"request": json.dumps(asset)}, "fileContent", filename,
+                                   file_type, data)  # fmt: skip
+    operation = request("POST", "assets/v1/assets", body, content_type)
+    deadline = time.monotonic() + wait_s
+    while not operation.get("done"):
+        if time.monotonic() > deadline:
+            raise CloudError(f"upload still processing after {wait_s} s ({operation.get('path')})")
+        time.sleep(2)
+        operation = request("GET", f"assets/v1/{operation['path']}")
+    if operation.get("error"):
+        raise CloudError(f"upload failed: {operation['error']}")
+    return operation["response"]
+
+
+def moderation_state(asset_id: int) -> str | None:
+    """`Approved`, `Reviewing` or `Rejected`."""
+    asset = request("GET", f"assets/v1/assets/{asset_id}?readMask=moderationResult")
+    return (asset.get("moderationResult") or {}).get("moderationState")
