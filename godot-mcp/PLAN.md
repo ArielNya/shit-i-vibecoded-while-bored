@@ -9,7 +9,7 @@ game, look at it, read the errors, fix them, repeat.
 Target engine: **Godot 4.7** (current stable is 4.7.2, Aug 2026). Minimum supported:
 4.7. The 4.8 dev snapshots run in a non-blocking CI job so we see breakage early.
 
-Status: **M0 + M1 done** (see §8 notes). Next: M2 (editing scenes and scripts).
+Status: **M0–M2 done** (see §8 notes). Next: M3 (run & observe the game).
 
 ---
 
@@ -395,7 +395,7 @@ per milestone in each harness we can access; transcripts + screenshots kept in
 | --- | --- | --- |
 | **M0** ✅ | Skeleton | uv project; plugin enables, dock shows status; `hello` handshake + `get_project_info` works from Claude Code *and* one non-Claude harness |
 | **M1** ✅ | Read the project | §3.1 + `get_scene_tree`, `get_node_properties`, `read_script`, `get_class_docs`, `get_diagnostics` (LSP); editor screenshots |
-| **M2** | Edit scenes & scripts | rest of §3.2 + §3.3 with undo; typed-JSON codec; agent builds a small 2D scene with a moving player |
+| **M2** ✅ | Edit scenes & scripts | rest of §3.2 + §3.3 with undo; typed-JSON codec; agent builds a small 2D scene with a moving player |
 | **M3** | Run & observe | runtime bridge: run/stop, output, runtime errors, game screenshot, live tree, `send_input`, `wait`; the *fix-errors loop* works end to end |
 | **M4** | Harness hardening | Streamable HTTP, toolsets, schema checker in CI, image-file fallback, configs + smoke run on ≥6 harnesses |
 | **M5** | Resources, tiles, assets | §3.4; agent makes a tile-based level with imported pixel art |
@@ -429,6 +429,43 @@ Release tags: `godot-mcp-v*`, mirroring `blender-mcp`'s release workflow.
   it), so the plugin can only report the Editor Settings port. Editors started with
   `--lsp-port N` also take `-- --mcp-lsp-port=N`; the server has `GODOT_MCP_LSP_PORT`.
 - Uses `EditorDock` + `add_dock()` (4.6+) for the dock.
+
+### M2 notes
+
+- 25 new tools (40 total): scene lifecycle, node structure, `set_node_properties`,
+  signals, groups, `save_branch_as_scene`, script writing, attach/detach, LSP navigation,
+  `undo`/`redo`. `rename_node` and `move_node` stayed separate (names models look for);
+  the scene-editing tools are their own `edit` toolset.
+- Editing tools act on the edited scene; `scene=` opens/switches to another one first.
+  `new_scene` packs a root node, saves it, then opens it (the editor has no API for a new
+  unsaved tab). Edits reach disk only on `save_scene`, like in the editor.
+- Every mutation is one `EditorUndoRedoManager` action; owners are restored on undo
+  (remove/move/save-branch). **Undo/redo:** no public "undo newest" exists, so
+  `history.gd` records (history id, action name) for MCP actions; `undo` takes the newest
+  one in the current scene's or the global history (like Ctrl+Z) and refuses if that
+  history's newest action isn't ours any more (someone edited since).
+- Non-`@tool` scripts can't be `new()`ed inside the editor: nodes of a project
+  `class_name` are created as the native base + `set_script`, as the editor does.
+- `set_node_properties` is all-or-nothing: every value is decoded against the property's
+  info first. Enums accept names, Object properties accept `res://` paths or new
+  embedded resources and are checked against the property's class.
+- Script writes: `update_file()` + reload of the cached `Script`; a new `class_name` is
+  registered a few frames later, so writes wait for it (rescanning if needed) and the
+  next call can use the class. Writes refuse when the script editor has unsaved changes
+  for the file (tested through a `--mcp-test-hooks`-only handler that types into the
+  real script editor). Writable: scripts/shaders/text only; never `.tscn`/`.tres`,
+  `project.godot` or `addons/godot_mcp/`.
+- Navigation uses the language server's `definition`, `references` and
+  `documentSymbol` (it has no `workspace/symbol`); project scripts are sent with
+  `didOpen` first so cross-file references are found. Tools take `line` + `symbol` (the
+  name on that line) instead of making the model count columns.
+- **Acceptance test** (`test_m2_scenario.py`): input map, scene, player with sprite and
+  collision (embedded `RectangleShape2D`), floor, movement script, attach, diagnostics,
+  save — all through MCP tools — then the saved project runs in a separate headless
+  Godot with a driver autoload holding `move_right`: the player lands and moves 200 px
+  in 1 s (SPEED 200).
+- Open for M4: free-form object params (`properties`, input events) are `object` with
+  `additionalProperties`; check Gemini accepts them in the harness smoke test.
 
 ### M1 notes
 

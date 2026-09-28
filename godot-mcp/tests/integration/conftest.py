@@ -97,7 +97,13 @@ def editor(project_dir, token_file, editor_options):
         cmd = [xvfb, "-a", "-s", "-screen 0 1600x900x24", *cmd, "--rendering-driver", "opengl3"]
     else:
         cmd.insert(1, "--headless")
-    cmd += ["scenes/main.tscn", "--", "--mcp-port=0", f"--mcp-lsp-port={lsp_port}"]
+    cmd += [
+        "scenes/main.tscn",
+        "--",
+        "--mcp-port=0",
+        f"--mcp-lsp-port={lsp_port}",
+        "--mcp-test-hooks",
+    ]
     env = {**os.environ, protocol.TOKEN_FILE_ENV: str(token_file)}
     proc = subprocess.Popen(
         cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1

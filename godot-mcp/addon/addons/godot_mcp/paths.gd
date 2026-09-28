@@ -52,6 +52,19 @@ static func describe_bad(path: String) -> String:
 	return "'%s' is not an allowed project path (use res://..., no '..', hidden folders or symlinks)" % path
 
 
+## Files the script tools may create or overwrite. Scenes/resources go through the scene
+## tools; project.godot through the settings tools; this plugin can't edit itself.
+const WRITABLE_EXTENSIONS := ["gd", "cs", "gdshader", "gdshaderinc", "glsl", "json", "md", "txt", "csv"]
+
+
+static func writable_problem(path: String) -> String:
+	if path.begins_with("res://addons/godot_mcp/") or path == "res://addons/godot_mcp":
+		return "the godot_mcp plugin's own files can't be edited through MCP"
+	if path.get_extension().to_lower() not in WRITABLE_EXTENSIONS:
+		return "only %s files can be written with this tool (scenes and resources: use the scene tools)" % ", ".join(WRITABLE_EXTENSIONS)
+	return ""
+
+
 static func is_text_file(path: String) -> bool:
 	return path.get_extension().to_lower() in TEXT_EXTENSIONS
 

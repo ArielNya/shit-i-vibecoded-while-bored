@@ -50,6 +50,7 @@ class GDScriptLSP:
         self._pending: dict[int, asyncio.Future] = {}
         self._diag_waiters: dict[str, asyncio.Future] = {}
         self._open_versions: dict[str, int] = {}
+        self._open_texts: dict[str, str] = {}
         self._connect_lock = asyncio.Lock()
         self._diag_lock = asyncio.Lock()
 
@@ -84,6 +85,7 @@ class GDScriptLSP:
                     await self._notify("textDocument/didClose", {"textDocument": {"uri": uri}})
                 version = self._open_versions.get(uri, 0) + 1
                 self._open_versions[uri] = version
+                self._open_texts[uri] = text
                 await self._notify(
                     "textDocument/didOpen",
                     {
@@ -104,6 +106,35 @@ class GDScriptLSP:
             finally:
                 self._diag_waiters.pop(uri, None)
 
+    async def open_document(self, res_path: str, text: str) -> str:
+        """Make sure the server has the current text of a file (needed before
+        definition/references/documentSymbol). Returns the document URI."""
+        await self._ensure_connected()
+        uri = self.res_to_uri(res_path)
+        if self._open_texts.get(uri) == text:
+            return uri
+        if uri in self._open_versions:
+            await self._notify("textDocument/didClose", {"textDocument": {"uri": uri}})
+        version = self._open_versions.get(uri, 0) + 1
+        self._open_versions[uri] = version
+        self._open_texts[uri] = text
+        await self._notify(
+            "textDocument/didOpen",
+            {
+                "textDocument": {
+                    "uri": uri,
+                    "languageId": "gdscript",
+                    "version": version,
+                    "text": text,
+                }
+            },
+        )
+        return uri
+
+    async def request(self, method: str, params: dict[str, Any], timeout: float = 10.0) -> Any:
+        await self._ensure_connected()
+        return await self._request(method, params, timeout)
+
     async def native_symbol(self, class_name: str, symbol: str = "") -> dict | None:
         """Docs for a native class (symbol="") or one of its members; None if unknown."""
         await self._ensure_connected()
@@ -118,6 +149,7 @@ class GDScriptLSP:
         task, self._reader_task = self._reader_task, None
         writer, self._writer, self._reader = self._writer, None, None
         self._open_versions.clear()
+        self._open_texts.clear()
         if task is not None:
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):

@@ -245,3 +245,133 @@ static func _example(target_type: int) -> String:
 		TYPE_COLOR:
 			return "\"Color(1, 0, 0, 1)\", \"#ff0000\" or \"red\""
 	return "\"%s(...)\"" % _CONSTRUCTOR_TYPES.get(target_type, type_string(target_type))
+
+
+# --- property-aware decoding (set_node_properties, create_resource, ...) ------------------
+
+
+## Like decode(), but uses the full property info from get_property_list():
+## - enums accept option names ("Floating", "MOTION_MODE_FLOATING") as well as ints;
+## - Object properties accept "res://..." paths, {"path": ...}, or a new embedded
+##   resource {"_type": "Resource", "class": "RectangleShape2D", "properties": {...}},
+##   and the result must match the property's class (e.g. Shape2D).
+## Returns [ok: bool, value_or_message].
+static func decode_property(value: Variant, info: Dictionary) -> Array:
+	var t: int = info.get("type", TYPE_NIL)
+	var hint: int = info.get("hint", PROPERTY_HINT_NONE)
+	var hint_string := String(info.get("hint_string", ""))
+	if t == TYPE_INT and hint == PROPERTY_HINT_ENUM and value is String:
+		var n: Variant = _enum_value(value, hint_string)
+		if n == null:
+			return [false, "'%s' is not one of: %s" % [value, hint_string]]
+		return [true, n]
+	if t == TYPE_OBJECT:
+		var result: Array
+		if value is Dictionary and not value.has("path"):
+			result = _new_resource(value)
+		else:
+			result = decode(value, TYPE_OBJECT)
+		if not result[0] or result[1] == null:
+			return result
+		var allowed := String(info.get("class_name", ""))
+		if allowed == "" and hint == PROPERTY_HINT_RESOURCE_TYPE:
+			allowed = hint_string
+		if allowed != "" and not _is_any_class(result[1], allowed.split(",")):
+			return [false, "needs a %s, got a %s" % [allowed, class_label(result[1])]]
+		return result
+	return decode(value, t)
+
+
+static func _enum_value(name: String, hint_string: String) -> Variant:
+	var wanted := name.to_lower().replace("_", "").replace(" ", "")
+	var next_value := 0
+	for option in hint_string.split(","):
+		var label := option
+		var value := next_value
+		if option.contains(":"):
+			label = option.get_slice(":", 0)
+			value = int(option.get_slice(":", 1))
+		next_value = value + 1
+		var norm := label.to_lower().replace("_", "").replace(" ", "")
+		if norm != "" and (wanted == norm or wanted.ends_with(norm)):
+			return value
+	return null
+
+
+static func _is_any_class(obj: Object, classes: PackedStringArray) -> bool:
+	for c in classes:
+		var cls := c.strip_edges()
+		if cls == "" or obj.is_class(cls) or class_label(obj) == cls:
+			return true
+		var script: Script = obj.get_script()
+		while script != null:
+			if String(script.get_global_name()) == cls:
+				return true
+			script = script.get_base_script()
+	return false
+
+
+## {"class": "RectangleShape2D", "properties": {"size": "Vector2(32, 48)"}} -> new resource.
+static func _new_resource(spec: Dictionary) -> Array:
+	var cls := String(spec.get("class", ""))
+	if cls == "":
+		return [false, "a new resource needs a \"class\", e.g. {\"_type\": \"Resource\", \"class\": \"RectangleShape2D\", \"properties\": {...}}"]
+	var res: Resource
+	if ClassDB.class_exists(cls):
+		if not ClassDB.is_parent_class(cls, "Resource") or not ClassDB.can_instantiate(cls):
+			return [false, "'%s' is not a resource class that can be created" % cls]
+		res = ClassDB.instantiate(cls)
+	else:
+		var script_path := ""
+		for entry in ProjectSettings.get_global_class_list():
+			if String(entry["class"]) == cls:
+				script_path = entry["path"]
+		if script_path == "":
+			return [false, "unknown resource class '%s'" % cls]
+		var obj: Variant = load(script_path).new()
+		if not (obj is Resource):
+			return [false, "'%s' is not a Resource" % cls]
+		res = obj
+	var props: Variant = spec.get("properties", {})
+	if not (props is Dictionary):
+		return [false, "\"properties\" must be an object"]
+	var err := set_properties_on(res, props)
+	if err != "":
+		return [false, "%s: %s" % [cls, err]]
+	return [true, res]
+
+
+## Decodes and sets each property directly (no undo): for objects that aren't in a
+## scene yet (new nodes, new resources). Returns "" or an error message.
+static func set_properties_on(obj: Object, props: Dictionary) -> String:
+	var infos := property_infos(obj)
+	for key: Variant in props:
+		var pname := String(key)
+		if not infos.has(pname):
+			return unknown_property_message(obj, pname, infos)
+		var conv := decode_property(props[key], infos[pname])
+		if not conv[0]:
+			return "%s: %s" % [pname, conv[1]]
+		obj.set(pname, conv[1])
+	return ""
+
+
+## name -> property info, for properties a user could set (editor-visible or script vars).
+static func property_infos(obj: Object) -> Dictionary:
+	var out := {}
+	for prop in obj.get_property_list():
+		var usage: int = prop["usage"]
+		if usage & (PROPERTY_USAGE_CATEGORY | PROPERTY_USAGE_GROUP | PROPERTY_USAGE_SUBGROUP):
+			continue
+		if usage & (PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_SCRIPT_VARIABLE | PROPERTY_USAGE_STORAGE):
+			out[prop["name"]] = prop
+	return out
+
+
+static func unknown_property_message(obj: Object, pname: String, infos: Dictionary) -> String:
+	var close: Array[String] = []
+	for k: String in infos:
+		if k.similarity(pname) > 0.6 or k.ends_with("/" + pname):
+			close.append(k)
+	var hint := " Did you mean: %s?" % ", ".join(close.slice(0, 5)) if not close.is_empty() else ""
+	return "%s has no property '%s'.%s" % [class_label(obj), pname, hint]

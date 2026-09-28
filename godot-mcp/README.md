@@ -4,10 +4,12 @@ MCP server that lets AI agents inspect, edit, run and debug a live **Godot 4.7+*
 project. It's meant to work with any MCP client (Claude Code, Claude Desktop, Codex CLI,
 Gemini CLI, Cursor, VS Code / Copilot, Windsurf, Zed, opencode, dsh, …).
 
-**Status: M0 + M1 done.** The agent can connect to the editor, explore the project
-(files, search, settings, input map), read scenes, nodes and scripts, get GDScript
-errors and warnings, look up the Godot 4.7 API, and screenshot the editor. It can't edit
-scenes or scripts yet; that starts in M2. See [`PLAN.md`](PLAN.md) for the roadmap.
+**Status: M0–M2 done.** The agent can explore the project, read and **edit** scenes
+(nodes, properties, signals, groups, instancing, save-branch-as-scene), **write**
+scripts and get the editor's errors and warnings back right away, navigate code
+(definitions, references, symbols), look up the Godot 4.7 API, screenshot the editor,
+and undo its own changes. Running and play-testing the game comes in M3. See
+[`PLAN.md`](PLAN.md) for the roadmap.
 
 ```
 AI client ──stdio──▶ godot-mcp (Python) ──TCP 127.0.0.1:9080──▶ Godot editor + "Godot MCP" plugin
@@ -20,7 +22,8 @@ AI client ──stdio──▶ godot-mcp (Python) ──TCP 127.0.0.1:9080──
 | --- | --- |
 | `project` | `ping`, `get_project_info`, `list_files`, `search_files`, `get_project_settings`, `set_project_setting`, `get_input_map`, `edit_input_map` |
 | `scene` | `get_scene_tree`, `get_node_properties` |
-| `script` | `read_script`, `get_diagnostics` |
+| `edit` | `open_scene`, `new_scene`, `save_scene`, `close_scene`, `add_node`, `remove_node`, `rename_node`, `move_node`, `duplicate_node`, `set_node_properties`, `list_signals`, `connect_signal`, `disconnect_signal`, `set_groups`, `save_branch_as_scene`, `undo`, `redo` |
+| `script` | `read_script`, `get_diagnostics`, `write_script`, `edit_script`, `create_script`, `attach_script`, `detach_script`, `find_symbol`, `get_definition`, `get_references` |
 | `docs` | `get_class_docs`, `search_docs` |
 | `view` | `get_editor_screenshot` |
 
@@ -32,8 +35,16 @@ AI client ──stdio──▶ godot-mcp (Python) ──TCP 127.0.0.1:9080──
   the class reference. The agent sees the exact API of *your* Godot version, and your
   own `class_name` scripts too. Godot 3 names get a pointer to the Godot 4 name
   (`KinematicBody2D` → use `CharacterBody2D`).
-- **`set_project_setting` / `edit_input_map`** save `project.godot`, and each change is
-  one editor undo step (Ctrl+Z).
+- **Every change is one editor undo step** named `MCP: <tool>`, so you can Ctrl+Z it in
+  Godot. The agent's `undo`/`redo` only touch its own changes. Like Ctrl+Z, they only
+  act on the current scene and the global history, and they stop instead of reverting
+  anything you did in the editor since. Scene edits reach the disk on `save_scene`;
+  settings and scripts are saved right away.
+- **Scripts:** `write_script`, `edit_script` and `create_script` reload the file in the
+  editor and return fresh errors and warnings. They refuse to overwrite a script that
+  has unsaved changes in Godot's script editor (`force=true` overrides), and they can't
+  write scenes, `project.godot` or this plugin's own files.
+- **`set_project_setting` / `edit_input_map`** save `project.godot`.
 - **Values** are plain JSON where possible. Engine types are written as GDScript
   literals (`"Vector2(100, 200)"`, `"Color(1, 0, 0, 1)"`). Resources are
   `{"_type": "Resource", "class": "...", "path": "res://..."}`.
@@ -145,8 +156,8 @@ Cursor: `.cursor/mcp.json` in the project (or `~/.cursor/mcp.json`). Windsurf:
 { "mcpServers": { "godot": { "command": "uvx", "args": ["--from", "SERVER_SPEC", "godot-mcp"] } } }
 ```
 
-Cursor slows down with many tools across servers. If needed, trim with
-`"env": {"GODOT_MCP_TOOLSETS": "project,scene,script,docs"}`.
+Cursor slows down with many tools across servers (godot-mcp has 40). If needed, trim
+with `"env": {"GODOT_MCP_TOOLSETS": "project,scene,edit,script"}`.
 </details>
 
 <details>
@@ -204,7 +215,7 @@ Server (environment variables):
 | `GODOT_MCP_PORT` / `GODOT_MCP_HOST` | `9080` / `127.0.0.1` | where the editor plugin listens |
 | `GODOT_MCP_TOKEN` | *(token file)* | only if you set a custom token in the plugin |
 | `GODOT_MCP_TIMEOUT` | `30` | seconds per call |
-| `GODOT_MCP_TOOLSETS` | all | comma-separated subset: `project,scene,script,docs,view` |
+| `GODOT_MCP_TOOLSETS` | all | comma-separated subset: `project,scene,edit,script,docs,view` |
 | `GODOT_MCP_LSP_PORT` / `GODOT_MCP_LSP_HOST` | from the editor | override the GDScript language server address |
 
 Plugin: *Editor → Editor Settings → Godot Mcp* has `port`, `auto_start`,

@@ -6,8 +6,11 @@ const McpError := preload("../mcp_error.gd")
 const Protocol := preload("../protocol.gd")
 const Codec := preload("../codec.gd")
 const Paths := preload("../paths.gd")
+const History := preload("../history.gd")
 
 var plugin: EditorPlugin
+## Shared history.gd instance: the MCP actions available to undo/redo.
+var history: History
 
 
 ## Adds this module's methods to `handlers` (method name -> Callable).
@@ -21,6 +24,54 @@ func fail(message: String) -> McpError:
 
 func invalid(message: String) -> McpError:
 	return McpError.new(message, Protocol.INVALID_PARAMS)
+
+
+## Starts an undoable editor action named "MCP: <name>". `context` picks the history:
+## a node of the edited scene -> that scene's history, anything else -> global.
+func begin_action(action_name: String, context: Object) -> EditorUndoRedoManager:
+	var ur := plugin.get_undo_redo()
+	ur.create_action("MCP: " + action_name, UndoRedo.MERGE_DISABLE, context)
+	return ur
+
+
+func commit_action(ur: EditorUndoRedoManager, action_name: String, context: Object) -> void:
+	ur.commit_action()
+	history.record(ur.get_object_history_id(context), "MCP: " + action_name)
+
+
+## The scene to edit: the edited scene, or `scene` (a res:// path), which is opened in the
+## editor (or switched to) first. Returns the scene root or an McpError.
+func edited_root(scene: String) -> Variant:
+	var current := EditorInterface.get_edited_scene_root()
+	if scene == "":
+		if current == null:
+			return fail("No scene is open in the editor. Open one with open_scene or create one with new_scene.")
+		return current
+	var path := Paths.normalize(scene)
+	if path == "":
+		return invalid(Paths.describe_bad(scene))
+	if current != null and current.scene_file_path == path:
+		return current
+	if not ResourceLoader.exists(path):
+		return fail("No scene at '%s'." % path)
+	EditorInterface.open_scene_from_path(path)
+	await plugin.get_tree().process_frame
+	current = EditorInterface.get_edited_scene_root()
+	if current == null or current.scene_file_path != path:
+		return fail("Could not open '%s' in the editor (see Godot's Output panel)." % path)
+	return current
+
+
+## [root, node] for p.node in the scene to edit, or an McpError.
+func target_node(p: Dictionary, key: String = "node") -> Variant:
+	var root: Variant = await edited_root(String(p.get("scene", "")))
+	if root is McpError:
+		return root
+	var path := String(p.get(key, ""))
+	var node := find_node(root, path)
+	if node == null:
+		return fail("No node '%s' in %s. Node paths are relative to the scene root ('.' is the root), e.g. 'Player/Sprite2D'." % [path, root.scene_file_path])
+	return [root, node]
 
 
 ## Waits until the editor's resource filesystem has finished (re)scanning, so newly

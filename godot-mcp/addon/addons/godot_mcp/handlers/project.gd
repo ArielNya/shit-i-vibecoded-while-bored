@@ -322,7 +322,7 @@ func set_project_setting(p: Dictionary) -> Variant:
 		if not conv[0]:
 			return invalid("%s: %s" % [pname, conv[1]])
 		decoded = conv[1]
-	_commit_setting("MCP: set %s" % pname, pname, old, decoded)
+	_commit_setting("set %s" % pname, pname, old, decoded)
 	var out := {"name": pname, "value": Codec.encode(ProjectSettings.get_setting(pname)), "previous": Codec.encode(old)}
 	if not exists:
 		out["note"] = "This setting did not exist before; it was created. Check the name if you meant an existing engine setting."
@@ -350,13 +350,12 @@ func _set_autoload(autoload_name: String, value: Variant) -> Variant:
 
 ## Changes a project setting as one undoable editor action and saves project.godot.
 func _commit_setting(action: String, pname: String, old: Variant, new_value: Variant) -> void:
-	var ur := plugin.get_undo_redo()
-	ur.create_action(action, UndoRedo.MERGE_DISABLE, ProjectSettings)
+	var ur := begin_action(action, ProjectSettings)
 	ur.add_do_method(ProjectSettings, "set_setting", pname, new_value)
 	ur.add_do_method(ProjectSettings, "save")
 	ur.add_undo_method(ProjectSettings, "set_setting", pname, old)
 	ur.add_undo_method(ProjectSettings, "save")
-	ur.commit_action()
+	commit_action(ur, action, ProjectSettings)
 
 
 # --- input map ----------------------------------------------------------------------------
@@ -483,7 +482,7 @@ func edit_input_map(p: Dictionary) -> Variant:
 	if p.get("remove_action", false):
 		if not exists:
 			return fail("No input action '%s'." % action)
-		_commit_setting("MCP: remove input action %s" % action, key, old, null)
+		_commit_setting("remove input action %s" % action, key, old, null)
 		return {"action": action, "removed": true}
 
 	var current: Dictionary = old.duplicate(true) if old is Dictionary else {"deadzone": 0.2, "events": []}
@@ -505,7 +504,7 @@ func edit_input_map(p: Dictionary) -> Variant:
 	var deadzone := float(p.get("deadzone", -1.0))
 	if deadzone >= 0.0:
 		current["deadzone"] = deadzone
-	_commit_setting("MCP: edit input action %s" % action, key, old, current)
+	_commit_setting("edit input action %s" % action, key, old, current)
 	var out := {"action": action, "created": not exists}
 	out.merge(_describe_action(current))
 	return out

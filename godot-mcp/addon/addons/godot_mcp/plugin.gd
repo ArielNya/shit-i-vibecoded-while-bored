@@ -17,12 +17,14 @@ const Protocol := preload("protocol.gd")
 const Listener := preload("listener.gd")
 const LogCapture := preload("log_capture.gd")
 const Dock := preload("dock.gd")
+const History := preload("history.gd")
 const HANDLER_SCRIPTS := [
 	preload("handlers/project.gd"),
 	preload("handlers/scene.gd"),
 	preload("handlers/script.gd"),
 	preload("handlers/docs.gd"),
 	preload("handlers/view.gd"),
+	preload("handlers/edit.gd"),
 ]
 
 const SETTING_PORT := "godot_mcp/port"
@@ -35,6 +37,7 @@ var log_capture: LogCapture
 var dock: Dock
 ## Where the token came from, for the dock ("token file", "Editor Settings", ...).
 var token_source := ""
+var history := History.new()
 var _handlers: Array = []
 
 
@@ -48,6 +51,7 @@ func _enter_tree() -> void:
 	for script: GDScript in HANDLER_SCRIPTS:
 		var handler: RefCounted = script.new()
 		handler.plugin = self
+		handler.history = history
 		handler.register(listener.handlers)
 		_handlers.append(handler)
 	add_child(listener)
