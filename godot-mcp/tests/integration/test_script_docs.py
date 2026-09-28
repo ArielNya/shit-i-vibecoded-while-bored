@@ -95,6 +95,12 @@ async def test_search_docs(call):
     res = await call("search_docs", query="move slide")
     hits = {(r.get("class"), r["name"]) for r in res["results"]}
     assert ("CharacterBody2D", "move_and_slide") in hits
+    # Words may name the class too (what Claude tried first in the smoke test).
+    scoped = await call("search_docs", query="move slide CharacterBody2D")
+    assert (scoped["results"][0]["class"], scoped["results"][0]["name"]) == (
+        "CharacterBody2D",
+        "move_and_slide",
+    )
     classes = await call("search_docs", query="raycast")
     names = [r["name"] for r in classes["results"] if r["kind"] == "class"]
     assert "RayCast2D" in names and "RayCast3D" in names

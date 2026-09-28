@@ -9,7 +9,7 @@ game, look at it, read the errors, fix them, repeat.
 Target engine: **Godot 4.7** (current stable is 4.7.2, Aug 2026). Minimum supported:
 4.7. The 4.8 dev snapshots run in a non-blocking CI job so we see breakage early.
 
-Status: **M0–M3 done** (see §8 notes). Next: M4 (harness hardening).
+Status: **M0–M4 done** (see §8 notes). Next: M5 (resources, tiles, assets).
 
 ---
 
@@ -397,7 +397,7 @@ per milestone in each harness we can access; transcripts + screenshots kept in
 | **M1** ✅ | Read the project | §3.1 + `get_scene_tree`, `get_node_properties`, `read_script`, `get_class_docs`, `get_diagnostics` (LSP); editor screenshots |
 | **M2** ✅ | Edit scenes & scripts | rest of §3.2 + §3.3 with undo; typed-JSON codec; agent builds a small 2D scene with a moving player |
 | **M3** ✅ | Run & observe | runtime bridge: run/stop, output, runtime errors, game screenshot, live tree, `send_input`, `wait`; the *fix-errors loop* works end to end |
-| **M4** | Harness hardening | Streamable HTTP, toolsets, schema checker in CI, image-file fallback, configs + smoke run on ≥6 harnesses |
+| **M4** ✅ | Harness hardening | Streamable HTTP, toolsets, schema checker in CI, image-file fallback, configs + smoke run on ≥6 harnesses |
 | **M5** | Resources, tiles, assets | §3.4; agent makes a tile-based level with imported pixel art |
 | **M6** | Build & test | §3.8 export + GUT/GdUnit4 runner + headless fallback mode with no editor open |
 | **M7** | Escape hatch, guides, skills | `execute_gdscript` behind toggle+token, `godot://docs` + `read_guide`, prompts, skills (2D platformer, 3D third-person, UI menu) |
@@ -429,6 +429,42 @@ Release tags: `godot-mcp-v*`, mirroring `blender-mcp`'s release workflow.
   it), so the plugin can only report the Editor Settings port. Editors started with
   `--lsp-port N` also take `-- --mcp-lsp-port=N`; the server has `GODOT_MCP_LSP_PORT`.
 - Uses `EditorDock` + `add_dock()` (4.6+) for the dock.
+
+### M4 notes
+
+- Started with a ponytail over-engineering audit of M0–M3 (-115 lines, -1 file: dead
+  blocking-socket helpers, five copies of the class_name lookup, history.gd as a class,
+  duplicated LSP open logic, unused signals).
+- **Transports:** `--http` serves Streamable HTTP (SDK app + uvicorn, both already
+  dependencies) on 127.0.0.1:7080 with a **bearer token required by default**, the
+  shared token file's token unless `--http-token`. The server holds the editor's token,
+  so an unauthenticated port would hand the editor to any local process.
+  `--no-http-auth` is refused off loopback. DNS-rebinding protection comes from the SDK.
+- **Protocol versions:** tested 2024-11-05, 2025-03-26, 2025-06-18 and 2025-11-25 with
+  raw handshakes, and 2026-07-28 (stateless) with the SDK client, over stdio and HTTP
+  (`test_transports.py`, against a real editor, with the server as a separate process).
+- **Schemas:** `compat.make_portable` strips `title` and `additionalProperties: true`
+  (JSON Schema's default anyway; Gemini rejects the keyword when schemas are relayed
+  verbatim) and drops output schemas (they only said "object", and Gemini CLI rejects
+  some). `compat.problems` encodes the rules: Gemini's OpenAPI keyword allowlist,
+  `mcp__<server>__<tool>` ≤ 64 (Claude/OpenAI), server + tool ≤ 60 (Cursor), description ≤
+  1024 (OpenAI), typed properties. It runs as a unit test and as
+  `scripts/check_harness_schemas.py` in CI. Definitions of all 52 tools come to ~7k tokens.
+- **Presets:** `--toolsets core` (31 tools), `minimal` (13), `all`; combinable with toolset
+  names. They are lists of tool names, not toolsets, so a preset can take half a toolset.
+- **Images:** `--image-mode file|both` saves PNGs (project `.godot/mcp_screenshots/`, or
+  the temp dir if the project isn't local; newest 20 kept) and returns the path.
+- **Config:** every option is a flag and an env var (flag wins); the server needs no
+  HOME/PATH (tested with an empty environment).
+- **Smoke tests** (`examples/smoke/`): Claude Code 2.1.283 ran real model sessions over
+  stdio and HTTP (it chained project info → diagnostics → run → wait → live properties →
+  stop, and noticed the demo player falling). Gemini CLI 0.61.0 and opencode 1.18.33
+  connected over both transports. The MCP Inspector CLI (TypeScript SDK) listed and called
+  tools over both. Codex 0.158.0 accepted the configs but wasn't connected (no key).
+  Desktop/IDE clients are untested. The Claude run surfaced a `search_docs` gap
+  ("move slide CharacterBody2D" found nothing); words can now match the member's class.
+- Codex, Cursor, VS Code etc. with a real model remain to be tried by a human with
+  those accounts; the README says so per client.
 
 ### M3 notes
 

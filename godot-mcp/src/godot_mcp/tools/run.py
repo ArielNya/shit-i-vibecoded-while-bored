@@ -110,7 +110,8 @@ def register(mcp: MCPServer, godot: Godot) -> None:
     ) -> list[Any]:
         """Capture what the running game shows right now. Needs the game to run with a
         window (not headless)."""
-        return image_result(await godot.call("get_game_screenshot", timeout=40, size=size))
+        reply = await godot.call("get_game_screenshot", timeout=40, size=size)
+        return image_result(reply, godot, "game")
 
     @mcp.tool()
     async def get_live_tree(

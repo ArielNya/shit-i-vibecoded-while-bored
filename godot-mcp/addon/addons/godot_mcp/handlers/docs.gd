@@ -288,17 +288,17 @@ func search_docs(p: Dictionary) -> Variant:
 		if not ClassDB.class_exists(cls):
 			continue
 		for m in ClassDB.class_get_method_list(cls, true):
-			var ms := _score(String(m["name"]), query, tokens)
+			var ms := _score(String(m["name"]), query, tokens, cls)
 			if ms > 0:
 				scored.append([ms, {"kind": "method", "class": cls, "name": m["name"], "signature": _signature(m)}])
 		for prop in ClassDB.class_get_property_list(cls, true):
 			if prop["usage"] & (PROPERTY_USAGE_CATEGORY | PROPERTY_USAGE_GROUP | PROPERTY_USAGE_SUBGROUP):
 				continue
-			var ps := _score(String(prop["name"]), query, tokens)
+			var ps := _score(String(prop["name"]), query, tokens, cls)
 			if ps > 0:
 				scored.append([ps, {"kind": "property", "class": cls, "name": prop["name"], "type": Codec.type_label(prop)}])
 		for sig in ClassDB.class_get_signal_list(cls, true):
-			var ss := _score(String(sig["name"]), query, tokens)
+			var ss := _score(String(sig["name"]), query, tokens, cls)
 			if ss > 0:
 				scored.append([ss, {"kind": "signal", "class": cls, "name": sig["name"]}])
 	scored.sort_custom(func(a: Array, b: Array) -> bool: return a[0] > b[0])
@@ -311,16 +311,24 @@ func search_docs(p: Dictionary) -> Variant:
 	return out
 
 
-## 0 = no match; higher = better. Every query word must appear in the name.
-static func _score(name: String, query: String, tokens: PackedStringArray) -> int:
+## 0 = no match; higher = better. Every query word must appear in the name or, for a
+## member, in its class name ("move slide characterbody2d" finds
+## CharacterBody2D.move_and_slide); at least one must be in the name itself.
+static func _score(name: String, query: String, tokens: PackedStringArray, owner: String = "") -> int:
 	var lower := name.to_lower()
 	var squashed := lower.replace("_", "")
 	if lower == query or squashed == query.replace(" ", "").replace("_", ""):
 		return 100
+	var owner_lower := owner.to_lower()
+	var in_name := 0
 	for t in tokens:
-		if not squashed.contains(t) and not lower.contains(t):
+		if squashed.contains(t) or lower.contains(t):
+			in_name += 1
+		elif owner_lower == "" or not owner_lower.contains(t):
 			return 0
-	var score := 10
+	if in_name == 0:
+		return 0
+	var score := 10 + (3 if in_name < tokens.size() else 0)  # naming the class ranks it first
 	if lower.begins_with(tokens[0]):
 		score += 5
 	return score + max(0, 5 - (lower.length() - query.length()) / 5)

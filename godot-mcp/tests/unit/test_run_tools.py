@@ -83,3 +83,17 @@ async def test_send_input_and_screenshot(session):
     image, meta = res.content
     assert base64.b64decode(image.data) == PNG
     assert json.loads(meta.text) == {"width": 200, "height": 10}
+
+
+@pytest.mark.parametrize("mode", ["file", "both"])
+async def test_image_file_mode(session, monkeypatch, tmp_path, mode):
+    monkeypatch.setenv("GODOT_MCP_IMAGE_MODE", mode)
+    monkeypatch.setattr("tempfile.tempdir", str(tmp_path))  # the fake project isn't local
+    client, _ = session
+    res = await client.call_tool("get_game_screenshot", {"size": 64})
+    assert not res.is_error, res.content
+    meta = json.loads(res.content[-1].text)
+    saved = tmp_path / "godot-mcp-screenshots"
+    assert meta["image_file"].startswith(str(saved))
+    assert open(meta["image_file"], "rb").read() == PNG
+    assert [c.type for c in res.content] == (["text"] if mode == "file" else ["image", "text"])

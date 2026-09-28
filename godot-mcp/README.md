@@ -4,13 +4,14 @@ MCP server that lets AI agents inspect, edit, run and debug a live **Godot 4.7+*
 project. It's meant to work with any MCP client (Claude Code, Claude Desktop, Codex CLI,
 Gemini CLI, Cursor, VS Code / Copilot, Windsurf, Zed, opencode, dsh, …).
 
-**Status: M0–M3 done.** The agent can explore the project, read and **edit** scenes
+**Status: M0–M4 done.** The agent can explore the project, read and **edit** scenes
 (nodes, properties, signals, groups, instancing, save-branch-as-scene), **write**
 scripts and get the editor's errors and warnings back right away, navigate code
 (definitions, references, symbols), look up the Godot 4.7 API, screenshot the editor,
 and undo its own changes. It can also **run the game and play-test it**: read its
 output and runtime errors (with file:line and backtrace), inspect and tweak the live
-scene, send input, wait for conditions, and take screenshots of the game. See
+scene, send input, wait for conditions, and take screenshots of the game. It runs over
+stdio or Streamable HTTP, and has been checked against real clients (see below). See
 [`PLAN.md`](PLAN.md) for the roadmap.
 
 ```
@@ -102,10 +103,20 @@ Ready-to-copy files with it filled in are in [`examples/`](examples/).
 
 ### 3. Register it with your client
 
-The server speaks plain stdio MCP, and its tool schemas are kept to what every major
-client accepts (checked by `tests/unit/test_schemas.py`). The configs below follow each
-client's documented format. **None has been smoke-tested end to end in that client
-yet.** That is milestone M4, and each entry will be marked verified once it has been.
+The server speaks plain MCP over **stdio** (every client) or **Streamable HTTP**
+(`--http`, see below). Its tool schemas keep to what every major client accepts;
+`scripts/check_harness_schemas.py` checks that in CI. What has actually been run (details
+in [`examples/smoke/`](examples/smoke/)):
+
+| Client | Status |
+| --- | --- |
+| Claude Code | **verified**: a model used the tools end to end, over stdio and HTTP |
+| Gemini CLI, opencode | **connects** over stdio and HTTP and discovers the tools (no model run) |
+| MCP Inspector (TypeScript SDK, which most IDE clients use) | **verified** tool listing and calls, stdio and HTTP |
+| Codex CLI | config accepted by `codex mcp list`; not connected |
+| Claude Desktop, Cursor, VS Code, Windsurf, Zed, Cline, JetBrains AI, dsh | untested; configs follow each client's docs |
+
+Ready-to-copy files are in [`examples/`](examples/).
 
 <details open>
 <summary><b>Claude Code</b></summary>
@@ -120,15 +131,24 @@ repo as `.mcp.json`.
 </details>
 
 <details>
-<summary><b>Claude Desktop</b></summary>
+<summary><b>Claude Desktop</b>, <b>Cursor</b>, <b>Windsurf</b>, <b>Cline</b>, <b>JetBrains AI</b>, <b>Gemini CLI</b></summary>
 
-*Settings → Developer → Edit Config* (`claude_desktop_config.json`):
+All of these read the same `mcpServers` shape
+([`examples/claude_desktop_config.json`](examples/claude_desktop_config.json)):
 
 ```json
 { "mcpServers": { "godot": { "command": "uvx", "args": ["--from", "SERVER_SPEC", "godot-mcp"] } } }
 ```
 
-Restart Claude Desktop afterwards.
+Where it goes: Claude Desktop *Settings → Developer → Edit Config*; Cursor
+`.cursor/mcp.json` (or `~/.cursor/mcp.json`); Windsurf
+`~/.codeium/windsurf/mcp_config.json`; Cline *MCP Servers → Configure*; JetBrains AI
+*Settings → Tools → AI Assistant → MCP → As JSON*; Gemini CLI `~/.gemini/settings.json`
+or `.gemini/settings.json` (Gemini only starts MCP servers in *trusted* folders).
+Restart the app afterwards. GUI apps may need the full path to `uvx`.
+
+With many servers Cursor slows down (godot-mcp has 52 tools): add
+`"env": {"GODOT_MCP_TOOLSETS": "core"}` (31 tools) or `"minimal"` (13).
 </details>
 
 <details>
@@ -138,97 +158,73 @@ Restart Claude Desktop afterwards.
 codex mcp add godot -- uvx --from "SERVER_SPEC" godot-mcp
 ```
 
-or in `~/.codex/config.toml`:
-
-```toml
-[mcp_servers.godot]
-command = "uvx"
-args = ["--from", "SERVER_SPEC", "godot-mcp"]
-tool_timeout_sec = 120
-```
-</details>
-
-<details>
-<summary><b>Gemini CLI</b></summary>
-
-`~/.gemini/settings.json` (or `.gemini/settings.json` in the project):
-
-```json
-{ "mcpServers": { "godot": { "command": "uvx", "args": ["--from", "SERVER_SPEC", "godot-mcp"] } } }
-```
-</details>
-
-<details>
-<summary><b>Cursor</b> / <b>Windsurf</b></summary>
-
-Cursor: `.cursor/mcp.json` in the project (or `~/.cursor/mcp.json`). Windsurf:
-`~/.codeium/windsurf/mcp_config.json`. Both use the same shape:
-
-```json
-{ "mcpServers": { "godot": { "command": "uvx", "args": ["--from", "SERVER_SPEC", "godot-mcp"] } } }
-```
-
-Cursor slows down with many tools across servers (godot-mcp has 52). If needed, trim
-with `"env": {"GODOT_MCP_TOOLSETS": "project,scene,edit,script"}`.
+or [`examples/codex.config.toml`](examples/codex.config.toml) in `~/.codex/config.toml`
+(sets a longer `tool_timeout_sec` for game runs).
 </details>
 
 <details>
 <summary><b>VS Code (Copilot agent mode)</b></summary>
 
-`.vscode/mcp.json`:
-
-```json
-{ "servers": { "godot": { "type": "stdio", "command": "uvx", "args": ["--from", "SERVER_SPEC", "godot-mcp"] } } }
-```
+[`examples/vscode.mcp.json`](examples/vscode.mcp.json) as `.vscode/mcp.json`: a stdio
+entry, plus an HTTP entry that prompts for the token.
 </details>
 
 <details>
-<summary><b>opencode</b></summary>
+<summary><b>opencode</b>, <b>Zed</b>, <b>dsh</b></summary>
 
-`opencode.json`:
-
-```json
-{ "mcp": { "godot": { "type": "local", "command": ["uvx", "--from", "SERVER_SPEC", "godot-mcp"], "enabled": true } } }
-```
+[`examples/opencode.json`](examples/opencode.json) (`opencode.json`),
+[`examples/zed.settings.json`](examples/zed.settings.json) (Zed `settings.json`,
+`context_servers`), [`examples/dsh.cordis.patch.yml`](examples/dsh.cordis.patch.yml)
+(dsh starts servers with an empty environment, so give the full `uvx` path; the server
+needs nothing else).
 </details>
 
 <details>
-<summary><b>DeepSeek Harness (dsh)</b></summary>
+<summary><b>Streamable HTTP</b> (one server shared by several clients, remote dev containers)</summary>
 
-One entry in `cordis.patch.yml`. dsh starts servers with a scrubbed environment, so give
-the full `uvx` path and `HOME`:
-
-```yaml
-- id: mcp-godot
-  name: '@deepseek-ai/dsh-mcp-client'
-  config:
-    serverName: godot
-    transport: stdio
-    command: /full/path/to/uvx
-    args: ['--from', 'SERVER_SPEC', 'godot-mcp']
-    env:
-      HOME: /home/you
+```bash
+uvx --from "SERVER_SPEC" godot-mcp --http            # http://127.0.0.1:7080/mcp
 ```
+
+Clients must send `Authorization: Bearer <token>`. The token is the one in the shared
+token file (`~/.config/godot-mcp/token`), or your own with `--http-token`.
+`--no-http-auth` turns auth off, and is only allowed on a loopback address.
+
+```bash
+claude mcp add --transport http godot http://127.0.0.1:7080/mcp \
+  --header "Authorization: Bearer $(cat ~/.config/godot-mcp/token)"
+```
+
+HTTP configs for Claude Code, Gemini CLI, VS Code and Codex are in
+[`examples/`](examples/) (`*.http.*`, `gemini-http.settings.json`, the commented Codex
+entry). They read the token from `GODOT_MCP_HTTP_TOKEN`.
 </details>
 
 <details>
-<summary><b>Any other MCP client</b></summary>
+<summary><b>Clients that don't show images to the model</b></summary>
 
-Run `uvx --from SERVER_SPEC godot-mcp` as a stdio server. Pass settings as environment
-variables (below).
+Screenshots come back as MCP image content. If your client drops images, run the server
+with `--image-mode file` (or `both`): the PNG is saved (under the project's `.godot/`
+folder) and its path is returned, so an agent with file access can open it.
 </details>
 
 ## Configuration
 
-Server (environment variables):
+Server: each option is a flag and an environment variable (`godot-mcp --help`):
 
-| Variable | Default | |
-| --- | --- | --- |
-| `GODOT_MCP_PORT` / `GODOT_MCP_HOST` | `9080` / `127.0.0.1` | where the editor plugin listens |
-| `GODOT_MCP_TOKEN` | *(token file)* | only if you set a custom token in the plugin |
-| `GODOT_MCP_TIMEOUT` | `30` | seconds per call |
-| `GODOT_MCP_TOOLSETS` | all | comma-separated subset: `project,scene,edit,script,docs,view,run` |
-| `GODOT_MCP_LSP_PORT` / `GODOT_MCP_LSP_HOST` | from the editor | override the GDScript language server address |
+| Flag | Variable | Default | |
+| --- | --- | --- | --- |
+| `--godot-port` / `--godot-host` | `GODOT_MCP_PORT` / `GODOT_MCP_HOST` | `9080` / `127.0.0.1` | where the editor plugin listens |
+| `--token` / `--token-file` | `GODOT_MCP_TOKEN` / `GODOT_MCP_TOKEN_FILE` | the shared token file | plugin token |
+| `--timeout` | `GODOT_MCP_TIMEOUT` | `30` | seconds per editor call |
+| `--toolsets` | `GODOT_MCP_TOOLSETS` | `all` (52) | presets `core` (31), `minimal` (13), and/or `project,scene,edit,script,docs,view,run` |
+| `--lsp-port` / `--lsp-host` | `GODOT_MCP_LSP_PORT` / `GODOT_MCP_LSP_HOST` | from the editor | GDScript language server |
+| `--image-mode` | `GODOT_MCP_IMAGE_MODE` | `inline` | `file` / `both`: save screenshots as PNGs and return their paths |
+| `--http`, `--http-port`, `--http-host` | `GODOT_MCP_HTTP_PORT` / `_HOST` | stdio; `7080`, `127.0.0.1` | Streamable HTTP |
+| `--http-token`, `--no-http-auth` | `GODOT_MCP_HTTP_TOKEN` | the token file's token | HTTP bearer token |
+
+Flags win over variables. Nothing depends on `HOME` or `PATH`, so clients that start
+servers with an empty environment work too.
 
 Plugin: *Editor → Editor Settings → Godot Mcp* has `port`, `auto_start`,
 `require_token` and `token`. For scripted launches, arguments after `--` override
@@ -254,6 +250,9 @@ member docs.
   rendering, audio, input devices, layer names, autoloads, …). It can't touch
   `editor_plugins/` or editor settings, so an agent can't turn this plugin off or
   change it.
+- The HTTP transport requires a bearer token by default: the server can drive the
+  editor, so an open port would let any local process do that. It binds to
+  127.0.0.1 and checks Host/Origin headers against DNS rebinding.
 - The runtime in the game only answers the editor it was started from (over Godot's
   debugger connection); it opens no ports of its own and is inert in exported builds.
 - The server's instructions tell the model that project contents are data, not

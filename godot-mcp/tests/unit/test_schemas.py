@@ -2,46 +2,55 @@
 lowest common denominator (see PLAN.md §6.2): no $ref/$defs, no anyOf/oneOf/allOf,
 explicit types everywhere, short names and descriptions."""
 
-import re
-
 import pytest
 
-from godot_mcp import tools
-from godot_mcp.server import _toolsets, create_server
+from godot_mcp import compat, tools
+from godot_mcp.server import create_server, selected_tools
 
 pytestmark = pytest.mark.anyio
 
-NAME = re.compile(r"^[a-z0-9_]{1,48}$")
-FORBIDDEN = {"$ref", "$defs", "definitions", "anyOf", "oneOf", "allOf", "patternProperties"}
 
-
-def _walk(schema, path="$"):
-    if isinstance(schema, dict):
-        bad = FORBIDDEN & schema.keys()
-        assert not bad, f"{path} uses {bad}"
-        if "properties" in schema:
-            for key, sub in schema["properties"].items():
-                assert "type" in sub or "enum" in sub, f"{path}.{key} has no type"
-                _walk(sub, f"{path}.{key}")
-        if "items" in schema:
-            assert "type" in schema["items"], f"{path}[] has no type"
-            _walk(schema["items"], f"{path}[]")
-
-
-async def test_tool_schemas_are_portable():
+async def test_every_tool_is_portable_to_every_client():
+    """PLAN §6.2: Claude, OpenAI/Codex, Gemini (OpenAPI subset), Cursor (60-char names),
+    VS Code. The same check runs in CI via scripts/check_harness_schemas.py."""
     listed = await create_server().list_tools()
     assert len(listed) == len({t.name for t in listed})
-    for tool in listed:
-        assert NAME.match(tool.name), tool.name
-        assert tool.description and len(tool.description) <= 500, tool.name
-        assert tool.input_schema["type"] == "object"
-        _walk(tool.input_schema, tool.name)
+    assert {t.name: compat.problems(t) for t in listed if compat.problems(t)} == {}
 
 
-async def test_toolsets_select_groups():
-    only = await create_server(toolsets=["docs"]).list_tools()
-    assert {t.name for t in only} == {"get_class_docs", "search_docs"}
-    assert _toolsets(None) == list(tools.TOOLSETS)
-    assert _toolsets(" scene , docs ") == ["scene", "docs"]
-    with pytest.raises(SystemExit, match="unknown toolset"):
-        _toolsets("scene,nope")
+def test_problems_are_detected():
+    from mcp.types import Tool
+
+    bad = Tool(
+        name="x" * 70,
+        description="d",
+        input_schema={
+            "type": "object",
+            "properties": {"a": {"anyOf": [{"type": "string"}]}, "b": {"type": "object",
+                           "additionalProperties": True}},
+        },
+        output_schema={"type": "object"},
+    )  # fmt: skip
+    found = "\n".join(compat.problems(bad))
+    for expected in ["over 64", "over 60", "'anyOf'", "a has no type", "'additionalProperties'",
+                     "output schema"]:  # fmt: skip
+        assert expected in found
+
+
+async def names(toolsets):
+    sets, keep = selected_tools(toolsets)
+    return {t.name for t in await create_server(toolsets=sets, keep=keep).list_tools()}
+
+
+async def test_toolsets_and_presets():
+    assert await names("docs") == {"get_class_docs", "search_docs"}
+    everything = await names(None)
+    assert len(everything) == 52 and await names("all") == everything
+    minimal, core = await names("minimal"), await names("core")
+    assert minimal == set(tools.MINIMAL) and core == set(tools.CORE)
+    assert minimal < core < everything and len(core) <= 32
+    # presets and toolsets combine
+    assert await names("minimal,docs") == minimal | {"search_docs"}
+    assert selected_tools(" scene , docs ") == (["scene", "docs"], None)
+    with pytest.raises(SystemExit, match="unknown"):
+        selected_tools("scene,nope")
