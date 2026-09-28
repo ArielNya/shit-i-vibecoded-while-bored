@@ -11,7 +11,7 @@ dependencies = ["mcp>=2.2,<3"]
 blender-mcp = "blender_mcp.server:main"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["ruff>=0.6"]
 
 [build-system]
 requires = ["hatchling"]
@@ -19,10 +19,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/blender_mcp"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["addon"]
 
 [tool.ruff]
 line-length = 100

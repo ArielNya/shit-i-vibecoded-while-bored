@@ -352,25 +352,16 @@ the server) and Codex CLI 0.157 (config parsed, server listed as enabled).
 
 ```bash
 uv sync
-uv run pytest                 # unit tests; no Blender needed
 uv run ruff check . && uv run ruff format --check .
 ```
 
-Integration tests run the add-on inside a real headless Blender. Rendering needs
-OpenGL; on a Linux box without a GPU install Mesa (`apt install libegl1 libgl1-mesa-dri`). Point them at
-either a Blender binary or a Python that has the `bpy` wheel:
-
-```bash
-BLENDER_BIN=/path/to/blender uv run pytest tests/integration
-# or
-uv venv -p 3.11 /tmp/bpyenv && uv pip install -p /tmp/bpyenv/bin/python "bpy>=4.2,<4.3"
-BLENDER_PYTHON=/tmp/bpyenv/bin/python uv run pytest tests/integration
-```
+blender-mcp no longer has a test suite or CI in this repo (removed so it doesn't run
+alongside godot-mcp's); the release workflow still lints and builds.
 
 ### Releasing
 
-Bump the version (pyproject, `__init__`, add-on manifest and `bl_info` — a test checks
-they match), add a `CHANGELOG.md` section, then push a tag `blender-mcp-v<version>`.
+Bump the version (pyproject, `__init__`, add-on manifest and `bl_info` — keep them
+in sync), add a `CHANGELOG.md` section, then push a tag `blender-mcp-v<version>`.
 The release workflow checks, builds the add-on zip and the server wheel/sdist, and
 publishes a GitHub release with the changelog section as notes.
 
