@@ -21,7 +21,7 @@ Primitive = Literal[
 
 
 def register(mcp: MCPServer, blender: Blender) -> None:
-    async def edit(method: str, ctx: Context | None = None, **params: Any) -> Any:
+    async def edit(method: str, /, ctx: Context | None = None, **params: Any) -> Any:
         return await blender.call(method, timeout=EDIT_TIMEOUT, progress=ctx, **params)
 
     @mcp.tool()

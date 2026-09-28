@@ -93,7 +93,8 @@ def list_keyframes(params: dict[str, Any]) -> dict[str, Any]:
     obj = get_object(params["object"])
     channels = []
     for curve in _fcurves(obj):
-        is_rotation = curve.data_path == "rotation_euler"
+        # Objects key "rotation_euler"; pose bones key 'pose.bones["x"].rotation_euler'.
+        is_rotation = curve.data_path.endswith("rotation_euler")
         keys = [
             [
                 num(p.co.x),
@@ -104,7 +105,7 @@ def list_keyframes(params: dict[str, Any]) -> dict[str, Any]:
         ]
         channels.append(
             {
-                "property": "rotation" if is_rotation else curve.data_path,
+                "property": "rotation" if curve.data_path == "rotation_euler" else curve.data_path,
                 "index": curve.array_index,
                 "keys": keys,  # [frame, value (rotation in degrees), interpolation]
             }

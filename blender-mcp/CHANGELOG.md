@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.8.0
+
+- Rigging: `create_humanoid_rig` builds a 22-bone humanoid skeleton from landmarks
+  measured on a reference sheet, with rolls chosen so +X rotation is the natural bend.
+  Also `create_armature` (any skeleton), `bind_to_armature` (automatic or nearest
+  weights, with a weight report), `set_vertex_weights`, `pose_bone` (with `mirror`
+  and keyframes), `reset_pose` and `get_armature_info`.
+- Reference sheets: `add_reference_image` places front/side/back images at true scale
+  from pixel landmarks; `set_visibility` hides references or rigs.
+- `render_preview` gains `ortho`, `textures` and `xray` for comparing against
+  references. `transform_elements` gains absolute `size`/`center` fitting and reports
+  the new bounds.
+- `list_keyframes` reads pose-bone channels.
+- New skill `skills/lowpoly-character` (also `blender://docs/character` and the
+  `model_character` prompt): a low-poly character from a front + side sheet, modelled,
+  rigged, skinned, pose-tested, animated and exported.
+- Fix: a tool parameter named `method` (as in `bind_to_armature`) clashed with the
+  internal call helper.
+
 ## 0.7.0
 
 - Animation: `set_keyframe`, `list_keyframes`, `clear_animation`, `set_frame_range`.

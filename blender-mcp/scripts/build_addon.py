@@ -1,7 +1,7 @@
 """Sync the vendored protocol module into the add-on and zip it for installation.
 
 python scripts/build_addon.py            # sync + write dist/blender_mcp_addon-<version>.zip
-python scripts/build_addon.py --sync     # only copy protocol.py into the add-on
+python scripts/build_addon.py --sync     # only sync protocol.py and the skill files
 """
 
 from __future__ import annotations
@@ -17,6 +17,34 @@ PROTOCOL_SRC = ROOT / "src" / "blender_mcp" / "protocol.py"
 ADDON_DIR = ROOT / "addon" / "blender_mcp_addon"
 PROTOCOL_DST = ADDON_DIR / "protocol.py"
 DIST = ROOT / "dist"
+DOCS = ROOT / "src" / "blender_mcp" / "docs"
+SKILLS = ROOT / "skills"
+
+# Agent skills are generated from the reference notes the server also serves, so the
+# two never drift apart: skills/<name>/SKILL.md = front matter + docs/<topic>.md.
+SKILL_SOURCES = {
+    "lowpoly-character": (
+        "character",
+        "Model a game-ready low-poly humanoid or character in Blender (via the "
+        "blender-mcp tools) from a front and a side view reference sheet, then rig, "
+        "skin, pose-test, animate and export it. Use when asked to build, rig or "
+        "animate a low-poly person, creature or mascot from reference images.",
+    ),
+}
+
+
+def skill_text(name: str) -> str:
+    topic, description = SKILL_SOURCES[name]
+    body = (DOCS / f"{topic}.md").read_text()
+    return f"---\nname: {name}\ndescription: {description}\n---\n\n{body}"
+
+
+def sync_skills() -> None:
+    for name in SKILL_SOURCES:
+        out = SKILLS / name / "SKILL.md"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(skill_text(name))
+        print(f"synced {out.relative_to(ROOT)}")
 
 
 def sync_protocol() -> None:
@@ -39,9 +67,10 @@ def build_zip() -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--sync", action="store_true", help="only sync protocol.py")
+    parser.add_argument("--sync", action="store_true", help="only sync generated files")
     args = parser.parse_args()
     sync_protocol()
+    sync_skills()
     if not args.sync:
         build_zip()
 

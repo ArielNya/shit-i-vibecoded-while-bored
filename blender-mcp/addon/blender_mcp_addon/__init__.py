@@ -7,7 +7,7 @@ importable (and testable) outside Blender.
 bl_info = {
     "name": "Blender MCP",
     "author": "ArielNya",
-    "version": (0, 7, 0),
+    "version": (0, 8, 0),
     "blender": (4, 2, 0),
     "location": "3D Viewport > Sidebar > MCP",
     "description": "Let AI agents inspect and model in Blender over MCP",

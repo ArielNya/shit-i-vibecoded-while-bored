@@ -29,7 +29,7 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 | `get_mesh_data` | Raw vertices/faces, local or world space, optionally with modifiers applied; paginated |
 | `list_materials` / `get_material_info` | Materials, who uses them, Principled BSDF inputs, node graph |
 | `get_viewport_screenshot` | Image of the 3D viewport; optional view angle (front/top/iso/…), shading mode, and object framing. The user's view is restored afterwards |
-| `render_preview` | Quick Workbench / EEVEE / Cycles render from the scene camera or an auto-framed view angle; render settings restored afterwards |
+| `render_preview` | Quick Workbench / EEVEE / Cycles render from the scene camera or an auto-framed view angle; `ortho`, `textures` and `xray` for comparing against reference images; render settings restored afterwards |
 | `create_primitive` | cube, plane, grid, circle, uv/ico sphere, cylinder, cone, torus, monkey, empty, camera, light — with size/segments/location/rotation/scale |
 | `transform_object` / `apply_transform` | Set or offset location/rotation (degrees)/scale/dimensions; bake transforms into the mesh |
 | `duplicate_object` / `rename_object` / `delete_objects` | Copies (full or linked), renames, deletes |
@@ -41,7 +41,7 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 | `select_elements` | Preview a selection spec: matching face/edge/vertex indices, with centers and normals |
 | `extrude` / `inset` / `bevel` | Region or per-face extrude (returns the new cap faces), inset with depth, edge bevels |
 | `loop_cut` / `subdivide` / `bisect` | Edge loops across quad strips, subdivision, plane cuts that can discard and cap a side |
-| `transform_elements` | Move/rotate/scale selected vertices about a pivot (taper, raise, twist) |
+| `transform_elements` | Move/rotate/scale selected vertices about a pivot (taper, raise, twist), or fit them to an absolute `size`/`center` |
 | `delete_elements` / `merge_by_distance` / `recalc_normals` / `shade` | Clean-up and shading (smooth with an auto-smooth angle) |
 | `create_mesh_from_data` | Build a mesh from raw vertices and faces |
 | `create_material` / `update_material` | Principled BSDF: color, metallic, roughness, alpha, transmission, emission; image or generated (checker/color grid) textures |
@@ -55,6 +55,10 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 | `set_keyframe` / `list_keyframes` / `clear_animation` / `set_frame_range` | Keyframe location/rotation (degrees)/scale or object properties; frame range, FPS, current frame |
 | `remesh` / `smooth_vertices` / `add_noise` | Voxel remesh, relax vertices, fractal noise displacement — rocks, terrain, clay |
 | `find_node_types` / `build_geometry_nodes` / `get_geometry_nodes` | Search node types; build a Geometry Nodes setup from nodes + links; inspect it |
+| `add_reference_image` / `set_visibility` | Put a front/side/back reference sheet behind the model at true scale (feet on z=0, head at the given height); hide references or rigs |
+| `create_humanoid_rig` / `create_armature` | A 22-bone humanoid skeleton from landmarks measured on the sheet (or average proportions), extra bones for tails/ears/props; or any custom armature |
+| `bind_to_armature` / `set_vertex_weights` | Skin meshes (automatic heat weights or nearest bone) with a weight report; fix weights on selected vertices |
+| `pose_bone` / `reset_pose` / `get_armature_info` | Pose (optionally mirrored to the other side) and keyframe bones; +X is the natural bend on the humanoid rig |
 | `list_blender_instances` / `use_blender` | Find every running Blender with the add-on (each takes the next free port) and switch between them |
 
 Long operations (renders, file I/O, booleans, remesh, `execute_python`, …) send
@@ -75,9 +79,34 @@ Blender is busy while the code runs, and a timeout doesn't stop it.
 | --- | --- |
 | `blender://scene` | Live scene summary |
 | `blender://objects/{name}` | Live details of one object |
-| `blender://docs` + `blender://docs/{topic}` | Reference notes: `workflow`, `selection`, `modifiers`, `materials`, `troubleshooting` |
+| `blender://docs` + `blender://docs/{topic}` | Reference notes: `workflow`, `selection`, `modifiers`, `materials`, `troubleshooting`, `character` |
 | prompt `model_object(subject, details, style)` | A staged modelling workflow with visual checks |
 | prompt `review_scene` | Audit the scene for modelling problems, report without changing anything |
+| prompt `model_character(front, side, height, style)` | Build a rigged low-poly character from a reference sheet (follows `blender://docs/character`) |
+
+### Skills
+
+[`skills/lowpoly-character`](skills/lowpoly-character/SKILL.md) is a full workflow for
+**low-poly humanoid characters from a front + side reference sheet**: read the sheet
+into a landmark table, box-model one mesh with an edge loop at every joint, match both
+views in x-ray, colour it, rig it with `create_humanoid_rig`, skin it, pose-test every
+joint, keyframe a walk and export a rigged `.glb`. It's generated from
+`src/blender_mcp/docs/character.md` (`python scripts/build_addon.py --sync`), so the
+server serves the same text as `blender://docs/character`.
+
+- **Claude Code:** copy the folder into your skills. For every project, run
+  `cp -r skills/lowpoly-character ~/.claude/skills/`; for one project, use
+  `.claude/skills/` in that repo. Claude loads it when you ask for a character, or
+  you can invoke it with `/lowpoly-character`.
+- **Claude Desktop / claude.ai:** zip the `lowpoly-character` folder and upload it
+  under *Settings → Capabilities → Skills*.
+- **Codex:** recent Codex CLI versions read the same `SKILL.md` format from
+  `~/.codex/skills/`: `cp -r skills/lowpoly-character ~/.codex/skills/`.
+- **Any MCP client (dsh included):** use the `model_character` prompt, or tell the
+  agent to read `blender://docs/character`. No install is needed.
+
+Put the front and side images in the workspace folder, then ask e.g. *"build a rigged
+low-poly character from ref_front.png and ref_side.png, 1.6 m tall"*.
 
 ### Selecting mesh elements
 
@@ -305,7 +334,7 @@ the server) and Codex CLI 0.157 (config parsed, server listed as enabled).
 | `BLENDER_MCP_TOKEN` | token file | Only needed if the add-on uses a custom token |
 | `BLENDER_MCP_TOKEN_FILE` | per-user path above | Where to find the token file (both sides honour it) |
 | `BLENDER_MCP_TIMEOUT` | `30` | Seconds to wait for Blender per call |
-| `BLENDER_MCP_TOOLSETS` | all | Comma-separated subset to expose, for clients with tool limits: `inspect`, `view`, `edit`, `mesh`, `sculpt`, `nodes`, `animate`, `look`, `files`, `python`, `instances` |
+| `BLENDER_MCP_TOOLSETS` | all | Comma-separated subset to expose, for clients with tool limits: `inspect`, `view`, `edit`, `mesh`, `sculpt`, `nodes`, `animate`, `rig`, `look`, `files`, `python`, `instances` |
 
 ## Development
 

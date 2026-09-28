@@ -489,7 +489,41 @@ def transform_elements(params: dict[str, Any]) -> dict[str, Any]:
         if "translate" in params:
             about = Matrix.Translation(Vector(params["translate"])) @ about
         bmesh.ops.transform(bm, matrix=about, verts=verts)
-    return {"name": obj.name, "moved_vertices": len(verts), "pivot": vec(center)}
+        # Absolute fitting (what reference-based modelling needs): make the selection's
+        # bounding box this size and/or put its centre here; null keeps an axis as is.
+        if params.get("size") is not None or params.get("center") is not None:
+            lo, hi = _bounds(verts)
+            box_center = (lo + hi) / 2
+            factors = [1.0, 1.0, 1.0]
+            for axis, want in enumerate(params.get("size") or [None] * 3):
+                extent = hi[axis] - lo[axis]
+                if want is not None:
+                    if extent < 1e-6:
+                        raise ValueError(f"selection is flat along {'xyz'[axis]}; can't size it")
+                    factors[axis] = float(want) / extent
+            shift = Vector((0.0, 0.0, 0.0))
+            for axis, want in enumerate(params.get("center") or [None] * 3):
+                if want is not None:
+                    shift[axis] = float(want) - box_center[axis]
+            fit = (
+                Matrix.Translation(box_center + shift)
+                @ Matrix.Diagonal((*factors, 1))
+                @ Matrix.Translation(-box_center)
+            )
+            bmesh.ops.transform(bm, matrix=fit, verts=verts)
+        lo, hi = _bounds(verts)
+    return {
+        "name": obj.name,
+        "moved_vertices": len(verts),
+        "pivot": vec(center),
+        "bounds": {"min": vec(lo), "max": vec(hi), "size": vec(hi - lo)},
+    }
+
+
+def _bounds(verts: list[BMVert]) -> tuple[Vector, Vector]:
+    lo = Vector(tuple(min(v.co[i] for v in verts) for i in range(3)))
+    hi = Vector(tuple(max(v.co[i] for v in verts) for i in range(3)))
+    return lo, hi
 
 
 @mutation("create mesh")
