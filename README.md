@@ -10,7 +10,7 @@ at the root is shared unless it's genuinely repo-wide (this README, the license,
 | Folder | What it is | Status |
 | --- | --- | --- |
 | [`blender-mcp/`](blender-mcp/) | MCP server that lets Claude / Codex inspect and model inside Blender, plus skills for low-poly characters and Roblox avatar items (hats, clothing, bodies) | M7 done (all milestones) — releases tagged `blender-mcp-v*` — see [`PLAN.md`](blender-mcp/PLAN.md) |
-| [`godot-mcp/`](godot-mcp/) | MCP server that lets agents in any major harness edit, run and debug Godot 4.7+ projects | M4 done (edit, run & play-test, docs; stdio + HTTP; smoke-tested with Claude Code, Gemini CLI, opencode) — see [`PLAN.md`](godot-mcp/PLAN.md) |
+| [`godot-mcp/`](godot-mcp/) | MCP server that lets agents in any major harness edit, run and debug Godot 4.7+ projects | M5 done (edit, run & play-test, assets & tile levels; stdio + HTTP; smoke-tested with Claude Code, Gemini CLI, opencode) — see [`PLAN.md`](godot-mcp/PLAN.md) |
 | [`roblox-mcp/`](roblox-mcp/) | Companion MCP server + agent skill for building Roblox games alongside Studio's built-in MCP server | M7 done, M6 mostly done (single-server `--wrap-studio` mode, Rojo projects + live sync, type checking and formatting, tests, asset uploads, cloud Luau runs, data stores, opt-in publishing, skill with tested recipes, evals; Open Cloud parts and Studio untested yet; offline Engine API docs for Studio 0.740, agent skill v0; stdio + HTTP) — see [`PLAN.md`](roblox-mcp/PLAN.md) |
 
 ## Conventions

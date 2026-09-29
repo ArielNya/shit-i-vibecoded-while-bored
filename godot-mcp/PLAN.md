@@ -9,7 +9,7 @@ game, look at it, read the errors, fix them, repeat.
 Target engine: **Godot 4.7** (current stable is 4.7.2, Aug 2026). Minimum supported:
 4.7. The repo has no CI: run the checks in the README before pushing.
 
-Status: **M0–M4 done** (see §8 notes). Next: M5 (resources, tiles, assets).
+Status: **M0–M5 done** (see §8 notes). Next: M6 (build & test).
 
 ---
 
@@ -398,7 +398,7 @@ per milestone in each harness we can access; transcripts + screenshots kept in
 | **M2** ✅ | Edit scenes & scripts | rest of §3.2 + §3.3 with undo; typed-JSON codec; agent builds a small 2D scene with a moving player |
 | **M3** ✅ | Run & observe | runtime bridge: run/stop, output, runtime errors, game screenshot, live tree, `send_input`, `wait`; the *fix-errors loop* works end to end |
 | **M4** ✅ | Harness hardening | Streamable HTTP, toolsets, schema checker, image-file fallback, configs + smoke run on ≥6 harnesses |
-| **M5** | Resources, tiles, assets | §3.4; agent makes a tile-based level with imported pixel art |
+| **M5** ✅ | Resources, tiles, assets | §3.4; agent makes a tile-based level with imported pixel art |
 | **M6** | Build & test | §3.8 export + GUT/GdUnit4 runner + headless fallback mode with no editor open |
 | **M7** | Escape hatch, guides, skills | `execute_gdscript` behind toggle+token, `godot://docs` + `read_guide`, prompts, skills (2D platformer, 3D third-person, UI menu) |
 | **M8** | Stretch | C# depth (build errors, `[Export]` awareness), multi-editor (pick by port/project), animation/AnimationTree helpers, shader tools, native in-editor HTTP transport experiment, Asset Library release |
@@ -428,6 +428,39 @@ Release tags: `godot-mcp-v*`, mirroring `blender-mcp`'s release workflow.
   it), so the plugin can only report the Editor Settings port. Editors started with
   `--lsp-port N` also take `-- --mcp-lsp-port=N`; the server has `GODOT_MCP_LSP_PORT`.
 - Uses `EditorDock` + `add_dock()` (4.6+) for the dock.
+
+### M5 notes
+
+- 8 new tools (60 total) in an `assets` toolset: `create_resource`, `get_resource`,
+  `set_resource_properties`, `import_asset`, `reimport`, `create_tileset`, `get_tiles`,
+  `set_tiles`. `core` preset now 34 (adds import_asset, create_tileset, set_tiles).
+- **import_asset** is read by the *server* (it runs where the agent's files are, also
+  when the editor is reached over HTTP) from an allowlist: `--asset-dir` /
+  `GODOT_MCP_ASSET_DIRS`, default the working directory; resolved paths (symlinks, `..`)
+  must stay inside. The plugin writes the bytes under res:// (common image/audio/font/
+  model types only). Godot imports a few frames *after* `scan()` reports idle, so the
+  handler waits for the `.import` file (found by the tests: the first version returned
+  before the import and reported no type).
+- Import options are the `.import` file's `[params]` (typed from the existing values);
+  `reimport` rewrites them and calls `reimport_files`. Pixel-art crispness is the project
+  setting `rendering/textures/canvas_textures/default_texture_filter`, not an import
+  option; the tool description says so.
+- **create_tileset** (not in the original plan): the step between an imported sheet and
+  a level. One atlas source, tiles for every non-transparent grid cell, optional physics
+  layer with full-tile squares (`collision="all"` or `solid_tiles`). Terrains and
+  animations are out (YAGNI until asked).
+- **Tiles as text:** `get_tiles` renders the used rect as ASCII with a generated legend
+  (falls back to a cell list above 256x256); `set_tiles` takes `grid` + `legend`, `cells`,
+  `fill_rects`, `erase`, all validated against the tile set before anything changes.
+  Undo snapshots `tile_map_data` (one PackedByteArray) instead of per-cell operations.
+- Resource edits are an undo action on the resource that also re-saves the file.
+- **Acceptance test** (`test_m5_scenario.py`, editor under Xvfb): through MCP tools only,
+  import a generated 4-tile pixel-art sheet, nearest filtering, tileset with collision,
+  paint an 8-row level from ASCII, add a player, run it: the player lands on the tiles
+  (`grounded` via `wait_for`), walks right along them without sinking, no runtime errors,
+  and the game screenshot shows the level.
+- The schema checker caught an untyped parameter (`collision: Any`) before it shipped;
+  split into a `Literal` plus `solid_tiles`.
 
 ### M4 notes
 

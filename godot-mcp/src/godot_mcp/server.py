@@ -90,6 +90,7 @@ ENV = {
     "http_host": "GODOT_MCP_HTTP_HOST",
     "http_port": "GODOT_MCP_HTTP_PORT",
     "http_token": "GODOT_MCP_HTTP_TOKEN",
+    "asset_dir": "GODOT_MCP_ASSET_DIRS",
 }
 
 
@@ -114,6 +115,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=["inline", "file", "both"],
         help="screenshots as MCP images, saved PNGs, or both [GODOT_MCP_IMAGE_MODE]",
     )
+    add("--asset-dir", help="folder(s) import_asset may read, os.pathsep-separated "
+        "[GODOT_MCP_ASSET_DIRS] (default: the working directory)")  # fmt: skip
     add("--http", action="store_true", help="serve Streamable HTTP instead of stdio")
     add("--http-host", help="HTTP bind address [GODOT_MCP_HTTP_HOST] (127.0.0.1)")
     add("--http-port", type=int, help="HTTP port [GODOT_MCP_HTTP_PORT] (7080)")
@@ -132,7 +135,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def apply_to_environment(args: argparse.Namespace) -> None:
     """Options the rest of the server reads from the environment (token file, LSP
     address, image mode) are exported so a flag and its variable behave the same."""
-    for opt in ("token_file", "lsp_host", "lsp_port", "image_mode"):
+    for opt in ("token_file", "lsp_host", "lsp_port", "image_mode", "asset_dir"):
         value = getattr(args, opt)
         if value is not None:
             os.environ[ENV[opt]] = str(value)

@@ -4,13 +4,15 @@ MCP server that lets AI agents inspect, edit, run and debug a live **Godot 4.7+*
 project. It's meant to work with any MCP client (Claude Code, Claude Desktop, Codex CLI,
 Gemini CLI, Cursor, VS Code / Copilot, Windsurf, Zed, opencode, dsh, …).
 
-**Status: M0–M4 done.** The agent can explore the project, read and **edit** scenes
+**Status: M0–M5 done.** The agent can explore the project, read and **edit** scenes
 (nodes, properties, signals, groups, instancing, save-branch-as-scene), **write**
 scripts and get the editor's errors and warnings back right away, navigate code
 (definitions, references, symbols), look up the Godot 4.7 API, screenshot the editor,
 and undo its own changes. It can also **run the game and play-test it**: read its
 output and runtime errors (with file:line and backtrace), inspect and tweak the live
-scene, send input, wait for conditions, and take screenshots of the game. It runs over
+scene, send input, wait for conditions, and take screenshots of the game. And it can
+build **content**: resources (.tres), imported art/audio/fonts, TileSets from sprite
+sheets, and tile levels painted from ASCII grids. It runs over
 stdio or Streamable HTTP, and has been checked against real clients (see below). See
 [`PLAN.md`](PLAN.md) for the roadmap.
 
@@ -30,6 +32,7 @@ AI client ──stdio──▶ godot-mcp (Python) ──TCP 127.0.0.1:9080──
 | `docs` | `get_class_docs`, `search_docs` |
 | `view` | `get_editor_screenshot` |
 | `run` | `run_project`, `stop_project`, `get_run_status`, `get_output`, `get_runtime_errors`, `get_game_screenshot`, `get_live_tree`, `get_live_properties`, `set_live_properties`, `send_input`, `wait_for`, `get_performance` |
+| `assets` | `create_resource`, `get_resource`, `set_resource_properties`, `import_asset`, `reimport`, `create_tileset`, `get_tiles`, `set_tiles` |
 
 - **`get_diagnostics`** asks the editor's own GDScript analyzer (through the built-in
   language server) for errors and warnings in one file or the whole project. You get the
@@ -49,6 +52,13 @@ AI client ──stdio──▶ godot-mcp (Python) ──TCP 127.0.0.1:9080──
   has unsaved changes in Godot's script editor (`force=true` overrides), and they can't
   write scenes, `project.godot` or this plugin's own files.
 - **`set_project_setting` / `edit_input_map`** save `project.godot`.
+- **Assets and tiles:** `import_asset` copies a file (image, audio, font, model) into
+  the project and imports it. The server reads the file itself, only from its asset
+  folders (default: its working directory; `--asset-dir` adds others), so an agent
+  can't pull arbitrary files off your disk. `create_tileset` turns a sprite sheet into
+  a TileSet (empty cells skipped, optional full-tile collision). `set_tiles` paints a
+  TileMapLayer from rows of characters plus a legend, e.g. `["  ==  ", "######"]` with
+  `{"#": [2, 0], "=": [1, 0]}`, and `get_tiles` shows a layer the same way.
 - **Running the game:** `run_project` presses Play in the editor. The game talks back
   through Godot's own debugger connection to a small **`McpRuntime` autoload**, which
   the plugin adds to your project (it does nothing unless the game was started from
@@ -147,8 +157,8 @@ Where it goes: Claude Desktop *Settings → Developer → Edit Config*; Cursor
 or `.gemini/settings.json` (Gemini only starts MCP servers in *trusted* folders).
 Restart the app afterwards. GUI apps may need the full path to `uvx`.
 
-With many servers Cursor slows down (godot-mcp has 52 tools): add
-`"env": {"GODOT_MCP_TOOLSETS": "core"}` (31 tools) or `"minimal"` (13).
+With many servers Cursor slows down (godot-mcp has 60 tools): add
+`"env": {"GODOT_MCP_TOOLSETS": "core"}` (34 tools) or `"minimal"` (13).
 </details>
 
 <details>
@@ -217,7 +227,8 @@ Server: each option is a flag and an environment variable (`godot-mcp --help`):
 | `--godot-port` / `--godot-host` | `GODOT_MCP_PORT` / `GODOT_MCP_HOST` | `9080` / `127.0.0.1` | where the editor plugin listens |
 | `--token` / `--token-file` | `GODOT_MCP_TOKEN` / `GODOT_MCP_TOKEN_FILE` | the shared token file | plugin token |
 | `--timeout` | `GODOT_MCP_TIMEOUT` | `30` | seconds per editor call |
-| `--toolsets` | `GODOT_MCP_TOOLSETS` | `all` (52) | presets `core` (31), `minimal` (13), and/or `project,scene,edit,script,docs,view,run` |
+| `--toolsets` | `GODOT_MCP_TOOLSETS` | `all` (60) | presets `core` (34), `minimal` (13), and/or `project,scene,edit,script,docs,view,run,assets` |
+| `--asset-dir` | `GODOT_MCP_ASSET_DIRS` | the working directory | folders `import_asset` may read files from (`os.pathsep`-separated) |
 | `--lsp-port` / `--lsp-host` | `GODOT_MCP_LSP_PORT` / `GODOT_MCP_LSP_HOST` | from the editor | GDScript language server |
 | `--image-mode` | `GODOT_MCP_IMAGE_MODE` | `inline` | `file` / `both`: save screenshots as PNGs and return their paths |
 | `--http`, `--http-port`, `--http-host` | `GODOT_MCP_HTTP_PORT` / `_HOST` | stdio; `7080`, `127.0.0.1` | Streamable HTTP |
