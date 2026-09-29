@@ -10,6 +10,19 @@
   settings: embedded textures, FBX Unit Scale, no leaf bones.
 - New skill `skills/roblox-avatar`: hats, clothing and bodies from Blender to a worn
   Roblox accessory, with reference pages for each kind and for the Studio side.
+- Game-ready tools (toolset `gameready`): `mark_seams`, `uv_unwrap` (smart / seams /
+  cube, with island and coverage report), `get_uv_info`, `bake_maps` (Cycles high→low
+  normal, AO, colour and roughness bakes, saved to the workspace and wired into the
+  material), and `check_game_ready` (one-call validation of transforms, placement,
+  topology, triangle budget, UVs, materials and skin weights).
+- `bind_to_armature` limits each vertex to `max_influences` bones (default 4) and
+  normalises the weights, and puts its Armature modifier first in the stack.
+- Skill suite in `skills/` (replaces `lowpoly-character`): `blender-mcp` (token- and
+  polygon-efficient use), `game-character` (rig-ready characters, low and high poly, rigging and export per
+  engine) and `img2model` (models from images). Generated from the reference notes,
+  which the server also serves (`efficiency`, `game-character`, `character`,
+  `character-highpoly`, `rigging`, `img2model`), plus the `model_character` and
+  `image_to_model` prompts.
 
 ## 0.8.0
 
@@ -26,7 +39,8 @@
 - `list_keyframes` reads pose-bone channels.
 - New skill `skills/lowpoly-character` (also `blender://docs/character` and the
   `model_character` prompt): a low-poly character from a front + side sheet, modelled,
-  rigged, skinned, pose-tested, animated and exported.
+  rigged, skinned, pose-tested, animated and exported. (Superseded by
+  `game-character`, see Unreleased.)
 - Fix: a tool parameter named `method` (as in `bind_to_armature`) clashed with the
   internal call helper.
 

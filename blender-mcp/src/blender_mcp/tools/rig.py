@@ -82,13 +82,23 @@ def register(mcp: MCPServer, blender: Blender) -> None:
                 "blocky low-poly and separate parts)"
             ),
         ] = "automatic",
+        max_influences: Annotated[
+            int,
+            Field(
+                ge=0,
+                le=8,
+                description="Keep each vertex's N strongest bones and normalise to 1 "
+                "(4 = what game engines take; 0 = leave Blender's weights as they are)",
+            ),
+        ] = 4,
     ) -> dict[str, Any]:
         """Skin meshes to an armature: vertex groups per bone, an Armature modifier, and
-        parenting. Binds in rest pose. Reports vertices per bone and any unweighted
-        vertices — fix those with set_vertex_weights. Apply scale on the mesh first."""
+        parenting (the Armature modifier goes first, before SUBSURF etc.). Binds in rest
+        pose. Reports vertices per bone and any unweighted vertices — fix those with
+        set_vertex_weights. Apply scale on the mesh first."""
         return await blender.call(
             "bind_to_armature", timeout=300, progress=ctx, armature=armature, meshes=meshes,
-            method=method,
+            method=method, max_influences=max_influences,
         )  # fmt: skip
 
     @mcp.tool(

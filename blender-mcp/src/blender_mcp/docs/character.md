@@ -5,8 +5,11 @@ Build a game-ready low-poly humanoid (or humanoid-ish creature) from a **front**
 little animation and export it. Each stage ends with a visual check against the sheet.
 Don't skip them: they catch most mistakes while they're still cheap to undo.
 
-Toolsets used: `inspect`, `view`, `edit`, `mesh`, `rig`, `animate`, `look`, `files`
-(all enabled by default).
+Toolsets used: `inspect`, `view`, `edit`, `mesh`, `rig`, `gameready`, `animate`, `look`,
+`files` (all enabled by default). The standards this walkthrough meets (pose,
+topology, budgets) are in `blender://docs/game-character`. Rigging and export for
+specific engines are in `blender://docs/rigging`. Keep pictures at `size=384` unless
+you need more (`blender://docs/efficiency`).
 
 ## Conventions (the rig tools rely on them)
 
@@ -190,7 +193,8 @@ as separate objects and joined (`join_objects`) or rigidly skinned (see Skin).
 ```
 render_preview(view="front", ortho=true, textures=true, xray=true)
 render_preview(view="right", ortho=true, textures=true, xray=true)
-get_object_info(name="Body")  → dimensions ≈ [arm span, depth, H]; mesh.is_manifold true; ngons 0
+check_game_ready(name="Body", max_triangles=<budget>)
+  → ok, stats.size ≈ [arm span, depth, H], stats.symmetry 1.0; fix every fail
 ```
 
 With x-ray the sheet shows through the model. Fix any mismatch with `size`/`center` on
@@ -199,9 +203,9 @@ select both sides at once (bound on |x|), or use a MIRROR modifier. The MIRROR r
 is: `bisect(keep="above", normal=[1,0,0])` → add MIRROR (clipping on) → model the +X
 half → `apply_modifier` before rigging.
 
-**Polygon budget:** 100–300 faces is PS1/"tiny" style, 300–1,500 is typical mobile or
-indie low poly, and 1,500–5,000 is "mid poly". Spend faces on the silhouette and
-the joints, not on flat areas.
+**Polygon budget** (triangles): 300–1,000 is PS1/"tiny" style, 1,500–5,000 is mobile
+or stylised low poly. See the full table in `blender://docs/game-character`. Spend them
+on the silhouette and the joints, not on flat areas.
 
 **Topology for deformation:** at least one edge loop at every joint (shoulder, elbow,
 wrist, hip, knee, ankle, neck). Two or three loops around elbows and knees make them
@@ -223,6 +227,16 @@ render_preview(view="front", ortho=true, textures=true, xray=true)
 Colour boundaries follow edge loops. If a sleeve or boot edge falls mid-face, add a
 `loop_cut` there first. Eyes and mouths: `inset` a front face of the head and give it
 its own material, or `inset` with a small negative `depth` for a recessed look.
+
+**UVs** (needed for any texture, bake or engine material later, and cheap to do now):
+
+```
+mark_seams(name="Body", select=<rings at the neck, shoulders, wrists, hips, ankles>)
+mark_seams(name="Body", select=<edges down the inner arms/legs and the back>)
+uv_unwrap(name="Body", method="seams")      # or method="smart" for a quick result
+```
+
+`get_uv_info` should show coverage 0.6–0.8 and nothing outside 0–1.
 
 ## 9. Rig
 
@@ -249,7 +263,7 @@ create_humanoid_rig(height=H, landmarks={
 ## 10. Skin
 
 ```
-bind_to_armature(armature="Rig", meshes=["Body"], method="automatic")
+bind_to_armature(armature="Rig", meshes=["Body"], method="automatic", max_influences=4)
 ```
 
 Read the summary: `unweighted_vertices` must be 0, and `bones_without_vertices`
@@ -313,11 +327,14 @@ save_blend(path="character.blend")
 export_file(path="character.glb", objects=["Rig"])      # children (the skinned mesh) come along
 ```
 
-glTF keeps the skeleton, skin weights, materials and actions (engines take up to 4
-bone influences per vertex; the exporter keeps the strongest). To verify, re-import
+Before exporting, `check_game_ready(name="Body", max_triangles=<budget>,
+expect_rig=true)` must return `ok: true`. glTF keeps the skeleton, skin weights,
+materials and actions (up to 4 bone influences per vertex, which `max_influences=4`
+already guarantees). To verify, re-import
 into an empty scene with `import_file` and check that there's an ARMATURE and that the
 mesh has an Armature modifier. FBX (`.fbx`) works too for Unity and Unreal. Use
-`.glb` for Godot, three.js and Babylon.
+`.glb` for Godot, three.js and Babylon. Engine-specific notes and LODs are in
+`blender://docs/rigging` §5.
 
 ## Troubleshooting
 
