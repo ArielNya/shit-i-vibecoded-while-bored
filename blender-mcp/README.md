@@ -329,6 +329,22 @@ It's a standard stdio server: command `uvx`, arguments
 [Configuration](#configuration).
 </details>
 
+<details>
+<summary><b>Windows / PowerShell (from a clone)</b></summary>
+
+[`scripts/install.ps1`](scripts/install.ps1) runs the server straight out of this
+clone (`uv run --directory`, no `uvx` fetch) and registers it for you:
+
+```powershell
+./scripts/install.ps1 -Harness claude-code    # or claude-desktop / codex
+```
+
+`-Harness` is the only required parameter (blender-mcp has no `--project` flag, so
+`-ProjectPath` just picks where `claude mcp add -s project` writes `.mcp.json`; it
+defaults to the current directory). Requires `uv` and, for the `claude-code`/`codex`
+harnesses, that CLI on `PATH`.
+</details>
+
 ### 4. Try it
 
 With Blender running and the add-on started, ask the agent something like *"ping
