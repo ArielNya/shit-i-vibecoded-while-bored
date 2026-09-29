@@ -24,7 +24,8 @@ still work (they run Godot headless).
 Godot 4 differs a lot from Godot 3 (await not yield, @export not export,
 CharacterBody2D not KinematicBody2D, TileMapLayer not TileMap, ...). Check APIs with
 `search_docs` and `get_class_docs` instead of relying on memory, and run `get_diagnostics`
-after touching GDScript.
+after touching GDScript. `read_guide` has curated guides (start with "pitfalls") and
+step-by-step workflows for common kinds of games.
 
 Values: plain JSON for numbers/strings/bools; other engine types are GDScript literals
 such as "Vector2(1, 2)" or "Color(1, 0, 0, 1)"; resources are {"_type": "Resource",
@@ -72,6 +73,7 @@ def create_server(
         for tool in mcp._tool_manager.list_tools():
             if tool.name not in keep:
                 mcp.remove_tool(tool.name)
+    tools.guides.register_content(mcp, godot)  # resources + prompts, whatever the toolsets
     compat.make_portable(mcp._tool_manager)
     return mcp
 
@@ -103,7 +105,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         prog="godot-mcp",
         description="MCP server for the Godot editor. Every option can also be set with the "
-        "environment variable shown in brackets.",
+        "environment variable shown in brackets. `godot-mcp install-addon <project>` copies "
+        "the Godot plugin into a project instead.",
     )
     add = p.add_argument
     add("--godot-host", help="editor plugin host [GODOT_MCP_HOST] (default 127.0.0.1)")
@@ -112,7 +115,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     add("--token-file", help="shared token file [GODOT_MCP_TOKEN_FILE]")
     add("--timeout", type=float, help="seconds per editor call [GODOT_MCP_TIMEOUT] (30)")
     add("--toolsets", help="toolsets/presets: minimal, core, all, or project,scene,edit,"
-        "script,docs,view,run,assets,build [GODOT_MCP_TOOLSETS] (all)")  # fmt: skip
+        "script,docs,view,run,assets,build,guides,exec [GODOT_MCP_TOOLSETS] (all)")  # fmt: skip
     add("--lsp-host", help="GDScript language server host [GODOT_MCP_LSP_HOST]")
     add("--lsp-port", type=int, help="GDScript language server port [GODOT_MCP_LSP_PORT]")
     add(
@@ -206,6 +209,12 @@ def http_app(mcp: MCPServer, args: argparse.Namespace):
 
 
 def main(argv: list[str] | None = None) -> None:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["install-addon"]:
+        from .install import main as install_main
+
+        install_main(argv[1:])
+        return
     args = parse_args(argv)
     apply_to_environment(args)
     toolsets, keep = selected_tools(args.toolsets)

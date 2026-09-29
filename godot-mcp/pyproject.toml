@@ -23,6 +23,7 @@ packages = ["src/godot_mcp"]
 # The server runs the add-on's headless scripts (tests, validation, docs without an editor).
 [tool.hatch.build.targets.wheel.force-include]
 "addon/addons/godot_mcp" = "godot_mcp/addon"
+"skills" = "godot_mcp/skills"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

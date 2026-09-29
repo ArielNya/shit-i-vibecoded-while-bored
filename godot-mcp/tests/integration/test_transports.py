@@ -86,7 +86,7 @@ async def test_http_modern_client_with_token(http_server):
     async with httpx2.AsyncClient(headers=headers, timeout=60) as http:
         async with Client(streamable_http_client(http_server["url"], http_client=http)) as c:
             listed = await c.list_tools()
-            assert len(listed.tools) == 64
+            assert len(listed.tools) == 66
             result = await c.call_tool("get_project_info", {})
             assert not result.is_error
             assert json.loads(result.content[0].text)["name"] == "MCP Demo"
@@ -176,7 +176,7 @@ def test_stdio_legacy_protocol_versions(editor, token_file, version):
         assert init["result"]["protocolVersion"] == version
         rpc({"jsonrpc": "2.0", "method": "notifications/initialized"})
         listed = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
-        assert len(listed["result"]["tools"]) == 64
+        assert len(listed["result"]["tools"]) == 66
         called = rpc(
             {
                 "jsonrpc": "2.0",

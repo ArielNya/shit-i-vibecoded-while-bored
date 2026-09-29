@@ -9,7 +9,7 @@ game, look at it, read the errors, fix them, repeat.
 Target engine: **Godot 4.7** (current stable is 4.7.2, Aug 2026). Minimum supported:
 4.7. The repo has no CI: run the checks in the README before pushing.
 
-Status: **M0–M6 done** (see §8 notes). Next: M7 (escape hatch, guides, skills).
+Status: **M0–M7 done** (see §8 notes). Next: M8 (stretch goals).
 
 ---
 
@@ -401,7 +401,7 @@ per milestone in each harness we can access; transcripts + screenshots kept in
 | **M4** ✅ | Harness hardening | Streamable HTTP, toolsets, schema checker, image-file fallback, configs + smoke run on ≥6 harnesses |
 | **M5** ✅ | Resources, tiles, assets | §3.4; agent makes a tile-based level with imported pixel art |
 | **M6** ✅ | Build & test | §3.8 export + GUT/GdUnit4 runner + headless fallback mode with no editor open |
-| **M7** | Escape hatch, guides, skills | `execute_gdscript` behind toggle+token, `godot://docs` + `read_guide`, prompts, skills (2D platformer, 3D third-person, UI menu) |
+| **M7** ✅ | Escape hatch, guides, skills | `execute_gdscript` behind toggle+token, `godot://docs` + `read_guide`, prompts, skills (2D platformer, 3D third-person, UI menu) |
 | **M8** | Stretch | C# depth (build errors, `[Export]` awareness), multi-editor (pick by port/project), animation/AnimationTree helpers, shader tools, native in-editor HTTP transport experiment, Asset Library release |
 
 Release tags: `godot-mcp-v*`, mirroring `blender-mcp`'s release workflow.
@@ -429,6 +429,41 @@ Release tags: `godot-mcp-v*`, mirroring `blender-mcp`'s release workflow.
   it), so the plugin can only report the Editor Settings port. Editors started with
   `--lsp-port N` also take `-- --mcp-lsp-port=N`; the server has `GODOT_MCP_LSP_PORT`.
 - Uses `EditorDock` + `add_dock()` (4.6+) for the dock.
+
+### M7 notes
+
+- 2 new tools (66 total): `read_guide` (toolset `guides`, also in `core` → 37) and
+  `execute_gdscript` (toolset `exec`, in no preset). Resources and prompts are registered
+  whatever the toolsets, since they cost clients no tool slots.
+- **execute_gdscript** (`exec.gd`, shared by the editor handler and McpRuntime): the
+  snippet becomes the body of `func run()` in an in-memory `@tool` script, with
+  `scene`, `tree` and (editor) `editor` members. It may `await` and `return`. Its indent
+  style is kept (GDScript rejects tabs and spaces mixed on one line). Output and errors
+  come from the existing LogCapture. Snippet errors are reported by `gdscript://` file:
+  line minus the header, so `line` is the snippet's line. log_capture had rewritten
+  those locations to the caller's backtrace frame (found by the spike: compile errors
+  came back as line 24 instead of 1). **Gate** (editor side, also for game runs): the
+  dock checkbox / `godot_mcp/allow_execute` / `--mcp-allow-execute` /
+  `GODOT_MCP_ALLOW_EXECUTE`, and token auth must be on. Not attempted: undo for
+  arbitrary code (the tool says so) and a guard against endless loops (GDScript can't
+  interrupt the main thread).
+- **Guides** (`src/godot_mcp/guides/*.md`): pitfalls, values, movement, physics, scenes
+  (incl. signals, autoloads), ui, testing, export. **Skills** (`skills/*/SKILL.md`, Agent
+  Skills format with name/description frontmatter): `godot-2d-platformer`,
+  `godot-3d-third-person`, `godot-ui-menu`, bundled into the wheel. They're served as
+  resources (`godot://docs/…`, `godot://skills/…`, plus live `godot://project`), as
+  `read_guide` topics, and the skills are copyable into Claude Code skill folders.
+  Prompts: `make_prototype(idea, dimension)`, `fix_errors_loop(scope)`, `playtest(goal)`,
+  also readable through `read_guide`.
+- **Every ```gdscript block in guides and skills is compiled** by an integration test:
+  written into a project with GUT/GdUnit4 installed and stub scenes for `preload`ed
+  paths, then `validate_project`. A deliberately broken block (`yield`) made it fail, as
+  it should. Godot 3 examples in the guides are tables, not gdscript blocks.
+- **`godot-mcp install-addon <project>`** (not in the original plan): copies the
+  server's bundled plugin into `addons/godot_mcp` (replacing an older copy, so plugin and
+  server versions match) and adds it to `[editor_plugins]` in project.godot, keeping
+  other enabled plugins. Tested end to end: a blank project, then a fresh editor on it
+  prints "godot-mcp: listening".
 
 ### M6 notes
 

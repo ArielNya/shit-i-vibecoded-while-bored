@@ -13,6 +13,7 @@ extends Node
 
 const Codec := preload("../codec.gd")
 const LogCapture := preload("../log_capture.gd")
+const Exec := preload("../exec.gd")
 
 const MAX_LIVE_NODES := 2000
 
@@ -38,6 +39,7 @@ func _ready() -> void:
 		"input": _input_events,
 		"wait": _wait,
 		"performance": _performance,
+		"exec": _exec,  # the editor checks that execute_gdscript is allowed before sending
 	}
 	EngineDebugger.register_message_capture("mcp", _on_message)
 	# Say hello once the main scene is in the tree.
@@ -474,6 +476,13 @@ func _property_check(cond: Dictionary) -> Variant:
 			">=":
 				return v >= expected
 		return false
+
+
+# --- execute_gdscript --------------------------------------------------------------------
+
+
+func _exec(p: Dictionary) -> Variant:
+	return await Exec.run(String(p.get("code", "")), _logger, _scene_root(), get_tree(), null)
 
 
 # --- performance ---------------------------------------------------------------------------

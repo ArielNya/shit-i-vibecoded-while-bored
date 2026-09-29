@@ -39,6 +39,13 @@ func _ready() -> void:
 	copy_cmd.pressed.connect(_copy_command)
 	buttons.add_child(copy_cmd)
 
+	var allow_exec := CheckBox.new()
+	allow_exec.text = "Allow execute_gdscript"
+	allow_exec.tooltip_text = "Lets the agent run arbitrary GDScript in the editor and the running game.\nOnly works with token authentication on. Leave off unless you need it."
+	allow_exec.button_pressed = bool(EditorInterface.get_editor_settings().get_setting("godot_mcp/allow_execute"))
+	allow_exec.toggled.connect(func(on: bool) -> void: plugin.call("set_execute_allowed", on))
+	box.add_child(allow_exec)
+
 	var log_label := Label.new()
 	log_label.text = "Recent commands"
 	box.add_child(log_label)

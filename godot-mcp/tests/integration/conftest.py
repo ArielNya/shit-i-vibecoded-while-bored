@@ -6,7 +6,8 @@ handling) with scenes/main.tscn open.
 
 By default the editor runs --headless. A module can set
     EDITOR_OPTIONS = {"display": True}
-to run it with a real window under Xvfb (needs xvfb-run and Mesa), e.g. for screenshots.
+to run it with a real window under Xvfb (needs xvfb-run and Mesa), e.g. for screenshots,
+and "user_args": [...] for extra plugin arguments (after `--`).
 """
 
 import asyncio
@@ -103,6 +104,7 @@ def editor(project_dir, token_file, editor_options):
         "--mcp-port=0",
         f"--mcp-lsp-port={lsp_port}",
         "--mcp-test-hooks",
+        *editor_options.get("user_args", []),
     ]
     env = {**os.environ, protocol.TOKEN_FILE_ENV: str(token_file)}
     proc = subprocess.Popen(

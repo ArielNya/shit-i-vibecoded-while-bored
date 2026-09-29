@@ -180,3 +180,8 @@ async def test_input_map_errors(call_error):
     assert "can't be removed" in await call_error(
         "edit_input_map", action="ui_accept", remove_action=True
     )
+
+
+async def test_execute_gdscript_is_off_by_default(call_error):
+    text = await call_error("execute_gdscript", code="return 1")
+    assert "execute_gdscript is off" in text and "MCP dock" in text

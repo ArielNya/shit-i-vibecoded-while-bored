@@ -31,7 +31,8 @@ func _log_error(function: String, file: String, line: int, code: String, rationa
 		entry["backtrace"] = frames
 		# Point at the script line rather than the engine's C++ source when we can.
 		var top: ScriptBacktrace = script_backtraces[0]
-		if top.get_frame_count() > 0 and not file.begins_with("res://"):
+		# (gdscript:// is an in-memory script, e.g. an execute_gdscript snippet: keep it.)
+		if top.get_frame_count() > 0 and not file.begins_with("res://") and not file.begins_with("gdscript://"):
 			entry["file"] = top.get_frame_file(0)
 			entry["line"] = top.get_frame_line(0)
 	_add(entry)
