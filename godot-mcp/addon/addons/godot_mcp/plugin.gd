@@ -73,8 +73,17 @@ func _enter_tree() -> void:
 	dock = Dock.new()
 	dock.plugin = self
 	add_dock(dock)
+	if _batch_run():
+		return  # a command-line export/import (e.g. by export_project): no listener there
 	if bool(_editor_settings().get_setting(SETTING_AUTO_START)) or _cli_value("--mcp-port") != "":
 		start_server()
+
+
+static func _batch_run() -> bool:
+	for arg in OS.get_cmdline_args():
+		if arg in ["--import", "--export-release", "--export-debug", "--export-pack", "--export-patch"]:
+			return true
+	return false
 
 
 func _exit_tree() -> void:
@@ -120,6 +129,7 @@ func _server_info() -> Dictionary:
 		"lsp": {"host": String(_editor_settings().get_setting("network/language_server/remote_host")), "port": lsp_port},
 		"headless": DisplayServer.get_name() == "headless",
 		"pid": OS.get_process_id(),
+		"executable": OS.get_executable_path(),
 	}
 
 

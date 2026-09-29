@@ -6,15 +6,18 @@ from typing import Any
 from mcp.server.mcpserver.exceptions import ToolError
 
 from ..bridge import GodotBridge, GodotCommandError, GodotConnectionError
+from ..headless import Headless
 from ..lsp import GDScriptLSP, LSPError
 
 
 class Godot:
     """What tool modules use to reach the editor: bridge calls with MCP-friendly errors,
-    plus a lazily created client for the editor's GDScript language server."""
+    a lazily created client for the editor's GDScript language server, and a headless
+    Godot for work that doesn't need (or can't reach) the editor."""
 
     def __init__(self, bridge: GodotBridge):
         self.bridge = bridge
+        self.headless = Headless(bridge)
         self._lsp: GDScriptLSP | None = None
 
     async def call(self, method: str, /, timeout: float | None = None, **params: Any) -> Any:

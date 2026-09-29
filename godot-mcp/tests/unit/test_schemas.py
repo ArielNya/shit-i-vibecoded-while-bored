@@ -45,10 +45,10 @@ async def names(toolsets):
 async def test_toolsets_and_presets():
     assert await names("docs") == {"get_class_docs", "search_docs"}
     everything = await names(None)
-    assert len(everything) == 60 and await names("all") == everything
+    assert len(everything) == 64 and await names("all") == everything
     minimal, core = await names("minimal"), await names("core")
     assert minimal == set(tools.MINIMAL) and core == set(tools.CORE)
-    assert minimal < core < everything and len(core) <= 35
+    assert minimal < core < everything and len(core) <= 36
     # presets and toolsets combine
     assert await names("minimal,docs") == minimal | {"search_docs"}
     assert selected_tools(" scene , docs ") == (["scene", "docs"], None)

@@ -18,6 +18,8 @@ Tools for inspecting and editing a Godot 4.7+ project through the running Godot 
 (the project must be open with the "Godot MCP" plugin enabled). Start with
 `get_project_info`; use `get_scene_tree` / `get_node_properties` to understand scenes and
 `read_script` for code. Paths are res:// paths; node paths are relative to the scene root.
+Without an editor, `validate_project`, `run_tests`, the export tools and the docs tools
+still work (they run Godot headless).
 
 Godot 4 differs a lot from Godot 3 (await not yield, @export not export,
 CharacterBody2D not KinematicBody2D, TileMapLayer not TileMap, ...). Check APIs with
@@ -91,6 +93,9 @@ ENV = {
     "http_port": "GODOT_MCP_HTTP_PORT",
     "http_token": "GODOT_MCP_HTTP_TOKEN",
     "asset_dir": "GODOT_MCP_ASSET_DIRS",
+    "export_dir": "GODOT_MCP_EXPORT_DIRS",
+    "godot_bin": "GODOT_BIN",
+    "project": "GODOT_MCP_PROJECT",
 }
 
 
@@ -107,7 +112,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     add("--token-file", help="shared token file [GODOT_MCP_TOKEN_FILE]")
     add("--timeout", type=float, help="seconds per editor call [GODOT_MCP_TIMEOUT] (30)")
     add("--toolsets", help="toolsets/presets: minimal, core, all, or project,scene,edit,"
-        "script,docs,view,run [GODOT_MCP_TOOLSETS] (all)")  # fmt: skip
+        "script,docs,view,run,assets,build [GODOT_MCP_TOOLSETS] (all)")  # fmt: skip
     add("--lsp-host", help="GDScript language server host [GODOT_MCP_LSP_HOST]")
     add("--lsp-port", type=int, help="GDScript language server port [GODOT_MCP_LSP_PORT]")
     add(
@@ -117,6 +122,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     add("--asset-dir", help="folder(s) import_asset may read, os.pathsep-separated "
         "[GODOT_MCP_ASSET_DIRS] (default: the working directory)")  # fmt: skip
+    add("--export-dir", help="folder(s) export_project may write to, os.pathsep-separated "
+        "[GODOT_MCP_EXPORT_DIRS] (default: the working directory)")  # fmt: skip
+    add("--godot-bin", help="Godot binary for headless work (tests, exports, no-editor mode) "
+        "[GODOT_BIN] (default: the editor's, or found on PATH)")  # fmt: skip
+    add("--project", help="project folder when no editor is connected [GODOT_MCP_PROJECT] "
+        "(default: the editor's, or the working directory's)")  # fmt: skip
     add("--http", action="store_true", help="serve Streamable HTTP instead of stdio")
     add("--http-host", help="HTTP bind address [GODOT_MCP_HTTP_HOST] (127.0.0.1)")
     add("--http-port", type=int, help="HTTP port [GODOT_MCP_HTTP_PORT] (7080)")
@@ -135,7 +146,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def apply_to_environment(args: argparse.Namespace) -> None:
     """Options the rest of the server reads from the environment (token file, LSP
     address, image mode) are exported so a flag and its variable behave the same."""
-    for opt in ("token_file", "lsp_host", "lsp_port", "image_mode", "asset_dir"):
+    for opt in ("token_file", "lsp_host", "lsp_port", "image_mode", "asset_dir", "export_dir",
+                "godot_bin", "project"):  # fmt: skip
         value = getattr(args, opt)
         if value is not None:
             os.environ[ENV[opt]] = str(value)
