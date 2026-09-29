@@ -2,7 +2,7 @@
 
     uv run python scripts/check_harness_schemas.py [--server-name godot]
 
-Exits non-zero on any problem (run in CI). The server name matters because clients
+Exits non-zero on any problem (run it before pushing). The server name matters because clients
 prefix tool names with it (Claude: mcp__<server>__<tool>, Cursor: 60-char limit)."""
 
 import argparse

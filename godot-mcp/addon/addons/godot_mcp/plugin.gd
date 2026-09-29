@@ -31,6 +31,7 @@ const HANDLER_SCRIPTS := [
 	preload("handlers/view.gd"),
 	preload("handlers/edit.gd"),
 	preload("handlers/run.gd"),
+	preload("handlers/assets.gd"),
 ]
 
 const SETTING_PORT := "godot_mcp/port"

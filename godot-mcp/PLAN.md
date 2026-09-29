@@ -7,9 +7,9 @@ well enough to build real games: create scenes, write GDScript, wire signals, ru
 game, look at it, read the errors, fix them, repeat.
 
 Target engine: **Godot 4.7** (current stable is 4.7.2, Aug 2026). Minimum supported:
-4.7. The 4.8 dev snapshots run in a non-blocking CI job so we see breakage early.
+4.7. The repo has no CI: run the checks in the README before pushing.
 
-Status: **M0–M4 done** (see §8 notes). Next: M5 (resources, tiles, assets).
+Status: **M0–M5 done** (see §8 notes). Next: M6 (build & test).
 
 ---
 
@@ -71,7 +71,7 @@ So — same split that worked for `blender-mcp`, plus a third piece for the game
   symbol search instead of reimplementing any of that.
 - **Headless fallback**: when no editor is connected, a subset of tools
   (validate project, run tests, export, class docs) runs by spawning
-  `godot --headless --path <project> …` directly. This also makes CI possible.
+  `godot --headless --path <project> …` directly. This also makes automated runs possible.
 
 Why not an MCP server written in GDScript inside the editor (Streamable HTTP
 directly from Godot)? Tempting — no Python at all. Rejected for v1 because:
@@ -110,7 +110,7 @@ godot-mcp/
 │       ├── plugin.cfg
 │       ├── plugin.gd           ← EditorPlugin: start/stop, dock, settings
 │       ├── listener.gd         ← TCPServer + framing + auth, polled in _process
-│       ├── protocol.gd         ← GDScript mirror of protocol.py (constants checked in CI)
+│       ├── protocol.gd         ← GDScript mirror of protocol.py (constants checked by a unit test)
 │       ├── codec.gd            ← Variant ⇄ JSON (§4 typed values)
 │       ├── paths.gd            ← res:// normalisation + hidden/symlink guards
 │       ├── log_capture.gd      ← Logger that records engine errors for replies
@@ -374,7 +374,7 @@ per milestone in each harness we can access; transcripts + screenshots kept in
 
 - **Unit (no Godot):** tools vs. fake bridge, framing round-trips, typed-JSON codec,
   arg validation, **schema-compat checker** over every tool.
-- **Protocol parity:** CI fails if `protocol.gd` drifts from `protocol.py`.
+- **Protocol parity:** a unit test fails if `protocol.gd` drifts from `protocol.py`.
 - **Integration:** pytest fixture launches
   `godot --headless --editor --path addon/` with the plugin enabled, waits for the
   port, drives real tools, asserts on saved `.tscn` contents and the live tree.
@@ -384,8 +384,8 @@ per milestone in each harness we can access; transcripts + screenshots kept in
   mark), as with `blender-mcp` headless renders.
 - **GDScript-side unit tests** with GdUnit4 for the typed-JSON serializer and path
   guards.
-- **CI:** `.github/workflows/godot-mcp.yml` with `paths:` filters; pinned Godot 4.7.2
-  Linux headless binary (cached); a non-blocking job on the latest 4.8 dev snapshot.
+- **No CI** (repo policy): unit + integration tests and the schema check run locally
+  before pushing (README → Development); the session-start hook installs Godot 4.7.2.
 
 ---
 
@@ -397,8 +397,8 @@ per milestone in each harness we can access; transcripts + screenshots kept in
 | **M1** ✅ | Read the project | §3.1 + `get_scene_tree`, `get_node_properties`, `read_script`, `get_class_docs`, `get_diagnostics` (LSP); editor screenshots |
 | **M2** ✅ | Edit scenes & scripts | rest of §3.2 + §3.3 with undo; typed-JSON codec; agent builds a small 2D scene with a moving player |
 | **M3** ✅ | Run & observe | runtime bridge: run/stop, output, runtime errors, game screenshot, live tree, `send_input`, `wait`; the *fix-errors loop* works end to end |
-| **M4** ✅ | Harness hardening | Streamable HTTP, toolsets, schema checker in CI, image-file fallback, configs + smoke run on ≥6 harnesses |
-| **M5** | Resources, tiles, assets | §3.4; agent makes a tile-based level with imported pixel art |
+| **M4** ✅ | Harness hardening | Streamable HTTP, toolsets, schema checker, image-file fallback, configs + smoke run on ≥6 harnesses |
+| **M5** ✅ | Resources, tiles, assets | §3.4; agent makes a tile-based level with imported pixel art |
 | **M6** | Build & test | §3.8 export + GUT/GdUnit4 runner + headless fallback mode with no editor open |
 | **M7** | Escape hatch, guides, skills | `execute_gdscript` behind toggle+token, `godot://docs` + `read_guide`, prompts, skills (2D platformer, 3D third-person, UI menu) |
 | **M8** | Stretch | C# depth (build errors, `[Export]` awareness), multi-editor (pick by port/project), animation/AnimationTree helpers, shader tools, native in-editor HTTP transport experiment, Asset Library release |
@@ -410,9 +410,8 @@ Release tags: `godot-mcp-v*`, mirroring `blender-mcp`'s release workflow.
 - Built and tested against the real Godot **4.7.2** editor (Linux). Integration tests
   open a copy of `tests/fixtures/demo_project` in `godot --headless --editor` and drive
   every tool through an MCP client; screenshot tests run the editor under Xvfb with
-  Mesa's software OpenGL (`--rendering-driver opengl3`). CI does the same
-  (`.github/workflows/godot-mcp.yml`), plus a non-blocking job on the newest Godot
-  build.
+  Mesa's software OpenGL (`--rendering-driver opengl3`). (A CI workflow ran the same
+  until the repo dropped CI.)
 - Verified end to end over **stdio** as a client would run it (`uvx --from <path>
   godot-mcp`, raw JSON-RPC `initialize` → `tools/list` → `tools/call`) against a headless
   editor on the default port with the token file. Not yet smoke-tested inside Claude
@@ -429,6 +428,39 @@ Release tags: `godot-mcp-v*`, mirroring `blender-mcp`'s release workflow.
   it), so the plugin can only report the Editor Settings port. Editors started with
   `--lsp-port N` also take `-- --mcp-lsp-port=N`; the server has `GODOT_MCP_LSP_PORT`.
 - Uses `EditorDock` + `add_dock()` (4.6+) for the dock.
+
+### M5 notes
+
+- 8 new tools (60 total) in an `assets` toolset: `create_resource`, `get_resource`,
+  `set_resource_properties`, `import_asset`, `reimport`, `create_tileset`, `get_tiles`,
+  `set_tiles`. `core` preset now 34 (adds import_asset, create_tileset, set_tiles).
+- **import_asset** is read by the *server* (it runs where the agent's files are, also
+  when the editor is reached over HTTP) from an allowlist: `--asset-dir` /
+  `GODOT_MCP_ASSET_DIRS`, default the working directory; resolved paths (symlinks, `..`)
+  must stay inside. The plugin writes the bytes under res:// (common image/audio/font/
+  model types only). Godot imports a few frames *after* `scan()` reports idle, so the
+  handler waits for the `.import` file (found by the tests: the first version returned
+  before the import and reported no type).
+- Import options are the `.import` file's `[params]` (typed from the existing values);
+  `reimport` rewrites them and calls `reimport_files`. Pixel-art crispness is the project
+  setting `rendering/textures/canvas_textures/default_texture_filter`, not an import
+  option; the tool description says so.
+- **create_tileset** (not in the original plan): the step between an imported sheet and
+  a level. One atlas source, tiles for every non-transparent grid cell, optional physics
+  layer with full-tile squares (`collision="all"` or `solid_tiles`). Terrains and
+  animations are out (YAGNI until asked).
+- **Tiles as text:** `get_tiles` renders the used rect as ASCII with a generated legend
+  (falls back to a cell list above 256x256); `set_tiles` takes `grid` + `legend`, `cells`,
+  `fill_rects`, `erase`, all validated against the tile set before anything changes.
+  Undo snapshots `tile_map_data` (one PackedByteArray) instead of per-cell operations.
+- Resource edits are an undo action on the resource that also re-saves the file.
+- **Acceptance test** (`test_m5_scenario.py`, editor under Xvfb): through MCP tools only,
+  import a generated 4-tile pixel-art sheet, nearest filtering, tileset with collision,
+  paint an 8-row level from ASCII, add a player, run it: the player lands on the tiles
+  (`grounded` via `wait_for`), walks right along them without sinking, no runtime errors,
+  and the game screenshot shows the level.
+- The schema checker caught an untyped parameter (`collision: Any`) before it shipped;
+  split into a `Literal` plus `solid_tiles`.
 
 ### M4 notes
 
@@ -449,7 +481,7 @@ Release tags: `godot-mcp-v*`, mirroring `blender-mcp`'s release workflow.
   some). `compat.problems` encodes the rules: Gemini's OpenAPI keyword allowlist,
   `mcp__<server>__<tool>` ≤ 64 (Claude/OpenAI), server + tool ≤ 60 (Cursor), description ≤
   1024 (OpenAI), typed properties. It runs as a unit test and as
-  `scripts/check_harness_schemas.py` in CI. Definitions of all 52 tools come to ~7k tokens.
+  `scripts/check_harness_schemas.py`. Definitions of all 52 tools come to ~7k tokens.
 - **Presets:** `--toolsets core` (31 tools), `minimal` (13), `all`; combinable with toolset
   names. They are lists of tool names, not toolsets, so a preset can take half a toolset.
 - **Images:** `--image-mode file|both` saves PNGs (project `.godot/mcp_screenshots/`, or

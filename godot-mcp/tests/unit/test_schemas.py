@@ -12,7 +12,7 @@ pytestmark = pytest.mark.anyio
 
 async def test_every_tool_is_portable_to_every_client():
     """PLAN §6.2: Claude, OpenAI/Codex, Gemini (OpenAPI subset), Cursor (60-char names),
-    VS Code. The same check runs in CI via scripts/check_harness_schemas.py."""
+    VS Code. Also runnable standalone: scripts/check_harness_schemas.py."""
     listed = await create_server().list_tools()
     assert len(listed) == len({t.name for t in listed})
     assert {t.name: compat.problems(t) for t in listed if compat.problems(t)} == {}
@@ -45,10 +45,10 @@ async def names(toolsets):
 async def test_toolsets_and_presets():
     assert await names("docs") == {"get_class_docs", "search_docs"}
     everything = await names(None)
-    assert len(everything) == 52 and await names("all") == everything
+    assert len(everything) == 60 and await names("all") == everything
     minimal, core = await names("minimal"), await names("core")
     assert minimal == set(tools.MINIMAL) and core == set(tools.CORE)
-    assert minimal < core < everything and len(core) <= 32
+    assert minimal < core < everything and len(core) <= 35
     # presets and toolsets combine
     assert await names("minimal,docs") == minimal | {"search_docs"}
     assert selected_tools(" scene , docs ") == (["scene", "docs"], None)

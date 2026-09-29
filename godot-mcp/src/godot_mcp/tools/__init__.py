@@ -1,6 +1,6 @@
 """MCP tool definitions, grouped by area. Each module exposes register(mcp, godot)."""
 
-from . import docs, edit, project, run, scene, script, view
+from . import assets, docs, edit, project, run, scene, script, view
 
 # Toolset names for --toolsets / GODOT_MCP_TOOLSETS, in registration order.
 TOOLSETS = {
@@ -11,6 +11,7 @@ TOOLSETS = {
     "docs": docs,
     "view": view,
     "run": run,
+    "assets": assets,
 }
 
 # Presets for clients with tool limits or slow tool routing: names of individual tools.
@@ -23,6 +24,7 @@ CORE = MINIMAL + [
     "list_files", "search_files", "search_docs", "open_scene", "new_scene", "remove_node",
     "create_script", "attach_script", "connect_signal", "edit_input_map", "undo",
     "get_editor_screenshot", "stop_project", "get_output", "get_live_properties",
-    "send_input", "wait_for", "get_game_screenshot",
+    "send_input", "wait_for", "get_game_screenshot", "import_asset", "create_tileset",
+    "set_tiles",
 ]  # fmt: skip
 PRESETS = {"minimal": MINIMAL, "core": CORE}
