@@ -35,10 +35,24 @@ proportions of `height`.
 - Check the result with `get_armature_info(armature="Rig")` (world head and tail of
   every bone) and one `render_preview(view="front", ortho=true, xray=true, size=384)`.
 
-**Bend convention:** on these bones, local **+X rotation is the natural bend**:
-spine, neck and head bend forward; arms fold forward; knees bend back; toes curl down.
-Negative X on a thigh lifts the leg forward. Y twists along the bone and Z swings it
-sideways.
+**Rotation axes** (`pose_bone(rotation=[x, y, z])`, degrees, measured on this rig):
+
+| Bone | +X | +Y (twist along the bone) | +Z |
+|---|---|---|---|
+| `spine`, `chest`, `neck`, `head` | bend forward / nod | **turn** to the character's left (−Y: to its right) | **tilt/lean** to the character's right |
+| `upper_arm`, `forearm`, `hand` .L | fold forward | roll the arm (palm up/down) | **raise** (−Z lowers: from a T-pose, `[0,0,-60]` = arms down) |
+| same, .R | fold forward | roll | **lower** (−Z raises) |
+| `thigh` .L | swing back (−X lifts the leg forward) | twist | inward (−Z spreads the leg out) |
+| `thigh` .R | swing back | twist | outward |
+| `shin` | bend the knee (backward) | – | – (a knee doesn't bend sideways) |
+| `foot`, `toe` | point/curl the toes down | – | – |
+
+With `mirror=true`, give the .L values: the .R bone gets the mirrored pose. **Extra
+bones** (tails, ears, fingers) depend on their direction and `roll`. Measure them
+once: `pose_bone(bone=…, rotation=[20,0,0])` returns `tail_world`; compare it with the
+rest value (`get_armature_info`), then `reset_pose`. For reference, a tail bone pointing
+back with roll 0 lifts on +X and swings to the character's right on +Z; an ear bone
+pointing up folds forward on +X (−X lays the ear back) and tilts right on +Z.
 
 ### Extra bones (`extra_bones`, same format as `create_armature`)
 
@@ -97,6 +111,8 @@ set_vertex_weights(mesh="Eyes", group="head", select={"all": true}, weight=1)
 | The head squashes on a head turn | everything above the chin 100% `head` |
 | Hands are mushy | the whole hand 100% `hand.L` (low poly without fingers) |
 | An elbow collapses to a crease | make sure there are 3 loops at the elbow (topology, not weights); then blend `forearm.L` 0.5 on the middle loop |
+| Ears, fins or a tail tip drag the head/body along (or the reverse) | small extra bones get little heat weight. Give the part's vertices 100 % to its bone (`set_vertex_weights(group="ear.L", select=<bounded box around the ear above its base>, weight=1)`), then 0.5 on the ring at its base |
+| A tail bends in one lump | a loop at every tail bone joint (topology), then each segment's vertices 100 % to its `tail_0N` bone with 0.5 on the joint rings |
 
 After fixes, run `check_game_ready(name="Body", expect_rig=true)` again: no
 unweighted vertices, and influences within the limit.
@@ -112,7 +128,7 @@ Hide references first (`set_visibility(names=[…], viewport=false, render=false
 | Leg lift | `pose_bone(bone="thigh.L", rotation=[-70,0,0])` | the crotch and buttock follow smoothly |
 | Knee | `pose_bone(bone="shin.L", rotation=[90,0,0])` | it bends **backward**; the knee cap keeps its shape |
 | Squat | thighs −90, shins 120, `mirror=true` | nothing interpenetrates badly |
-| Head | `pose_bone(bone="head", rotation=[20,0,40])` | the neck twists; the shoulders stay put |
+| Head | `pose_bone(bone="head", rotation=[0,40,0])` (turn), then `[15,0,20]` (nod + tilt) | the neck twists; the shoulders stay put |
 | Torso | `pose_bone(bone="spine", rotation=[30,0,0])` then `[0,40,0]` | a smooth bend, then a twist |
 | Fingers (if rigged) | each `_01` bone `[80,0,0]` | a fist without fingers passing through each other |
 

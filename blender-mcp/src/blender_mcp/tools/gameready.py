@@ -105,10 +105,12 @@ def register(mcp: MCPServer, blender: Blender) -> None:
     async def check_game_ready(
         name: str,
         kind: Annotated[
-            Literal["character", "prop"],
+            Literal["character", "prop", "part"],
             Field(
-                description="character also checks feet on z=0, centring on x=0 and X "
-                "symmetry, and fails on holes"
+                description="character: also feet on z=0, centred on x=0, X symmetry; holes, "
+                "n-gons and hidden joined faces fail. prop: those are warnings. part: a "
+                "piece of a character that isn't the body (eyes, hat, weapon): no "
+                "placement or symmetry checks, but skinning is checked"
             ),
         ] = "character",
         max_triangles: Annotated[int | None, Field(ge=1, description="Budget")] = None,
@@ -119,8 +121,8 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         """One-call validation for games/animation: applied transforms, placement,
         n-gons, holes, loose/doubled vertices, inverted normals, triangle budget, UVs,
         material count, and (if skinned) unweighted vertices, influence count and bone
-        sides. Returns ok, fails, warnings and key stats — run it instead of many
-        separate inspections."""
+        sides. Problems come with world positions to aim a selection at. Returns ok,
+        fails, warnings and key stats — run it instead of many separate inspections."""
         return await blender.call(
             "check_game_ready", name=name, kind=kind, max_triangles=max_triangles,
             max_influences=max_influences, symmetric=symmetric, expect_rig=expect_rig,

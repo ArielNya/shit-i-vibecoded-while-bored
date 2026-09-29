@@ -58,6 +58,11 @@ continued pattern), list it under "Unknown", and mention it in the summary.
 
 ## 2. Set up the comparison
 
+**Always set up a comparison, even when the sheet isn't perfect.** Building from the
+inventory alone drifts: proportions shrink toward "average", and signature features
+(big ears, a long tail) come out too small. The comparison is what keeps the model
+looking like *this* character.
+
 **Orthographic sheet**: reference planes at true scale (details in
 `blender://docs/character` step 1):
 
@@ -66,6 +71,21 @@ add_reference_image(path="front.png", view="front", character_height=H,
                     pixel_top=…, pixel_bottom=…, pixel_center=…)
 add_reference_image(path="side.png", view="side", …, facing="left")
 ```
+
+**Several views or poses in one image** (the usual character sheet): no cropping
+needed. `crop=[left, top, right, bottom]` picks the region of one view, in image
+pixels. `pixel_top`, `pixel_bottom` and `pixel_center` stay in full-image pixels:
+
+```
+add_reference_image(path="sheet.png", view="front", character_height=1.6,
+                    crop=[0, 230, 650, 900], pixel_top=240, pixel_bottom=885, pixel_center=250)
+```
+
+Use the view closest to a straight front (or side, or back) view. A 3/4 drawing still
+gives heights: match rows (head top, chin, shoulders, crotch, knees, feet) and use
+widths as a rough guide. Check the alignment once with
+`render_preview(view="front", ortho=true, textures=true, size=384)`: the feet should
+sit on z=0 and the head top at `character_height`.
 
 For props, `character_height` is simply the object's height, with `pixel_top` and
 `pixel_bottom` at its top and bottom rows.
@@ -91,12 +111,20 @@ it and adjust the model.
   `create_primitive` + `transform_object(dimensions=…)`. `dimensions` act along the
   object's **own** axes. For a rotated part (a lying cylinder), apply the rotation
   first (`apply_transform(rotation=true)`), then set the dimensions.
-- Parts that touch leave hidden faces inside when joined (a lid resting on a box).
-  Delete them (`delete_elements`) or accept the non-manifold warning on props. Symmetric parts: build one
-  and use MIRROR, or `duplicate_object` + mirrored location.
-- **Silhouette check** at stage end: `render_preview(engine="workbench", size=384)`
-  from the matching view. A flat silhouette shows proportion errors best. Fix ratios
-  now. Everything after this is harder to move.
+- Parts that touch face-to-face leave hidden faces inside when joined (a lid resting
+  on a box, a head extruded onto a neck). `join_objects(..., weld=true)` removes them
+  and merges the seam. Parts that only overlap stay separate shells inside one
+  object, which is fine for props and low poly. Symmetric parts: build one and use
+  MIRROR, or `duplicate_object` + mirrored location.
+- **Silhouette check at every stage end, against the reference**, not from memory:
+  `render_preview(view="front", ortho=true, textures=true, xray=true, size=384)` with
+  reference planes, or the matching camera for perspective images. Name the biggest
+  mismatch in words ("ears 40 % too small, tail too short") and fix that first.
+  Everything after the blockout is harder to move.
+- **Signature features first.** From the inventory, list the 3–5 things that make the
+  subject recognisable (for a character: ear shape and size, hair silhouette, tail,
+  head-to-body ratio, one iconic accessory). Check each against the reference at every
+  stage. Stylised designs exaggerate them; don't shrink them to realistic sizes.
 - Two or three rounds of "compare → fix the biggest error" is normal. Stop when the
   silhouette matches within about 5 % from every view you have.
 
@@ -108,6 +136,9 @@ it and adjust the model.
 - Detail in order of **silhouette → big shading breaks → small details**. Check the
   triangle count (`check_game_ready(max_triangles=…)`) before adding each level of
   detail. Stop when the budget is reached, even if the image has more.
+- **Aim for the middle of the budget range, not the bottom.** Ending at the minimum
+  usually means signature features (fluff, fins, hair clumps, ear shape) were skipped.
+  Spend the remaining triangles on the silhouette.
 - Small details that don't change the silhouette (screws, seams, engravings) belong
   in a texture or normal map (`blender://docs/character-highpoly` §2b), not in the
   mesh.

@@ -59,20 +59,32 @@ def add_reference_image(params: dict[str, Any]) -> dict[str, Any]:
     if not width_px or not height_px:
         raise ValueError(f"could not read the image size of {real.name}")
 
+    # Many character sheets hold every view in one image: `crop` picks this view's
+    # region [left, top, right, bottom] in image pixels. All other pixel values are in
+    # full-image coordinates too.
+    crop = params.get("crop") or [0, 0, width_px, height_px]
+    if len(crop) != 4:
+        raise ValueError("crop must be [left, top, right, bottom] in pixels")
+    c_left, c_top, c_right, c_bottom = (float(c) for c in crop)
+    if not (0 <= c_left < c_right <= width_px and 0 <= c_top < c_bottom <= height_px):
+        raise ValueError(
+            f"crop must lie inside the image (0..{width_px} × 0..{height_px}) with "
+            "left < right and top < bottom"
+        )
     char_height = float(params.get("character_height", 1.8))
-    top = float(params.get("pixel_top", 0))  # rows counted from the image top
-    bottom = float(params.get("pixel_bottom", height_px))
-    center = float(params.get("pixel_center", width_px / 2))
+    top = float(params.get("pixel_top", c_top))  # rows counted from the image top
+    bottom = float(params.get("pixel_bottom", c_bottom))
+    center = float(params.get("pixel_center", (c_left + c_right) / 2))
     if not 0 <= top < bottom <= height_px:
         raise ValueError(f"need 0 <= pixel_top < pixel_bottom <= {height_px} (image height)")
     if char_height <= 0:
         raise ValueError("character_height must be > 0")
 
     scale = char_height / (bottom - top)  # world units per pixel
-    w, h = width_px * scale, height_px * scale
+    w, h = (c_right - c_left) * scale, (c_bottom - c_top) * scale
     # Plane corners in its own 2D frame (u to the right, v up), feet row at v = 0.
-    left = -center * scale
-    base = -(height_px - bottom) * scale
+    left = (c_left - center) * scale
+    base = (bottom - c_bottom) * scale
     flip = view == "side" and params.get("facing", "left") == "right"
     distance = float(params.get("distance", char_height))  # behind the model
     offset = float(params.get("offset", 0.0))  # shift along the image's horizontal axis
@@ -88,9 +100,11 @@ def add_reference_image(params: dict[str, Any]) -> dict[str, Any]:
 
     corners = [(left, base), (left + w, base), (left + w, base + h), (left, base + h)]
     verts = [place(u, v) for u, v in corners]
-    uvs = [(0, 0), (1, 0), (1, 1), (0, 1)]
+    u0, u1 = c_left / width_px, c_right / width_px
+    v0, v1 = 1 - c_bottom / height_px, 1 - c_top / height_px
+    uvs = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
     if flip:
-        uvs = [(1 - x, y) for x, y in uvs]
+        uvs = [(u0 + u1 - x, y) for x, y in uvs]
 
     name = params.get("name") or f"Ref {view}"
     old = bpy.data.objects.get(name)
@@ -112,6 +126,7 @@ def add_reference_image(params: dict[str, Any]) -> dict[str, Any]:
         "name": obj.name,
         "view": view,
         "image": {"file": real.name, "width": width_px, "height": height_px},
+        "crop": [num(c) for c in (c_left, c_top, c_right, c_bottom)],
         "world_per_pixel": num(scale),
         "covers": {"width": num(w), "height": num(h)},
         "note": "Feet row is at z=0, head row at z=character_height, center column on the "

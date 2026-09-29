@@ -292,7 +292,7 @@ Pose, look, reset. Every pose below should look like a person, not a paper cut-o
 | Elbow bend | `pose_bone("forearm.L", rotation=[60,0,0], mirror=true)` | the elbow keeps volume |
 | Leg lift | `pose_bone("thigh.L", rotation=[-45,0,0])` | hip/crotch vertices following the wrong leg |
 | Knee bend | `pose_bone("shin.L", rotation=[70,0,0])` | the knee bends **backward** (correct), not forward |
-| Head turn | `pose_bone("head", rotation=[0,0,30])` | the neck twisting, the shoulders staying put |
+| Head turn | `pose_bone("head", rotation=[0,30,0])` (Y turns; Z tilts) | the neck twisting, the shoulders staying put |
 | Bend over | `pose_bone("spine", rotation=[20,0,0])` | a smooth torso fold |
 
 Check each with `render_preview(view="iso")` and `view="front"`, hiding the sheets

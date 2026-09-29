@@ -13,6 +13,7 @@ Pick the route, then follow its walkthrough:
 | PC/console game, realistic or detailed | **High → low**: detailed high mesh, light game mesh, baked maps | `blender://docs/character-highpoly` |
 | Film, cinematics, offline animation | **Subdivision**: clean quad cage + SUBSURF at render time | `blender://docs/character-highpoly` (cage section) |
 | Only an image, no turnaround sheet | Read `blender://docs/img2model` first, then one of the above | |
+| "Build it from basic shapes" (primitives per part) | **Basic shapes**: see §4a, then rig as usual | this note + `blender://docs/rigging` |
 | A Roblox avatar body, accessory or layered clothing | the `roblox-avatar` skill (R15 bones, cages, Roblox budgets), after the standards below | |
 
 Rigging, skinning, testing and export are the same for every route:
@@ -99,6 +100,46 @@ it) and from each `extrude` (every extrusion leaves a loop). Position them with
   them 1–2 cm off the body.
 - **Accessories and weapons**: separate objects, rigidly weighted to one bone, or
   parented to a socket bone (`weapon.R` under `hand.R`) so they can be swapped.
+- Check separate parts with `check_game_ready(name=…, kind="part")`: that skips the
+  feet-on-the-ground and symmetry checks.
+
+### 4a. Building from basic shapes
+
+A fast, readable way to get a stylised low/mid-poly character: one primitive per body
+part, shaped a little, then joined.
+
+1. **One primitive per part**, named after it, from the inventory. Keep the counts
+   low, because the defaults are high (a default `uv_sphere` is 960 triangles):
+   - head: `uv_sphere` with `segments=10, rings=8`, or a cube shaped by loop cuts
+   - torso: a cube, or a cylinder with `segments=8`
+   - limbs: cylinders with `segments=6`–`8`, then `loop_cut` at the joints
+   - ears: cones with `segments=4`–`6`
+   - tail: a cylinder with loop cuts, tapered with `transform_elements`
+   - fins: a flattened cube or cone
+   - eyes: small spheres (`segments=8, rings=6`)
+
+   Give cylinders and cones **`caps="tris"`**: the default `ngon` caps are n-gons,
+   which fail the character check and pinch when bent. Use `caps="none"` for an end
+   that's buried inside another part.
+2. **Apply transforms including location** before joining
+   (`apply_transform(location=true)`), and set `dimensions` only after applying a
+   rotation (dimensions act along the object's own axes).
+3. **Joint loops before joining**: every limb part needs its loops (elbow, knee,
+   wrist, tail segments). A cylinder with no cuts bends like a pipe.
+4. **Overlap, don't float**: sink each part 1–3 cm into its neighbour (arm into
+   shoulder, ear into head). Parts that meet face-to-face exactly (built by extrusion,
+   or aligned boxes) can be welded.
+5. **Join** everything except eyes and accessories:
+   `join_objects(names=[…], into="Body", weld=true)`. Welding removes hidden
+   touching faces and merges the seams. Overlapping parts stay separate shells in one
+   object, which is fine.
+6. **Skin**: `bind_to_armature(method="automatic")` fills anything heat weighting
+   misses. Then give each shell 100 % to its bone where it matters (ears, tail
+   segments, hands) with bounded `set_vertex_weights`, because overlapping shells don't
+   blend on their own. Put 0.5 on the ring nearest the joint so it bends instead of
+   hinging.
+7. `check_game_ready(name="Body", …)`: overlapping shells are fine. "Faces lie on top
+   of other faces" means a weld was missed.
 
 ## 5. UVs and textures
 

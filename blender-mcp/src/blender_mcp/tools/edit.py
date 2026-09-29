@@ -53,6 +53,14 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         minor_radius: Annotated[float | None, Field(gt=0, description="torus")] = None,
         x_segments: Annotated[int | None, Field(ge=1, le=512, description="grid")] = None,
         y_segments: Annotated[int | None, Field(ge=1, le=512, description="grid")] = None,
+        caps: Annotated[
+            Literal["ngon", "tris", "none"] | None,
+            Field(
+                description="cylinder/cone ends: ngon (one face, default), tris (a triangle "
+                "fan: no n-gons, what characters need), none (open, for ends buried in "
+                "another part)"
+            ),
+        ] = None,
         fill: Annotated[bool | None, Field(description="circle: fill with an n-gon")] = None,
         shade_smooth: bool | None = None,
         light_type: Literal["POINT", "SUN", "SPOT", "AREA"] | None = None,
@@ -73,7 +81,8 @@ def register(mcp: MCPServer, blender: Blender) -> None:
             collection=collection, size=size, radius=radius, depth=depth,
             radius_top=radius_top, segments=segments, rings=rings, subdivisions=subdivisions,
             major_radius=major_radius, minor_radius=minor_radius, x_segments=x_segments,
-            y_segments=y_segments, fill=fill, shade_smooth=shade_smooth, light_type=light_type,
+            y_segments=y_segments, fill=fill, caps=caps, shade_smooth=shade_smooth,
+            light_type=light_type,
             energy=energy, color=color, lens=lens, set_active_camera=set_active_camera,
         )  # fmt: skip
 
@@ -102,7 +111,10 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         name: Name, location: bool = False, rotation: bool = True, scale: bool = True
     ) -> dict[str, Any]:
         """Bake the object's rotation/scale (and optionally location) into its data,
-        resetting them to identity. Do this before bevels/booleans on scaled objects."""
+        resetting them to identity. Do this before bevels/booleans on scaled objects.
+        Location is NOT applied by default: the origin stays where the object was. Pass
+        location=true for parts you'll join into a character (so every part's origin
+        is the world origin and the result sits where you built it)."""
         return await edit(
             "apply_transform", name=name, location=location, rotation=rotation, scale=scale
         )
@@ -162,9 +174,18 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         into: Annotated[
             str | None, Field(description="Object that survives (default: first name)")
         ] = None,
+        weld: Annotated[
+            bool,
+            Field(
+                description="Also delete the hidden faces where parts touch face-to-face "
+                "(e.g. a head extruded onto a neck, a box on a box) and merge the seam, "
+                "so touching parts become one closed surface. Parts that merely overlap "
+                "stay separate shells (fine for rigid or low-poly parts)"
+            ),
+        ] = False,
     ) -> dict[str, Any]:
         """Join meshes into one object."""
-        return await edit("join_objects", names=names, into=into)
+        return await edit("join_objects", names=names, into=into, weld=weld)
 
     @mcp.tool()
     async def separate_mesh(
