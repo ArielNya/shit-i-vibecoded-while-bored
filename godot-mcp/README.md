@@ -257,6 +257,22 @@ entry). They read the token from `GODOT_MCP_HTTP_TOKEN`.
 </details>
 
 <details>
+<summary><b>Windows / PowerShell (from a clone)</b></summary>
+
+[`scripts/install.ps1`](scripts/install.ps1) runs the server straight out of this
+clone (`uv run --directory`, no `uvx` fetch), pointed at a specific project, and
+registers it for you:
+
+```powershell
+./scripts/install.ps1 -ProjectPath C:\games\my-game -Harness claude-code    # or claude-desktop / codex
+```
+
+`-ProjectPath` (the Godot project folder, passed to the server as `--project`) and
+`-Harness` are the only inputs. Requires `uv` and, for the `claude-code`/`codex`
+harnesses, that CLI on `PATH`.
+</details>
+
+<details>
 <summary><b>Clients that don't show images to the model</b></summary>
 
 Screenshots come back as MCP image content. If your client drops images, run the server

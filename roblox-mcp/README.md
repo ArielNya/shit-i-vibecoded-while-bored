@@ -75,6 +75,19 @@ Studio's launcher is found where Studio installs it; `--studio-mcp "<command>"` 
 If it can't start, roblox-mcp logs why and serves its own tools. Tested against a stand-in
 server with the documented tool names; not yet with Studio itself.
 
+### Windows / PowerShell (from a clone)
+
+[`scripts/install.ps1`](scripts/install.ps1) runs this server straight out of a clone
+(`uv run --directory`, no `uvx` fetch), pointed at a specific game project, and
+registers it for you (Studio's own server, above, is still registered separately):
+
+```powershell
+./scripts/install.ps1 -ProjectPath C:\games\my-game -Harness claude-code    # or claude-desktop / codex
+```
+
+`-ProjectPath` (passed to the server as `--project`) and `-Harness` are the only
+inputs. Requires `uv` and, for the `claude-code`/`codex` harnesses, that CLI on `PATH`.
+
 ## Options
 
 Every option is a flag and an environment variable.
