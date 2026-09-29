@@ -9,7 +9,7 @@ game, look at it, read the errors, fix them, repeat.
 Target engine: **Godot 4.7** (current stable is 4.7.2, Aug 2026). Minimum supported:
 4.7. The repo has no CI: run the checks in the README before pushing.
 
-Status: **M0–M5 done** (see §8 notes). Next: M6 (build & test).
+Status: **M0–M7 done** (see §8 notes). Next: M8 (stretch goals).
 
 ---
 
@@ -117,6 +117,7 @@ godot-mcp/
 │       ├── debugger_plugin.gd  ← EditorDebuggerPlugin: talks to running games
 │       ├── export_plugin.gd    ← strips McpRuntime from export builds
 │       ├── runtime/mcp_runtime.gd   ← autoload inside the game
+│       ├── headless/           ← runner.gd + validate.gd: `godot --headless -s` entry (M6)
 │       ├── handlers/           ← mirror of tools/: project.gd, scene.gd, node.gd, …
 │       └── dock.gd             ← EditorDock: status, start/stop, copy config, log
 ├── tests/
@@ -399,8 +400,8 @@ per milestone in each harness we can access; transcripts + screenshots kept in
 | **M3** ✅ | Run & observe | runtime bridge: run/stop, output, runtime errors, game screenshot, live tree, `send_input`, `wait`; the *fix-errors loop* works end to end |
 | **M4** ✅ | Harness hardening | Streamable HTTP, toolsets, schema checker, image-file fallback, configs + smoke run on ≥6 harnesses |
 | **M5** ✅ | Resources, tiles, assets | §3.4; agent makes a tile-based level with imported pixel art |
-| **M6** | Build & test | §3.8 export + GUT/GdUnit4 runner + headless fallback mode with no editor open |
-| **M7** | Escape hatch, guides, skills | `execute_gdscript` behind toggle+token, `godot://docs` + `read_guide`, prompts, skills (2D platformer, 3D third-person, UI menu) |
+| **M6** ✅ | Build & test | §3.8 export + GUT/GdUnit4 runner + headless fallback mode with no editor open |
+| **M7** ✅ | Escape hatch, guides, skills | `execute_gdscript` behind toggle+token, `godot://docs` + `read_guide`, prompts, skills (2D platformer, 3D third-person, UI menu) |
 | **M8** | Stretch | C# depth (build errors, `[Export]` awareness), multi-editor (pick by port/project), animation/AnimationTree helpers, shader tools, native in-editor HTTP transport experiment, Asset Library release |
 
 Release tags: `godot-mcp-v*`, mirroring `blender-mcp`'s release workflow.
@@ -428,6 +429,88 @@ Release tags: `godot-mcp-v*`, mirroring `blender-mcp`'s release workflow.
   it), so the plugin can only report the Editor Settings port. Editors started with
   `--lsp-port N` also take `-- --mcp-lsp-port=N`; the server has `GODOT_MCP_LSP_PORT`.
 - Uses `EditorDock` + `add_dock()` (4.6+) for the dock.
+
+### M7 notes
+
+- 2 new tools (66 total): `read_guide` (toolset `guides`, also in `core` → 37) and
+  `execute_gdscript` (toolset `exec`, in no preset). Resources and prompts are registered
+  whatever the toolsets, since they cost clients no tool slots.
+- **execute_gdscript** (`exec.gd`, shared by the editor handler and McpRuntime): the
+  snippet becomes the body of `func run()` in an in-memory `@tool` script, with
+  `scene`, `tree` and (editor) `editor` members. It may `await` and `return`. Its indent
+  style is kept (GDScript rejects tabs and spaces mixed on one line). Output and errors
+  come from the existing LogCapture. Snippet errors are reported by `gdscript://` file:
+  line minus the header, so `line` is the snippet's line. log_capture had rewritten
+  those locations to the caller's backtrace frame (found by the spike: compile errors
+  came back as line 24 instead of 1). **Gate** (editor side, also for game runs): the
+  dock checkbox / `godot_mcp/allow_execute` / `--mcp-allow-execute` /
+  `GODOT_MCP_ALLOW_EXECUTE`, and token auth must be on. Not attempted: undo for
+  arbitrary code (the tool says so) and a guard against endless loops (GDScript can't
+  interrupt the main thread).
+- **Guides** (`src/godot_mcp/guides/*.md`): pitfalls, values, movement, physics, scenes
+  (incl. signals, autoloads), ui, testing, export. **Skills** (`skills/*/SKILL.md`, Agent
+  Skills format with name/description frontmatter): `godot-2d-platformer`,
+  `godot-3d-third-person`, `godot-ui-menu`, bundled into the wheel. They're served as
+  resources (`godot://docs/…`, `godot://skills/…`, plus live `godot://project`), as
+  `read_guide` topics, and the skills are copyable into Claude Code skill folders.
+  Prompts: `make_prototype(idea, dimension)`, `fix_errors_loop(scope)`, `playtest(goal)`,
+  also readable through `read_guide`.
+- **Every ```gdscript block in guides and skills is compiled** by an integration test:
+  written into a project with GUT/GdUnit4 installed and stub scenes for `preload`ed
+  paths, then `validate_project`. A deliberately broken block (`yield`) made it fail, as
+  it should. Godot 3 examples in the guides are tables, not gdscript blocks.
+- **`godot-mcp install-addon <project>`** (not in the original plan): copies the
+  server's bundled plugin into `addons/godot_mcp` (replacing an older copy, so plugin and
+  server versions match) and adds it to `[editor_plugins]` in project.godot, keeping
+  other enabled plugins. Tested end to end: a blank project, then a fresh editor on it
+  prints "godot-mcp: listening".
+
+### M6 notes
+
+- 4 new tools (64 total) in a `build` toolset: `validate_project`, `run_tests`,
+  `list_export_presets`, `export_project`. `core` preset now 36 (adds validate_project and
+  run_tests).
+- **Everything runs in a separate `godot --headless`**, with or without the editor, so
+  exports and test runs never block it. Binary: `--godot-bin`/`GODOT_BIN`, else the
+  connected editor's (`executable` added to the handshake), else PATH / usual install
+  places / Flatpak. Project: `--project`/`GODOT_MCP_PROJECT`, else the editor's, else the
+  nearest `project.godot` upwards from the working directory.
+- **Caches first.** A headless run can't load textures or `class_name`s the editor hasn't
+  imported (found by the first spike: false "No loader found for icon.svg" errors). With
+  an editor connected, the new `rescan_filesystem` handler makes it pick up files changed
+  behind its back (e.g. GUT copied in from a shell); without one, `godot --import` runs
+  when any project file is newer than the last import (~6 s, so not on every call).
+- **Reusing the add-on's GDScript without an editor:** the server ships its own copy of
+  the add-on (wheel `force-include`; the source checkout in dev) and runs
+  `-s <addon>/headless/runner.gd` against any project, even one without the plugin. The
+  handlers use relative `preload`s, not global `class_name`s, so the docs handler loads
+  from outside `res://` unchanged — `get_class_docs`/`search_docs` fall back to it when
+  no editor answers (signatures only: descriptions come from the editor's LSP).
+- **validate_project** loads every script/scene/resource with `CACHE_MODE_IGNORE` under a
+  `Logger` and reports the errors logged per file (file:line for parse errors), plus
+  `get_dependencies` targets, the main scene and autoloads that don't exist. Warnings
+  stay with `get_diagnostics` (the loader doesn't emit them).
+- **run_tests**: GUT (`gut_cmdln.gd -gjunit_xml_file`) and GdUnit4 (`GdUnitCmdTool.gd
+  --ignoreHeadlessMode -rd`), both parsed from JUnit XML; file:line from GdUnit4's
+  `res://…:N` or GUT's classname + "at line N". GdUnit4 can't select tests by name, so
+  `test_name` becomes `-i suite:test` ignores for the others. Checked against GUT 9.7.1
+  and GdUnit4 6.2.1 (tests clone those tags on first use). GdUnit4's `runtest.sh` passes
+  `-d --remote-debug tcp://127.0.0.1:0`; not needed with stdin closed.
+- **export_project**: `--export-release/debug/pack`, output only inside `--export-dir`
+  folders (default: working directory); a `.gdignore` is dropped into an export folder
+  inside the project. Pack exports need no templates, which is what the tests use; a
+  missing template gives the engine's own message plus a hint. Godot 4.7.2 sometimes
+  aborts *while quitting* after a finished export when GUT is installed (exit 134, `.pck`
+  complete): success is judged by the output file and the "export failed" message, and a
+  non-zero exit becomes a `warning`.
+- The exporting/importing Godot is a full editor with our plugin enabled: the plugin
+  now skips starting its listener under `--import` / `--export-*` (tested: no second
+  "listening" line). The export plugin stays registered so exports still drop
+  `McpRuntime`.
+- **Acceptance** (`test_m6_scenario.py`): a stdio server with only `--godot-bin`,
+  `--project`, `--export-dir` and a scrubbed environment, no editor: validate finds
+  broken.gd with file:line → fix → validate clean → GUT test fails → add the method →
+  passes → pack export written.
 
 ### M5 notes
 

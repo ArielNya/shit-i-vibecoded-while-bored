@@ -22,15 +22,19 @@ def test_every_option_has_an_environment_variable(monkeypatch):
 
 def test_flags_reach_modules_that_read_the_environment(monkeypatch, tmp_path):
     # apply_to_environment writes os.environ; register the keys so monkeypatch restores them.
-    for env in ("GODOT_MCP_TOKEN_FILE", "GODOT_MCP_LSP_PORT", "GODOT_MCP_IMAGE_MODE"):
+    for env in ("GODOT_MCP_TOKEN_FILE", "GODOT_MCP_LSP_PORT", "GODOT_MCP_IMAGE_MODE",
+                "GODOT_BIN", "GODOT_MCP_PROJECT", "GODOT_MCP_EXPORT_DIRS"):  # fmt: skip
         monkeypatch.setenv(env, "")
     token = tmp_path / "tok"
     apply_to_environment(
-        parse_args(["--token-file", str(token), "--lsp-port", "6010", "--image-mode", "file"])
-    )
+        parse_args(["--token-file", str(token), "--lsp-port", "6010", "--image-mode", "file",
+                    "--godot-bin", "/g/godot", "--project", "/p", "--export-dir", "/e"])
+    )  # fmt: skip
     assert os.environ["GODOT_MCP_TOKEN_FILE"] == str(token)
     assert os.environ["GODOT_MCP_LSP_PORT"] == "6010"
     assert os.environ["GODOT_MCP_IMAGE_MODE"] == "file"
+    assert os.environ["GODOT_BIN"] == "/g/godot"
+    assert (os.environ["GODOT_MCP_PROJECT"], os.environ["GODOT_MCP_EXPORT_DIRS"]) == ("/p", "/e")
 
 
 def test_http_auth_rules(tmp_path, monkeypatch):

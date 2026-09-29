@@ -6,9 +6,11 @@ extends EditorPlugin
 ## Configuration, highest priority first:
 ##   editor command line (after `--`):  --mcp-port=N  --mcp-token=T  --mcp-no-auth
 ##                                      --mcp-lsp-port=N (if the editor runs with --lsp-port N)
+##                                      --mcp-allow-execute
 ##   environment:                       GODOT_MCP_PORT  GODOT_MCP_TOKEN  GODOT_MCP_NO_AUTH=1
+##                                      GODOT_MCP_ALLOW_EXECUTE=1
 ##   Editor Settings:                   godot_mcp/port, godot_mcp/token, godot_mcp/require_token,
-##                                      godot_mcp/auto_start
+##                                      godot_mcp/auto_start, godot_mcp/allow_execute
 ## Without an explicit token the shared token file is used (created on first start).
 
 const VERSION := "0.1.0"
@@ -32,12 +34,14 @@ const HANDLER_SCRIPTS := [
 	preload("handlers/edit.gd"),
 	preload("handlers/run.gd"),
 	preload("handlers/assets.gd"),
+	preload("handlers/exec.gd"),
 ]
 
 const SETTING_PORT := "godot_mcp/port"
 const SETTING_AUTO_START := "godot_mcp/auto_start"
 const SETTING_TOKEN := "godot_mcp/token"
 const SETTING_REQUIRE_TOKEN := "godot_mcp/require_token"
+const SETTING_ALLOW_EXECUTE := "godot_mcp/allow_execute"
 
 var listener: Listener
 var log_capture: LogCapture
@@ -73,8 +77,17 @@ func _enter_tree() -> void:
 	dock = Dock.new()
 	dock.plugin = self
 	add_dock(dock)
+	if _batch_run():
+		return  # a command-line export/import (e.g. by export_project): no listener there
 	if bool(_editor_settings().get_setting(SETTING_AUTO_START)) or _cli_value("--mcp-port") != "":
 		start_server()
+
+
+static func _batch_run() -> bool:
+	for arg in OS.get_cmdline_args():
+		if arg in ["--import", "--export-release", "--export-debug", "--export-pack", "--export-patch"]:
+			return true
+	return false
 
 
 func _exit_tree() -> void:
@@ -120,6 +133,7 @@ func _server_info() -> Dictionary:
 		"lsp": {"host": String(_editor_settings().get_setting("network/language_server/remote_host")), "port": lsp_port},
 		"headless": DisplayServer.get_name() == "headless",
 		"pid": OS.get_process_id(),
+		"executable": OS.get_executable_path(),
 	}
 
 
@@ -154,6 +168,22 @@ func _resolve_token() -> String:
 	return Protocol.ensure_token_file()
 
 
+## Why execute_gdscript may not run now, or "" if it may. Arbitrary code is opt-in (dock
+## checkbox / Editor Settings / --mcp-allow-execute) and never without token auth.
+func execute_blocked_reason() -> String:
+	var env := OS.get_environment("GODOT_MCP_ALLOW_EXECUTE").to_lower()
+	var allowed := bool(_editor_settings().get_setting(SETTING_ALLOW_EXECUTE)) or "--mcp-allow-execute" in OS.get_cmdline_user_args() or env in ["1", "true", "yes"]
+	if not allowed:
+		return "execute_gdscript is off. The user can turn it on with the 'Allow execute_gdscript' checkbox in Godot's MCP dock (Editor Settings: godot_mcp/allow_execute)."
+	if listener.token == "":
+		return "execute_gdscript needs token authentication, which is disabled (godot_mcp/require_token or --mcp-no-auth)."
+	return ""
+
+
+func set_execute_allowed(on: bool) -> void:
+	_editor_settings().set_setting(SETTING_ALLOW_EXECUTE, on)
+
+
 func _cli_value(flag: String) -> String:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with(flag + "="):
@@ -172,6 +202,7 @@ func _define_settings() -> void:
 		[SETTING_AUTO_START, true, TYPE_BOOL, PROPERTY_HINT_NONE, ""],
 		[SETTING_REQUIRE_TOKEN, true, TYPE_BOOL, PROPERTY_HINT_NONE, ""],
 		[SETTING_TOKEN, "", TYPE_STRING, PROPERTY_HINT_PASSWORD, ""],
+		[SETTING_ALLOW_EXECUTE, false, TYPE_BOOL, PROPERTY_HINT_NONE, ""],
 	]
 	for d: Array in defs:
 		if not es.has_setting(d[0]):

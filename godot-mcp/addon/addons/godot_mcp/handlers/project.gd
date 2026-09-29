@@ -37,6 +37,19 @@ func register(h: Dictionary) -> void:
 	h["set_project_setting"] = set_project_setting
 	h["get_input_map"] = get_input_map
 	h["edit_input_map"] = edit_input_map
+	h["rescan_filesystem"] = rescan_filesystem
+
+
+## Picks up files changed outside the editor (imports them, refreshes class_names) before
+## the server runs a headless Godot on the project, which relies on the editor's caches.
+func rescan_filesystem(_p: Dictionary) -> Variant:
+	await wait_for_filesystem()
+	EditorInterface.get_resource_filesystem().scan()
+	await plugin.get_tree().process_frame
+	await wait_for_filesystem()
+	for i in 10:  # imports and the class cache save land a few frames after the scan
+		await plugin.get_tree().process_frame
+	return {"scanned": true}
 
 
 func ping(_p: Dictionary) -> Variant:

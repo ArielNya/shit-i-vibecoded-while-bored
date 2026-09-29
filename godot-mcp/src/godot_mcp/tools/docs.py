@@ -10,19 +10,39 @@ from mcp.server.mcpserver import MCPServer
 from pydantic import Field
 
 from ..bbcode import to_markdown
+from ..headless import HeadlessError
 from ._common import Godot, LSPError, ToolError
 
 DESCRIPTION_LIMIT = 1500
 DOCS_RETRIES = 20
 DOCS_RETRY_DELAY = 0.5
+HEADLESS_NOTE = (
+    "No editor connected: signatures from a headless Godot. Descriptions need the editor "
+    "(its language server serves the class reference)."
+)
 
 
 def _clip(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
 
+def _member_name(signature: str) -> str:
+    """'wait_time: float = 1.0' -> wait_time; 'static f(x) -> int' -> f."""
+    return signature.split("(")[0].split(":")[0].split(" ")[-1]
+
+
 def register(mcp: MCPServer, godot: Godot) -> None:
     symbol_cache: dict[tuple[int, str], dict | None] = {}
+
+    async def headless_docs(method: str, params: dict[str, Any]) -> Any:
+        """The same handler as the editor's, run in a headless Godot."""
+        try:
+            return await godot.headless.request(method, params)
+        except HeadlessError as exc:
+            raise ToolError(f"No editor connected, and headless Godot failed: {exc}") from exc
+
+    async def no_editor() -> bool:
+        return await godot.headless.editor_info() is None
 
     async def class_symbol(cls: str) -> dict | None:
         """The class reference entry for a native class. Right after the editor starts
@@ -62,6 +82,22 @@ def register(mcp: MCPServer, godot: Godot) -> None:
         properties, methods, virtual callbacks, signals and enums plus its description;
         with `member`, the full docs for that one member (searching base classes too).
         Check this before using an API you're unsure about."""
+        if await no_editor():
+            data = await headless_docs(
+                "get_class_docs",
+                {"class_name": class_name, "include_inherited": include_inherited or bool(member)},
+            )
+            if member:
+                groups = ("properties", "methods", "virtual_methods", "signals")
+                found = [s for g in groups for s in data.get(g, []) if _member_name(s) == member]
+                if not found:
+                    raise ToolError(
+                        f"'{class_name}' and its base classes have no member '{member}'."
+                    )
+                return {"class_name": data["class_name"], "member": member, "signatures": found,
+                        "note": HEADLESS_NOTE}  # fmt: skip
+            data["note"] = HEADLESS_NOTE
+            return data
         if member:
             return await _member_docs(class_name, member)
         data = await godot.call(
@@ -89,7 +125,7 @@ def register(mcp: MCPServer, godot: Godot) -> None:
                 line
                 for group in ("properties", "methods", "signals")
                 for line in data.get(group, [])
-                if line.split("(")[0].split(":")[0].split(" ")[-1] == member
+                if _member_name(line) == member
             ]
             if not matches:
                 raise ToolError(f"'{class_name}' (a project script) has no member '{member}'.")
@@ -137,6 +173,7 @@ def register(mcp: MCPServer, godot: Godot) -> None:
     ) -> dict[str, Any]:
         """Find engine and project classes, methods, properties and signals whose names
         contain all the query words. Use it to find the right API, then get_class_docs."""
-        return await godot.call(
-            "search_docs", query=query, limit=limit, include_editor=include_editor
-        )
+        params = {"query": query, "limit": limit, "include_editor": include_editor}
+        if await no_editor():
+            return await headless_docs("search_docs", params)
+        return await godot.call_with("search_docs", params)
