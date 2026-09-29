@@ -352,9 +352,20 @@ def _weights_report(obj: bpy.types.Object, arm: bpy.types.Object, max_influences
     return unweighted, too_many, not_normalized
 
 
+def _where(points: list, obj: bpy.types.Object, limit: int = 3) -> str:
+    """A few world positions, rounded: enough to aim a position-bounded selection."""
+    shown = [
+        "[" + ", ".join(f"{c:.2f}" for c in obj.matrix_world @ p) + "]" for p in points[:limit]
+    ]
+    more = f" +{len(points) - limit} more" if len(points) > limit else ""
+    return ", ".join(shown) + more
+
+
 def check_game_ready(params: dict[str, Any]) -> dict[str, Any]:
     obj = _mesh_object(params["name"])
     kind = params.get("kind", "character")
+    if kind not in {"character", "prop", "part"}:
+        raise ValueError("kind must be 'character', 'prop' or 'part'")
     budget = params.get("max_triangles")
     max_influences = int(params.get("max_influences", 4))
     fails: list[str] = []
@@ -386,8 +397,9 @@ def check_game_ready(params: dict[str, Any]) -> dict[str, Any]:
         bm.from_mesh(mesh)
         _refresh(bm)
         tris = sum(len(f.verts) - 2 for f in bm.faces)
-        ngons = sum(1 for f in bm.faces if len(f.verts) > 4)
-        non_manifold = sum(1 for e in bm.edges if not e.is_manifold)
+        ngon_faces = [f for f in bm.faces if len(f.verts) > 4]
+        open_edges = [e for e in bm.edges if not e.is_manifold]
+        non_manifold = len(open_edges)
         loose_verts = sum(1 for v in bm.verts if not v.link_edges)
         loose_edges = sum(1 for e in bm.edges if not e.link_faces)
         degenerate = sum(1 for f in bm.faces if f.calc_area() < 1e-10)
@@ -395,24 +407,55 @@ def check_game_ready(params: dict[str, Any]) -> dict[str, Any]:
         for v in bm.verts:
             tree.insert(v.co, v.index)
         tree.balance()
-        doubles = sum(1 for v in bm.verts if len(tree.find_range(v.co, 1e-5)) > 1)
-        if ngons and kind == "character":
-            fails.append(f"{ngons} n-gons: they triangulate unpredictably and deform badly")
-        elif ngons:
-            warnings.append(
-                f"{ngons} n-gons: fine on flat caps that never deform; split them if they "
-                "shade oddly"
+        doubled = [v for v in bm.verts if len(tree.find_range(v.co, 1e-5)) > 1]
+        # Faces lying on top of each other: the caps left inside when touching basic
+        # shapes are joined (a head on a neck, an ear on a head).
+        face_tree = mathutils.kdtree.KDTree(len(bm.faces))
+        for f in bm.faces:
+            face_tree.insert(f.calc_center_median(), f.index)
+        face_tree.balance()
+        coincident = [
+            f
+            for f in bm.faces
+            if any(
+                i != f.index and abs(abs(bm.faces[i].normal.dot(f.normal)) - 1) < 1e-3
+                for _, i, _ in face_tree.find_range(f.calc_center_median(), 1e-4)
+            )
+        ]
+        rigid = kind in {"prop", "part"}
+        if ngon_faces:
+            where = _where([f.calc_center_median() for f in ngon_faces], obj)
+            if kind == "character":
+                fails.append(
+                    f"{len(ngon_faces)} n-gons (at {where}): they triangulate unpredictably "
+                    "and deform badly"
+                )
+            else:
+                warnings.append(
+                    f"{len(ngon_faces)} n-gons (at {where}): fine on flat caps that never "
+                    "deform; split them if they shade oddly"
+                )
+        if coincident:
+            (warnings if rigid else fails).append(
+                f"{len(coincident)} faces lie on top of other faces (at "
+                f"{_where([f.calc_center_median() for f in coincident], obj)}): hidden caps "
+                "from joining touching parts. delete_elements them (select by position), "
+                "then merge_by_distance"
             )
         if non_manifold:
-            (warnings if kind == "prop" else fails).append(
-                f"{non_manifold} non-manifold edges (holes or internal faces)"
+            (warnings if rigid else fails).append(
+                f"{non_manifold} non-manifold edges (holes or internal faces) at "
+                f"{_where([(e.verts[0].co + e.verts[1].co) / 2 for e in open_edges], obj)}"
             )
         if loose_verts or loose_edges:
             fails.append(f"{loose_verts} loose vertices, {loose_edges} loose edges")
         if degenerate:
             fails.append(f"{degenerate} zero-area faces")
-        if doubles:
-            fails.append(f"{doubles} doubled vertices: merge_by_distance")
+        if doubled:
+            fails.append(
+                f"{len(doubled)} doubled vertices (at {_where([v.co for v in doubled], obj)}): "
+                "merge_by_distance; if parts were joined, delete the hidden caps first"
+            )
         if not non_manifold and bm.faces and _signed_volume(bm) < 0:
             fails.append("normals point inward: recalc_normals")
         symmetry = None
@@ -464,7 +507,7 @@ def check_game_ready(params: dict[str, Any]) -> dict[str, Any]:
         left = [b for b in arm.data.bones if b.name.endswith((".L", "_L", ".l"))]
         if left and sum((arm.matrix_world @ b.head_local).x < -1e-3 for b in left) > 0:
             fails.append("some .L bones are on -X: the character's left must be +X")
-    elif kind == "character" and params.get("expect_rig", False):
+    elif kind in {"character", "part"} and params.get("expect_rig", False):
         fails.append("not bound to an armature: bind_to_armature")
 
     return {

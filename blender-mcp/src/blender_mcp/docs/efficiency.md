@@ -29,15 +29,19 @@ than repairing by hand.
 |---|---|---|
 | 256 | 90 | "did anything happen at all" |
 | 384 | 200 | routine stage checks (default choice) |
-| 512 | 350 | comparing proportions against a reference |
-| 768 (default) | 790 | final look, or details you can't see at 512 |
+| 512 (default) | 350 | comparing proportions against a reference, pose renders |
+| 768 | 790 | final look, or details you can't see at 512 |
 | 1024+ | 1,400+ | only when the user wants the render itself |
 
 - Pass `size=384` to `get_viewport_screenshot` and `render_preview` unless you need
   more.
 - One `view="iso"` shot often replaces front + side + top. For proportions, use
   `view="front"`/`"right"` with `ortho=true`.
-- Frame just the subject (`object=...`) so its pixels aren't spent on empty space.
+- Renders frame the subject's bounding box tightly (lights and cameras are ignored).
+  Pass `object=...` to frame one part, or to leave reference planes out of the frame.
+- **A bare scene renders dark in eevee/cycles.** Pass `light="studio"` for a temporary
+  key/fill/rim rig and a grey world. Nothing is added to the scene, and it's one flag
+  instead of `set_world` plus lights. Workbench (the default engine) needs no lights.
 - Don't take a screenshot after every edit. Batch 3–6 edits, then look.
 
 **Numbers are cheap.** Prefer these over pictures and raw dumps:

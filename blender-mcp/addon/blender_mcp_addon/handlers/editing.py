@@ -11,6 +11,8 @@ from typing import Any
 
 import bmesh
 import bpy
+import mathutils
+import mathutils.kdtree
 from mathutils import Euler, Matrix, Vector
 
 from .objects import _summary
@@ -133,10 +135,13 @@ def _build_mesh(kind: str, p: dict[str, Any], name: str) -> bpy.types.Mesh:
             bmesh.ops.create_icosphere(bm, subdivisions=subdivisions, radius=radius, calc_uvs=True)
         elif kind in {"cylinder", "cone"}:
             top = radius if kind == "cylinder" else float(p.get("radius_top", 0.0))
+            caps = p.get("caps", "ngon")
+            if caps not in {"ngon", "tris", "none"}:
+                raise ValueError("caps must be 'ngon', 'tris' or 'none'")
             bmesh.ops.create_cone(
                 bm,
-                cap_ends=True,
-                cap_tris=False,
+                cap_ends=caps != "none",
+                cap_tris=caps == "tris",
                 segments=_count(p, "segments", 32),
                 radius1=radius,
                 radius2=top,
@@ -356,7 +361,44 @@ def join_objects(params: dict[str, Any]) -> dict[str, Any]:
     }
     with bpy.context.temp_override(**override):
         bpy.ops.object.join()
-    return _summary(target)
+    result = _summary(target)
+    if params.get("weld"):
+        result["weld"] = _weld(target, float(params.get("weld_distance", 1e-4)))
+    return result
+
+
+def _weld(obj: bpy.types.Object, distance: float) -> dict[str, int]:
+    """Remove pairs of faces that sit on each other with opposite normals (the caps
+    left inside where two parts touched) and merge the seam, so touching parts become
+    one closed surface."""
+    bm = bmesh.new()
+    try:
+        bm.from_mesh(obj.data)
+        bm.faces.ensure_lookup_table()
+        tree = mathutils.kdtree.KDTree(len(bm.faces))
+        for f in bm.faces:
+            tree.insert(f.calc_center_median(), f.index)
+        tree.balance()
+        caps = set()
+        for f in bm.faces:
+            for _, i, _ in tree.find_range(f.calc_center_median(), distance):
+                other = bm.faces[i]
+                if (
+                    i != f.index
+                    and len(other.verts) == len(f.verts)
+                    and other.normal.dot(f.normal) < -0.999
+                ):
+                    caps.update((f, other))
+        if caps:
+            bmesh.ops.delete(bm, geom=list(caps), context="FACES_ONLY")
+        before = len(bm.verts)
+        bmesh.ops.remove_doubles(bm, verts=list(bm.verts), dist=distance)
+        merged = before - len(bm.verts)
+        bm.to_mesh(obj.data)
+        obj.data.update()
+        return {"hidden_faces_removed": len(caps), "vertices_merged": merged}
+    finally:
+        bm.free()
 
 
 def _components(bm: bmesh.types.BMesh) -> list[set[int]]:

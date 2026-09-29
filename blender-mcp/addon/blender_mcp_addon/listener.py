@@ -210,6 +210,13 @@ class Listener:
             return protocol.error(msg_id, protocol.METHOD_NOT_FOUND, f"unknown method '{method}'")
         try:
             value = self.main_thread.submit(lambda: handler(params)).result()
+        except EXPECTED_ERRORS as exc:
+            # Bad input the message already explains: a traceback only costs tokens.
+            if isinstance(exc, KeyError):
+                text = f"missing or unknown parameter {exc}"
+            else:
+                text = f"{type(exc).__name__}: {exc}"
+            return protocol.error(msg_id, protocol.HANDLER_ERROR, text)
         except Exception as exc:
             text = f"{type(exc).__name__}: {exc}"
             return protocol.error(msg_id, protocol.HANDLER_ERROR, text, _traceback_tail(exc))
@@ -233,6 +240,9 @@ class Listener:
         )
 
 
-def _traceback_tail(exc: BaseException, lines: int = 6) -> str:
+EXPECTED_ERRORS = (ValueError, KeyError, PermissionError, FileNotFoundError, FileExistsError)
+
+
+def _traceback_tail(exc: BaseException, lines: int = 3) -> str:
     formatted = traceback.format_exception(type(exc), exc, exc.__traceback__)
     return "".join(formatted[-lines:]).rstrip()

@@ -116,6 +116,7 @@ def create_material(params: dict[str, Any]) -> dict[str, Any]:
         )
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
+    mat.use_fake_user = True  # keep it through save/reopen even before it is assigned
     try:
         _apply_material_params(mat, params)
     except Exception:
@@ -138,6 +139,15 @@ def assign_material(params: dict[str, Any]) -> dict[str, Any]:
     if obj.data is None or not hasattr(obj.data, "materials"):
         raise ValueError(f"{obj.name!r} ({obj.type}) can't have materials")
     faces = params.get("faces")
+    if params.get("select") is not None:
+        if obj.type != "MESH":
+            raise ValueError("select can only be given for meshes")
+        from .mesh_edit import select_face_indices
+
+        picked = select_face_indices(obj, params["select"])
+        faces = sorted(set(picked) | set(faces or []))
+        if not faces:
+            raise ValueError("the selection matched no faces")
     slots = obj.data.materials
     if faces is None:
         # Whole object: this becomes its only material.

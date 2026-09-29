@@ -37,7 +37,7 @@ def register(mcp: MCPServer, blender: Blender) -> None:
                 "frame the scene (or `object`). Axis views are orthographic."
             ),
         ] = None,
-        size: Size = 768,
+        size: Size = 512,
         shading: Annotated[
             Literal["SOLID", "WIREFRAME", "MATERIAL", "RENDERED"] | None,
             Field(description="Viewport shading mode for this capture (default: as is)"),
@@ -72,7 +72,7 @@ def register(mcp: MCPServer, blender: Blender) -> None:
             View | None,
             Field(description="Default: the scene camera if there is one, else 'iso'"),
         ] = None,
-        size: Size = 768,
+        size: Size = 512,
         samples: Annotated[
             int | None, Field(ge=1, le=4096, description="eevee/cycles samples (default 16)")
         ] = None,
@@ -91,9 +91,18 @@ def register(mcp: MCPServer, blender: Blender) -> None:
                 "reference behind it"
             ),
         ] = False,
+        light: Annotated[
+            Literal["scene", "studio"],
+            Field(
+                description="eevee/cycles: 'studio' lights the subject with a temporary "
+                "key/fill/rim rig and a grey world (the scene's lights are ignored, nothing "
+                "is left behind), good for checking a model in a bare scene"
+            ),
+        ] = "scene",
     ) -> list[Any]:
-        """Render the scene at low resolution and return the image. Scene render
-        settings are restored afterwards. Views other than 'camera' use a temporary
+        """Render the scene at low resolution and return the image (an image costs about
+        width×height/750 tokens: size 384 ≈ 200, 512 ≈ 350). Scene render settings are
+        restored afterwards. Views other than 'camera' use a temporary
         camera that auto-frames the scene (or `object`)."""
         reply = await blender.call(
             "render_preview",
@@ -107,5 +116,6 @@ def register(mcp: MCPServer, blender: Blender) -> None:
             ortho=ortho,
             textures=textures,
             xray=xray,
+            light=light,
         )
         return _image_result(reply)

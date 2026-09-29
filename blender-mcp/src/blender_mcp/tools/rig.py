@@ -129,7 +129,10 @@ def register(mcp: MCPServer, blender: Blender) -> None:
                 description="Local Euler XYZ degrees. On create_humanoid_rig bones +X is the "
                 "natural bend: spine/neck/head forward, arms/hands fold forward, knees back, "
                 "toes down; thighs swing back (negative lifts the leg forward). Y twists "
-                "along the bone, Z moves sideways."
+                "along the bone (on spine/neck/head: +Y turns to the character's left). "
+                "Z is sideways: head/spine tilt to the character's right; upper_arm.L +Z "
+                "raises the arm (.R: -Z raises); thigh.L -Z spreads the leg out. Full "
+                "table: blender://docs/rigging."
             ),
         ] = None,
         location: Vec3 | None = None,
@@ -182,6 +185,16 @@ def register(mcp: MCPServer, blender: Blender) -> None:
                 "ankle/centre of mass (side)",
             ),
         ] = None,
+        crop: Annotated[
+            list[float] | None,
+            Field(
+                min_length=4,
+                max_length=4,
+                description="[left, top, right, bottom] pixels: the region holding this "
+                "view when one sheet has several views/poses side by side. pixel_top/"
+                "bottom/center stay in full-image pixels. Default: the whole image",
+            ),
+        ] = None,
         facing: Annotated[
             Literal["left", "right"],
             Field(description="Side view: which way the character faces in the image"),
@@ -200,7 +213,7 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         return await blender.call(
             "add_reference_image", path=path, view=view, character_height=character_height,
             pixel_top=pixel_top, pixel_bottom=pixel_bottom, pixel_center=pixel_center,
-            facing=facing, opacity=opacity, distance=distance, name=name,
+            crop=crop, facing=facing, opacity=opacity, distance=distance, name=name,
         )  # fmt: skip
 
     @mcp.tool()

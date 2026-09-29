@@ -16,7 +16,7 @@ from mathutils import Color, Euler, Matrix, Quaternion, Vector
 from .util import get_object, world_bounds
 
 MAX_SIZE = 2048
-DEFAULT_SIZE = 768
+DEFAULT_SIZE = 512
 PREVIEW_CAMERA = "_mcp_preview_camera"
 MATHUTILS_TYPES = (Color, Euler, Matrix, Quaternion, Vector)
 
@@ -84,12 +84,29 @@ def _targets(scene: bpy.types.Scene, name: str | None) -> list[bpy.types.Object]
     return [obj for obj in scene.objects if obj.visible_get() and not obj.hide_render]
 
 
-def _framing(objects: list[bpy.types.Object]) -> tuple[Vector, float]:
+def _box_corners(objects: list[bpy.types.Object]) -> list[Vector]:
     bounds = world_bounds(objects)
     if bounds is None:
-        return Vector((0, 0, 0)), 1.0
+        return [Vector((x, y, z)) for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)]
     lo, hi = bounds
-    return (lo + hi) / 2, max((hi - lo).length / 2, 0.01)
+    return [Vector((x, y, z)) for x in (lo.x, hi.x) for y in (lo.y, hi.y) for z in (lo.z, hi.z)]
+
+
+def _fit(
+    corners: list[Vector], rotation: Euler, tan_x: float, tan_y: float, margin: float = 1.08
+) -> tuple[Vector, float, float, float]:
+    """Frame the box tightly (not its bounding sphere, which wastes most of a wide image
+    on a tall subject). Returns the centre to aim at, the perspective distance, and the
+    half-extents across and up the image."""
+    center = sum(corners, Vector()) / len(corners)
+    inverse = rotation.to_matrix().transposed()
+    local = [inverse @ (c - center) for c in corners]  # camera space: x right, y up, -z ahead
+    half_x = max(abs(p.x) for p in local) * margin
+    half_y = max(abs(p.y) for p in local) * margin
+    distance = max(
+        max(abs(p.x) * margin / tan_x + p.z, abs(p.y) * margin / tan_y + p.z) for p in local
+    )
+    return center, max(distance, 0.01), max(half_x, 0.005), max(half_y, 0.005)
 
 
 def _png_base64(path: str) -> str:
@@ -115,28 +132,78 @@ def _preview_camera(
     scene: bpy.types.Scene, view: str, target: str | None, aspect: float, ortho: bool = False
 ):
     """A temporary camera looking at the target from `view`, removed afterwards."""
-    center, radius = _framing(_targets(scene, target))
+    corners = _box_corners(_targets(scene, target))
+    radius = max((corners[-1] - corners[0]).length / 2, 0.01)  # corners run lo -> hi
     data = bpy.data.cameras.new(PREVIEW_CAMERA)
     cam = bpy.data.objects.new(PREVIEW_CAMERA, data)
     scene.collection.objects.link(cam)
     try:
         # sensor_fit AUTO: data.angle spans the longer image edge.
-        narrow = 2 * math.atan(math.tan(data.angle / 2) * min(aspect, 1 / aspect))
-        distance = radius / math.sin(narrow / 2) * 1.05
+        tan_long = math.tan(data.angle / 2)
+        tan_short = tan_long * min(aspect, 1 / aspect)
+        tan_x, tan_y = (tan_long, tan_short) if aspect >= 1 else (tan_short, tan_long)
         rotation = _view_rotation(view)
+        center, distance, half_x, half_y = _fit(corners, rotation, tan_x, tan_y)
         cam.rotation_euler = rotation
         cam.location = center + rotation.to_matrix() @ Vector((0, 0, distance))
-        data.clip_start = max(0.001, (distance - radius) * 0.1)
+        data.clip_start = max(0.001, distance * 0.01)
         data.clip_end = distance + radius * 4
         if ortho:
-            # ortho_scale spans the longer image edge; fit the bounds in the shorter one.
+            # ortho_scale spans the longer image edge.
             data.type = "ORTHO"
-            data.ortho_scale = 2.1 * radius / min(aspect, 1 / aspect)
+            data.ortho_scale = (
+                max(2 * half_x, 2 * half_y * aspect)
+                if aspect >= 1
+                else max(2 * half_y, 2 * half_x / aspect)
+            )
         with _restoring(scene, camera=cam):
             yield cam
     finally:
         bpy.data.objects.remove(cam)
         bpy.data.cameras.remove(data)
+
+
+STUDIO_LIGHTS = (  # (direction in camera space toward the light, strength)
+    ((-0.6, 0.7, 0.8), 3.5),  # key: upper left, in front
+    ((0.9, 0.1, 0.5), 1.2),  # fill: right
+    ((0.2, 0.6, -1.0), 2.5),  # rim: behind, above
+)
+
+
+@contextmanager
+def _studio_light(scene: bpy.types.Scene, camera: bpy.types.Object):
+    """Temporary 3-sun rig aimed from the camera and a soft grey world; the scene's own
+    lights are hidden from the render and everything is restored afterwards."""
+    own_lights = [o for o in scene.objects if o.type == "LIGHT" and not o.hide_render]
+    world = bpy.data.worlds.new("mcp_studio_world")
+    world.use_nodes = True
+    background = world.node_tree.nodes.get("Background")
+    if background is not None:
+        background.inputs["Color"].default_value = (0.42, 0.44, 0.47, 1)
+        background.inputs["Strength"].default_value = 0.8
+    rotation = camera.matrix_world.to_quaternion()
+    added = []
+    try:
+        for o in own_lights:
+            o.hide_render = True
+        for i, (direction, strength) in enumerate(STUDIO_LIGHTS):
+            data = bpy.data.lights.new(f"mcp_studio_{i}", "SUN")
+            data.energy = strength
+            data.angle = math.radians(10)
+            light = bpy.data.objects.new(data.name, data)
+            toward = rotation @ Vector(direction).normalized()
+            light.rotation_euler = toward.to_track_quat("Z", "Y").to_euler()
+            scene.collection.objects.link(light)
+            added.append((light, data))
+        with _restoring(scene, world=world):
+            yield
+    finally:
+        for o in own_lights:
+            o.hide_render = False
+        for light, data in added:
+            bpy.data.objects.remove(light)
+            bpy.data.lights.remove(data)
+        bpy.data.worlds.remove(world)
 
 
 def _set_engine(scene: bpy.types.Scene, engine: str) -> str:
@@ -161,7 +228,10 @@ def _render(
     ortho: bool = False,
     textures: bool = False,
     xray: bool = False,
+    light: str = "scene",
 ) -> dict[str, Any]:
+    if light not in {"scene", "studio"}:
+        raise ValueError("light must be 'scene' or 'studio'")
     if view == "camera" and scene.camera is None:
         raise ValueError("The scene has no camera; use a view like 'iso' or 'front' instead")
     render = scene.render
@@ -195,8 +265,13 @@ def _render(
                 stack.enter_context(
                     _restoring(scene.display.shading, show_xray=True, xray_alpha=0.5)
                 )
+        camera = scene.camera
         if view != "camera":
-            stack.enter_context(_preview_camera(scene, view, target, width / height, ortho))
+            camera = stack.enter_context(
+                _preview_camera(scene, view, target, width / height, ortho)
+            )
+        if light == "studio" and engine_id != "BLENDER_WORKBENCH":
+            stack.enter_context(_studio_light(scene, camera))
         bpy.ops.render.render(write_still=True)
         image = _png_base64(path)
     return {
@@ -233,6 +308,7 @@ def render_preview(params: dict[str, Any]) -> dict[str, Any]:
         ortho=bool(params.get("ortho", False)),
         textures=bool(params.get("textures", False)),
         xray=bool(params.get("xray", False)),
+        light=params.get("light", "scene"),
     )
 
 
@@ -301,11 +377,18 @@ def get_viewport_screenshot(params: dict[str, Any]) -> dict[str, Any]:
             rv3d.view_rotation = _view_rotation(view).to_quaternion()
             rv3d.view_perspective = "PERSP" if view == "iso" else "ORTHO"
         if target or view not in {"current", "camera"}:
-            center, radius = _framing(_targets(scene, target))
-            fov = 2 * math.atan(36 / space.lens)  # viewport uses a 72mm sensor
-            narrow = 2 * math.atan(math.tan(fov / 2) * min(width, height) / max(width, height))
+            tan_long = 36 / space.lens  # viewport uses a 72mm sensor
+            tan_short = tan_long * min(width, height) / max(width, height)
+            tan_x, tan_y = (tan_long, tan_short) if width >= height else (tan_short, tan_long)
+            center, distance, _, _ = _fit(
+                _box_corners(_targets(scene, target)),
+                rv3d.view_rotation.to_euler(),
+                tan_x,
+                tan_y,
+                margin=1.1,
+            )
             rv3d.view_location = center
-            rv3d.view_distance = radius / math.sin(narrow / 2) * 1.1
+            rv3d.view_distance = distance
         rv3d.update()
 
         with bpy.context.temp_override(window=window, area=area, region=region):

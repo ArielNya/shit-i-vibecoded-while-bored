@@ -8,6 +8,7 @@ from mcp.server.mcpserver import MCPServer
 from pydantic import Field
 
 from ._common import Blender
+from .mesh import Select
 
 Color = Annotated[
     list[float], Field(min_length=3, max_length=4, description="RGB or RGBA, each 0-1")
@@ -86,12 +87,25 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         faces: Annotated[
             list[int] | None,
             Field(
-                description="Face indices to assign to; omit to make it the object's only material"
+                description="Face indices to assign to; omit (with select) to make it the "
+                "object's only material"
+            ),
+        ] = None,
+        select: Annotated[
+            Select | None,
+            Field(
+                description="Faces by selection spec instead of indices, e.g. "
+                "{'normal': [0,0,-1], 'max_angle': 60} for undersides, or a bounded "
+                "position range for a colour band"
             ),
         ] = None,
     ) -> dict[str, Any]:
-        """Put a material on an object, or on some of its faces."""
-        return await blender.call("assign_material", object=object, material=material, faces=faces)
+        """Put a material on an object, or on some of its faces (by index or by a
+        selection spec: one call per colour region)."""
+        return await blender.call(
+            "assign_material", object=object, material=material, faces=faces,
+            select=None if select is None else select.model_dump(exclude_none=True),
+        )  # fmt: skip
 
     @mcp.tool()
     async def set_world(

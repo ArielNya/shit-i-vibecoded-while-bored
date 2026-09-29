@@ -204,6 +204,17 @@ def _stats(obj: bpy.types.Object) -> dict[str, int]:
     return {"vertices": len(mesh.vertices), "edges": len(mesh.edges), "faces": len(mesh.polygons)}
 
 
+def select_face_indices(obj: bpy.types.Object, spec: Any) -> list[int]:
+    """Indices of the faces a selection spec matches (for tools outside this module)."""
+    bm = bmesh.new()
+    try:
+        bm.from_mesh(obj.data)
+        _refresh(bm)
+        return [f.index for f in select(bm, obj, spec, "faces")]
+    finally:
+        bm.free()
+
+
 def select_elements(params: dict[str, Any]) -> dict[str, Any]:
     """Preview a selection spec: which indices match (and where, for small results)."""
     obj = _mesh_object(params["name"])
