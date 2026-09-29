@@ -355,15 +355,13 @@ uv sync
 uv run ruff check . && uv run ruff format --check .
 ```
 
-blender-mcp no longer has a test suite or CI in this repo (removed so it doesn't run
-alongside godot-mcp's); the release workflow still lints and builds.
+blender-mcp no longer has a test suite in this repo; lint before pushing.
 
 ### Releasing
 
 Bump the version (pyproject, `__init__`, add-on manifest and `bl_info` — keep them
-in sync), add a `CHANGELOG.md` section, then push a tag `blender-mcp-v<version>`.
-The release workflow checks, builds the add-on zip and the server wheel/sdist, and
-publishes a GitHub release with the changelog section as notes.
+in sync) and add a `CHANGELOG.md` section. Build the add-on zip with
+`python3 scripts/build_addon.py` and the server with `uv build`.
 
 `src/blender_mcp/protocol.py` is vendored into the add-on. After editing it, run
-`python3 scripts/build_addon.py --sync` (a unit test fails if the copies drift).
+`python3 scripts/build_addon.py --sync` to keep the copies identical.

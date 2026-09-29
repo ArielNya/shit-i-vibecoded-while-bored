@@ -12,7 +12,7 @@ pytestmark = pytest.mark.anyio
 
 async def test_every_tool_is_portable_to_every_client():
     """PLAN §6.2: Claude, OpenAI/Codex, Gemini (OpenAPI subset), Cursor (60-char names),
-    VS Code. The same check runs in CI via scripts/check_harness_schemas.py."""
+    VS Code. Also runnable standalone: scripts/check_harness_schemas.py."""
     listed = await create_server().list_tools()
     assert len(listed) == len({t.name for t in listed})
     assert {t.name: compat.problems(t) for t in listed if compat.problems(t)} == {}

@@ -260,11 +260,14 @@ member docs.
 
 ## Development
 
+The repo has no CI; run these before pushing:
+
 ```bash
 cd godot-mcp
 uv sync
 uv run ruff check . && uv run ruff format --check .
 uv run pytest tests/unit -q                              # no Godot needed
+uv run python scripts/check_harness_schemas.py           # tool schemas every client accepts
 GODOT_BIN=/path/to/godot uv run pytest tests/integration -q
 ```
 
