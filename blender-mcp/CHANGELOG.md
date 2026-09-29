@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Roblox avatar items: `bake_texture` bakes every material's colour into one PNG on a
+  fresh UV map, leaving one material and one UV map. `check_roblox_asset` checks rigid
+  accessories, layered clothing and character bodies against Roblox's specifications
+  (triangle budgets, watertight, size around the attachment, cages, R15 bones, 4
+  influences, `_Att` attachments). `export_file(roblox=true)` uses Roblox's FBX
+  settings: embedded textures, FBX Unit Scale, no leaf bones.
+- New skill `skills/roblox-avatar`: hats, clothing and bodies from Blender to a worn
+  Roblox accessory, with reference pages for each kind and for the Studio side.
+
 ## 0.8.0
 
 - Rigging: `create_humanoid_rig` builds a 22-bone humanoid skeleton from landmarks

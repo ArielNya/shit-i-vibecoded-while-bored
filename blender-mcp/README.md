@@ -50,7 +50,7 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 | `look_at` / `set_active_camera` / `set_data_params` | Aim cameras/lights, pick the scene camera, change lens/energy/size/... |
 | `list_files` | What's in the workspace, and which folders are allowed |
 | `save_blend` / `open_blend` | Save (in place or to a path) / open a .blend — embedded scripts never run |
-| `import_file` / `export_file` | .obj .fbx .glb/.gltf .stl .ply .usd*; export chosen objects or everything |
+| `import_file` / `export_file` | .obj .fbx .glb/.gltf .stl .ply .usd*; export chosen objects or everything; `roblox=true` for Roblox Studio's FBX settings |
 | `execute_python` | Run Python in Blender for anything the tools don't cover — **off by default**, see below |
 | `set_keyframe` / `list_keyframes` / `clear_animation` / `set_frame_range` | Keyframe location/rotation (degrees)/scale or object properties; frame range, FPS, current frame |
 | `remesh` / `smooth_vertices` / `add_noise` | Voxel remesh, relax vertices, fractal noise displacement — rocks, terrain, clay |
@@ -59,6 +59,8 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 | `create_humanoid_rig` / `create_armature` | A 22-bone humanoid skeleton from landmarks measured on the sheet (or average proportions), extra bones for tails/ears/props; or any custom armature |
 | `bind_to_armature` / `set_vertex_weights` | Skin meshes (automatic heat weights or nearest bone) with a weight report; fix weights on selected vertices |
 | `pose_bone` / `reset_pose` / `get_armature_info` | Pose (optionally mirrored to the other side) and keyframe bones; +X is the natural bend on the humanoid rig |
+| `bake_texture` | Unwrap a mesh to a fresh UV map and bake all its materials' colour into one PNG and one material (game engines, Roblox) |
+| `check_roblox_asset` | Check a rigid accessory, layered clothing or character body against Roblox's specs: triangles, watertight, one material/UV/texture, size around the attachment, cages, R15 bones, influences |
 | `list_blender_instances` / `use_blender` | Find every running Blender with the add-on (each takes the next free port) and switch between them |
 
 Long operations (renders, file I/O, booleans, remesh, `execute_python`, …) send
@@ -104,6 +106,16 @@ server serves the same text as `blender://docs/character`.
   `~/.codex/skills/`: `cp -r skills/lowpoly-character ~/.codex/skills/`.
 - **Any MCP client (dsh included):** use the `model_character` prompt, or tell the
   agent to read `blender://docs/character`. No install is needed.
+
+[`skills/roblox-avatar`](skills/roblox-avatar/SKILL.md) covers **Roblox avatar items**:
+rigid accessories (hats, hair, wings…), layered clothing (cages, skinning) and character
+bodies, from Blender through `bake_texture`, `check_roblox_asset` and
+`export_file(roblox=true)` to Studio (Accessory Fitting Tool, an Accessory by script,
+trying it on, uploading). Its references hold Roblox's size tables, budgets and naming
+rules, and where to download the official templates. Install it like the one above
+(`cp -r skills/roblox-avatar ~/.claude/skills/`). For the Studio side, pair it with
+roblox-mcp's `roblox-studio` skill. It was tested by an agent making an Umbreon hat; see
+[`examples/roblox-umbreon-hat/`](examples/roblox-umbreon-hat/).
 
 Put the front and side images in the workspace folder, then ask e.g. *"build a rigged
 low-poly character from ref_front.png and ref_side.png, 1.6 m tall"*.
@@ -334,7 +346,7 @@ the server) and Codex CLI 0.157 (config parsed, server listed as enabled).
 | `BLENDER_MCP_TOKEN` | token file | Only needed if the add-on uses a custom token |
 | `BLENDER_MCP_TOKEN_FILE` | per-user path above | Where to find the token file (both sides honour it) |
 | `BLENDER_MCP_TIMEOUT` | `30` | Seconds to wait for Blender per call |
-| `BLENDER_MCP_TOOLSETS` | all | Comma-separated subset to expose, for clients with tool limits: `inspect`, `view`, `edit`, `mesh`, `sculpt`, `nodes`, `animate`, `rig`, `look`, `files`, `python`, `instances` |
+| `BLENDER_MCP_TOOLSETS` | all | Comma-separated subset to expose, for clients with tool limits: `inspect`, `view`, `edit`, `mesh`, `sculpt`, `nodes`, `animate`, `rig`, `look`, `files`, `python`, `instances`, `roblox` |
 
 ## Development
 

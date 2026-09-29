@@ -55,6 +55,7 @@ moderation says so. Follow the rules anyway; the wrapper is a safety net.
 | Instances that belong in git | `.model.json` / `.meta.json` files | `execute_luau` |
 | Marketplace asset | `search_asset` → `insert_asset` | same |
 | Local model / image / audio file | `upload_asset` → `insert_asset` (models) or set the id on a property | same |
+| Avatar item (hat, clothing, body) from Blender | blender-mcp's `roblox-avatar` skill, then the Accessory Fitting Tool | same |
 | Check an API | `get_api_docs`, `search_api` | same, or `http_get` |
 | Run the game | `start_stop_play`, then `get_console_output` | same |
 

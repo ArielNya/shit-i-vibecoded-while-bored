@@ -80,9 +80,16 @@ def register(mcp: MCPServer, blender: Blender) -> None:
         include_children: bool = True,
         apply_modifiers: bool = True,
         overwrite: bool = False,
+        roblox: Annotated[
+            bool,
+            Field(
+                description="FBX for Roblox Studio: textures embedded, FBX Unit Scale (1 "
+                "unit = 1 stud), no leaf bones, no baked animation"
+            ),
+        ] = False,
     ) -> dict[str, Any]:
         return await blender.call(
             "export_file", progress=ctx, timeout=FILE_TIMEOUT, path=path, objects=objects,
             include_children=include_children, apply_modifiers=apply_modifiers,
-            overwrite=overwrite,
+            overwrite=overwrite, roblox=roblox,
         )  # fmt: skip
