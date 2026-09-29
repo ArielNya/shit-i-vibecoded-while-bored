@@ -24,6 +24,15 @@
   `character-highpoly`, `rigging`, `img2model`), plus the `model_character` and
   `image_to_model` prompts.
 
+- Fixes from an end-to-end character test: renders frame the bounding box (not its
+  sphere) and default to `size=512`; `render_preview(light="studio")`;
+  `add_reference_image(crop=…)` for multi-view sheets; `join_objects(weld=true)`;
+  `create_primitive(caps="tris"|"none")`; `check_game_ready` reports positions,
+  detects hidden joined faces and has `kind="part"`; expected errors without
+  tracebacks; `assign_material(select=…)` colours a region in one call; materials made
+  with `create_material` survive saving before they're assigned. Docs: a measured
+  pose-axis table (head turn is Y, not Z), extra-bone weights, a basic-shapes route.
+
 ## 0.8.0
 
 - Rigging: `create_humanoid_rig` builds a 22-bone humanoid skeleton from landmarks

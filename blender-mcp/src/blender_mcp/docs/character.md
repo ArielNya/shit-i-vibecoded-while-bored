@@ -219,7 +219,7 @@ Low-poly style is usually **flat colours per region**:
 shade(name="Body", smooth=false)                 # faceted look; smooth for soft toys
 create_material(name="Skin", base_color=[…], roughness=0.8)   # sample colours from the sheet
 assign_material(object="Body", material="Shirt")               # base
-assign_material(object="Body", material="Skin", faces=select_elements(<head z range>)["indices"])
+assign_material(object="Body", material="Skin", select={"position": <head z range>})   # one call per region
 …pants, boots, hair…
 render_preview(view="front", ortho=true, textures=true, xray=true)
 ```
