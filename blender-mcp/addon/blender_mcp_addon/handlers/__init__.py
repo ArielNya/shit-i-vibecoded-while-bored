@@ -26,6 +26,7 @@ from . import (
     reference,
     render,
     rigging,
+    roblox,
     scene,
     shading,
     undo,
@@ -139,6 +140,9 @@ _HANDLERS = {
     "get_armature_info": rigging.get_armature_info,
     "add_reference_image": reference.add_reference_image,
     "set_visibility": reference.set_visibility,
+    # Roblox avatar assets
+    "bake_texture": roblox.bake_texture,
+    "check_roblox_asset": roblox.check_roblox_asset,
 }
 
 HANDLERS = {name: _fresh(fn) for name, fn in _HANDLERS.items()}

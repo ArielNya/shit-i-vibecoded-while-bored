@@ -11,6 +11,7 @@ from . import (
     nodes,
     python,
     rig,
+    roblox,
     sculpt,
     view,
 )
@@ -29,4 +30,5 @@ TOOLSETS = {
     "files": files,
     "python": python,
     "instances": instances,
+    "roblox": roblox,
 }

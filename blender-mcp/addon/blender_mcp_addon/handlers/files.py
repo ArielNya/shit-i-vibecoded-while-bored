@@ -186,7 +186,14 @@ def import_file(params: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def _exporter(suffix: str, path: str, apply_modifiers: bool) -> None:
+# Roblox's documented Blender FBX settings: textures embedded, 1 unit = 1 stud.
+ROBLOX_FBX = {
+    "path_mode": "COPY", "embed_textures": True, "apply_scale_options": "FBX_SCALE_UNITS",
+    "add_leaf_bones": False, "bake_anim": False, "use_custom_props": True,
+}  # fmt: skip
+
+
+def _exporter(suffix: str, path: str, apply_modifiers: bool, roblox: bool = False) -> None:
     if suffix in {".glb", ".gltf"}:
         bpy.ops.export_scene.gltf(
             filepath=path,
@@ -196,8 +203,9 @@ def _exporter(suffix: str, path: str, apply_modifiers: bool) -> None:
         )
     elif suffix == ".fbx":
         bpy.ops.export_scene.fbx(
-            filepath=path, use_selection=True, use_mesh_modifiers=apply_modifiers
-        )
+            filepath=path, use_selection=True, use_mesh_modifiers=apply_modifiers,
+            **(ROBLOX_FBX if roblox else {}),
+        )  # fmt: skip
     elif suffix == ".obj":
         bpy.ops.wm.obj_export(
             filepath=path, export_selected_objects=True, apply_modifiers=apply_modifiers
@@ -253,7 +261,8 @@ def export_file(params: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("nothing to export")
     paths.prepare_write(target)
     with _selection(objects), _ops_context():
-        _exporter(target.suffix.lower(), str(target), bool(params.get("apply_modifiers", True)))
+        _exporter(target.suffix.lower(), str(target), bool(params.get("apply_modifiers", True)),
+                  bool(params.get("roblox")))  # fmt: skip
     written = [p for p in target.parent.glob(f"{target.stem}*") if p.is_file()]
     return {
         "exported": str(target),
