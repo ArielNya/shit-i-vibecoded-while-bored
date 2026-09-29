@@ -57,7 +57,10 @@ agent ──stdio/MCP──▶ blender-mcp server ──TCP 127.0.0.1:9876──
 | `find_node_types` / `build_geometry_nodes` / `get_geometry_nodes` | Search node types; build a Geometry Nodes setup from nodes + links; inspect it |
 | `add_reference_image` / `set_visibility` | Put a front/side/back reference sheet behind the model at true scale (feet on z=0, head at the given height); hide references or rigs |
 | `create_humanoid_rig` / `create_armature` | A 22-bone humanoid skeleton from landmarks measured on the sheet (or average proportions), extra bones for tails/ears/props; or any custom armature |
-| `bind_to_armature` / `set_vertex_weights` | Skin meshes (automatic heat weights or nearest bone) with a weight report; fix weights on selected vertices |
+| `bind_to_armature` / `set_vertex_weights` | Skin meshes (automatic heat weights or nearest bone), limited to 4 influences per vertex and normalised, with a weight report; fix weights on selected vertices |
+| `mark_seams` / `uv_unwrap` / `get_uv_info` | UV seams and unwrapping (smart, along seams, or box); reports islands, 0–1 coverage and overlaps |
+| `bake_maps` | Bake normal / AO / colour / roughness from high-poly meshes onto a low-poly one (Cycles), saved as PNGs and wired into its material |
+| `check_game_ready` | One-call validation: transforms, placement, n-gons, holes, loose/doubled vertices, normals, triangle budget, UVs, materials, skin weights |
 | `pose_bone` / `reset_pose` / `get_armature_info` | Pose (optionally mirrored to the other side) and keyframe bones; +X is the natural bend on the humanoid rig |
 | `bake_texture` | Unwrap a mesh to a fresh UV map and bake all its materials' colour into one PNG and one material (game engines, Roblox) |
 | `check_roblox_asset` | Check a rigid accessory, layered clothing or character body against Roblox's specs: triangles, watertight, one material/UV/texture, size around the attachment, cages, R15 bones, influences |
@@ -81,44 +84,54 @@ Blender is busy while the code runs, and a timeout doesn't stop it.
 | --- | --- |
 | `blender://scene` | Live scene summary |
 | `blender://objects/{name}` | Live details of one object |
-| `blender://docs` + `blender://docs/{topic}` | Reference notes: `workflow`, `selection`, `modifiers`, `materials`, `troubleshooting`, `character` |
+| `blender://docs` + `blender://docs/{topic}` | Reference notes: `efficiency`, `workflow`, `selection`, `modifiers`, `materials`, `troubleshooting`, `game-character`, `character`, `character-highpoly`, `rigging`, `img2model` |
 | prompt `model_object(subject, details, style)` | A staged modelling workflow with visual checks |
 | prompt `review_scene` | Audit the scene for modelling problems, report without changing anything |
 | prompt `model_character(front, side, height, style)` | Build a rigged low-poly character from a reference sheet (follows `blender://docs/character`) |
+| prompt `image_to_model(images, subject, budget, output)` | Model something from images within a triangle budget (follows `blender://docs/img2model`) |
 
 ### Skills
 
-[`skills/lowpoly-character`](skills/lowpoly-character/SKILL.md) is a full workflow for
-**low-poly humanoid characters from a front + side reference sheet**: read the sheet
-into a landmark table, box-model one mesh with an edge loop at every joint, match both
-views in x-ray, colour it, rig it with `create_humanoid_rig`, skin it, pose-test every
-joint, keyframe a walk and export a rigged `.glb`. It's generated from
-`src/blender_mcp/docs/character.md` (`python scripts/build_addon.py --sync`), so the
-server serves the same text as `blender://docs/character`.
+A skill suite in [`skills/`](skills/) teaches agents to use these tools well. Each
+skill is a `SKILL.md` plus reference notes:
 
-- **Claude Code:** copy the folder into your skills. For every project, run
-  `cp -r skills/lowpoly-character ~/.claude/skills/`; for one project, use
-  `.claude/skills/` in that repo. Claude loads it when you ask for a character, or
-  you can invoke it with `/lowpoly-character`.
-- **Claude Desktop / claude.ai:** zip the `lowpoly-character` folder and upload it
-  under *Settings → Capabilities → Skills*.
+| Skill | For | Covers |
+| --- | --- | --- |
+| [`blender-mcp`](skills/blender-mcp/SKILL.md) | every session | the build/verify loop, **token-efficient** checks (numbers before pictures, image sizes and their cost, trimming toolsets), selection rules, **polygon budgets** per platform, LODs |
+| [`game-character`](skills/game-character/SKILL.md) | characters, creatures, mascots, avatars | **rig-ready** standards (bind pose, deforming topology, UVs, parts, budgets), then routes: low poly from a front/side sheet, high poly (subdivision cage for film; high → low normal-map bakes for games), rigging, skinning, pose tests, animation, LODs and export for Unity, Unreal, Godot, Mixamo |
+| [`img2model`](skills/img2model/SKILL.md) | "model this image" | classifying the input (ortho sheet, single view, perspective, photos), a one-time shape inventory, reference planes or a matching camera, silhouette checks, refining to a budget |
+
+The skills are generated from `src/blender_mcp/docs/` (`python scripts/build_addon.py
+--sync`), and the server serves the same notes as `blender://docs/<topic>`. Clients
+without skill support get them through the resources and the `model_character` /
+`image_to_model` prompts.
+
+- **Claude Code:** copy the folders into your skills. For every project, run
+  `cp -r skills/* ~/.claude/skills/`; for one project, use `.claude/skills/` in that
+  repo. Claude picks the right one from the request, or you can invoke them with
+  `/game-character`, `/img2model` or `/blender-mcp`.
+- **Claude Desktop / claude.ai:** zip each skill folder and upload it under
+  *Settings → Capabilities → Skills*.
 - **Codex:** recent Codex CLI versions read the same `SKILL.md` format from
-  `~/.codex/skills/`: `cp -r skills/lowpoly-character ~/.codex/skills/`.
-- **Any MCP client (dsh included):** use the `model_character` prompt, or tell the
-  agent to read `blender://docs/character`. No install is needed.
+  `~/.codex/skills/`: `cp -r skills/* ~/.codex/skills/`.
+- **Any MCP client (dsh included):** use the prompts, or tell the agent to read
+  `blender://docs/efficiency` first. No install is needed.
 
 [`skills/roblox-avatar`](skills/roblox-avatar/SKILL.md) covers **Roblox avatar items**:
 rigid accessories (hats, hair, wings…), layered clothing (cages, skinning) and character
 bodies, from Blender through `bake_texture`, `check_roblox_asset` and
 `export_file(roblox=true)` to Studio (Accessory Fitting Tool, an Accessory by script,
 trying it on, uploading). Its references hold Roblox's size tables, budgets and naming
-rules, and where to download the official templates. Install it like the one above
-(`cp -r skills/roblox-avatar ~/.claude/skills/`). For the Studio side, pair it with
+rules, and where to download the official templates. It installs like the others
+(`cp -r skills/* ~/.claude/skills/` includes it). Unlike the three above, it is
+written by hand, not generated from `docs/`. For the Studio side, pair it with
 roblox-mcp's `roblox-studio` skill. It was tested by an agent making an Umbreon hat; see
 [`examples/roblox-umbreon-hat/`](examples/roblox-umbreon-hat/).
 
-Put the front and side images in the workspace folder, then ask e.g. *"build a rigged
-low-poly character from ref_front.png and ref_side.png, 1.6 m tall"*.
+Examples: *"build a rigged low-poly character from ref_front.png and ref_side.png,
+1.6 m, mobile budget"*, *"model the chest in chest.jpg for a mobile game, under 300
+triangles"*, *"make a high-poly version of Body and bake its normals onto the low
+one"*.
 
 ### Selecting mesh elements
 
@@ -362,7 +375,7 @@ the server) and Codex CLI 0.157 (config parsed, server listed as enabled).
 | `BLENDER_MCP_TOKEN` | token file | Only needed if the add-on uses a custom token |
 | `BLENDER_MCP_TOKEN_FILE` | per-user path above | Where to find the token file (both sides honour it) |
 | `BLENDER_MCP_TIMEOUT` | `30` | Seconds to wait for Blender per call |
-| `BLENDER_MCP_TOOLSETS` | all | Comma-separated subset to expose, for clients with tool limits: `inspect`, `view`, `edit`, `mesh`, `sculpt`, `nodes`, `animate`, `rig`, `look`, `files`, `python`, `instances`, `roblox` |
+| `BLENDER_MCP_TOOLSETS` | all | Comma-separated subset to expose, for clients with tool limits: `inspect`, `view`, `edit`, `mesh`, `sculpt`, `nodes`, `animate`, `rig`, `gameready`, `look`, `files`, `python`, `instances`, `roblox` |
 
 ## Development
 

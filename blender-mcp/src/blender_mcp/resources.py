@@ -16,8 +16,16 @@ DOCS = {
     "modifiers": "Common modifier types, their setting names, and stack order",
     "materials": "Material recipes, lighting setups, cameras and render engines",
     "troubleshooting": "Symptoms and fixes for common problems",
+    "efficiency": "Token- and polygon-efficient working: the loop, cheap checks, budgets, LODs",
+    "game-character": "Rig-ready characters for games and animation: standards, pose, "
+    "topology, UVs, budgets, and which route to take",
     "character": "Low-poly character from a front/side reference sheet: model, rig, "
     "skin, pose-test, animate, export",
+    "character-highpoly": "High-poly characters: subdivision cages and high-to-low baking",
+    "rigging": "Skeletons, extra bones, skinning, weight fixes, pose tests, animation, "
+    "engine export",
+    "img2model": "Image to model: classify the input, shape inventory, reference or "
+    "camera matching, blockout, refine to budget",
 }
 
 
@@ -105,7 +113,9 @@ Front view reference: {front}
 Side view reference: {side}
 Size: {size}. Style: {style}.
 
-Read blender://docs/character first and follow it stage by stage:
+Read blender://docs/game-character (standards) and blender://docs/character (the
+walkthrough) first, and follow them stage by stage. Keep pictures at size=384 and
+verify with numbers (blender://docs/efficiency):
 1. Measure the sheet (head top, soles, centre line in pixels) and write a landmark
    table in metres; add_reference_image for both views and check the alignment.
 2. Box-model one Body mesh: torso block, legs, feet, arms, neck and head, with an edge
@@ -118,8 +128,29 @@ Read blender://docs/character first and follow it stage by stage:
    unweighted vertices.
 6. Pose-test (arms down, elbows, leg lift, knee bend, head turn) and look at each; then
    reset_pose. Optionally keyframe a short walk.
-7. save_blend and export_file a .glb with the rig; summarise face count, bones and
-   anything that needs a human eye."""
+7. check_game_ready(expect_rig=true) must pass; save_blend and export_file a .glb
+   with the rig; summarise triangles, bones, materials and anything that needs a
+   human eye."""
+
+    @mcp.prompt(description="Model something from one or more images, efficiently")
+    def image_to_model(
+        images: str, subject: str = "", budget: str = "", output: str = ".glb"
+    ) -> str:
+        what = f" ({subject})" if subject else ""
+        tris = f"{budget} triangles" if budget else "a budget you pick and state"
+        return f"""Model the subject of these images in Blender{what}: {images}
+Budget: {tris}. Deliver: {output}.
+
+Follow blender://docs/img2model (and blender://docs/efficiency for cheap checks):
+1. Classify the input (orthographic sheet, single view, perspective, photos).
+2. Look at the images once and write a shape inventory: parts big to small with sizes
+   in metres (scale from something of known size), symmetry, colours, assumptions.
+3. Reference planes (orthographic) or a matching camera (perspective).
+4. Block out one primitive per part; compare silhouettes at size=384; fix ratios.
+5. Refine to the budget, silhouette first; details that don't change the outline
+   go to textures. Colours from the inventory, 1-3 materials.
+6. check_game_ready (kind prop or character), save, export, and list assumptions.
+For characters, continue with blender://docs/game-character after step 4."""
 
     @mcp.prompt(description="Review the current scene for modelling problems and suggest fixes")
     def review_scene() -> str:

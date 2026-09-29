@@ -4,7 +4,7 @@ A full avatar body: 15 skinned meshes on the R15 rig, 19 attachments and an oute
 per part. Roblox splits it into 6 assets on upload. Sources in creator-docs:
 `avatar/character-bodies/specifications.md` and `export.md`; `avatar/dynamic-heads/*`.
 It's the biggest job in this skill. For a stylised game NPC that nobody wears as an
-avatar, blender-mcp's `lowpoly-character` skill is enough. Use this reference only
+avatar, blender-mcp's `game-character` skill is enough. Use this reference only
 when it must work as a Roblox avatar body.
 
 ## Start from Roblox's files

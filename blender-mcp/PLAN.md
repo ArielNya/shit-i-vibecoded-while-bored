@@ -269,7 +269,7 @@ subset for clients with tight tool limits.
 | **M5** ✅ | Escape hatch + resources | `execute_python` behind pref, docs resources, prompts |
 | **M6** ✅ | Hardening | token auth, path allowlist, timeouts, integration tests in CI, Codex + Claude setup verified end to end |
 | **M7** ✅ | Stretch | geometry-nodes helpers, sculpt/remesh helpers, animation keyframes, multi-instance (pick Blender by port), streaming progress for long renders |
-| **M8** ✅ | Characters | reference sheets, armatures + humanoid rig, skinning, posing; low-poly character skill verified end to end (sheet → rigged, animated .glb) |
+| **M8** ✅ | Characters | reference sheets, armatures + humanoid rig, skinning, posing, UVs, baking, game-ready validation; skill suite (efficiency, game characters low/high poly, img2model) verified end to end |
 
 ---
 
@@ -410,8 +410,22 @@ subset for clients with tight tool limits.
   multipliers drifts (hence absolute `size`/`center`); unbounded `normal` selections
   also match limb side faces (bound both ends and check the count); opaque renders
   hide the reference (hence `xray`).
-- The skill lives in `src/blender_mcp/docs/character.md`; `scripts/build_addon.py
-  --sync` generates `skills/lowpoly-character/SKILL.md`, and a unit test fails if it's stale.
+- Skills are generated from `src/blender_mcp/docs/` by `scripts/build_addon.py --sync`
+  (SKILL.md = front matter + one note; `references/` = the other notes, with
+  `blender://docs/...` links rewritten to relative paths when bundled). A unit test
+  fails if anything is stale or a relative link doesn't resolve. Suite: `blender-mcp`
+  (efficiency), `game-character` (standards → low poly / high poly / rigging),
+  `img2model`.
+- Game-ready tools: UVs through `bpy.ops.uv.*` in a temporary edit mode on a bmesh
+  face selection; `uv_report` counts islands by union-find over edges whose UVs
+  match, and area/overlap from the UV polygons. `bake_maps` switches to Cycles/CPU
+  just for the bake and restores the engine, selection and active object.
+  `check_game_ready` measures the rest mesh (not the posed one) and treats n-gons
+  and holes as warnings on props but failures on characters.
+- Found while validating the skills: DECIMATE without `use_symmetry` makes LODs
+  lopsided (68 % mirrored vertices), so the skill always passes it. Heat weights
+  leave some vertices on >4 bones, so binding now trims and normalises them.
+  Tool schemas cost about 26k tokens with every toolset on (`mesh` alone is about 7.8k).
 - The integration test caught `bind_to_armature(method=…)` colliding with
   `Blender.call(method, …)`; the helper's first parameter is now positional-only.
 

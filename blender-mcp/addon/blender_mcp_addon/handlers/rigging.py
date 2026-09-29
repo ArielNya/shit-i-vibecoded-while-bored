@@ -319,8 +319,34 @@ def _attach(mesh_obj: bpy.types.Object, arm: bpy.types.Object) -> None:
     mod = next((m for m in mesh_obj.modifiers if m.type == "ARMATURE"), None)
     if mod is None:
         mod = mesh_obj.modifiers.new("Armature", "ARMATURE")
+        # Deform first, then smooth/mirror/etc.: SUBSURF after the Armature keeps a
+        # subdivision cage rig light and correct.
+        mesh_obj.modifiers.move(len(mesh_obj.modifiers) - 1, 0)
     mod.object = arm
     mod.use_vertex_groups = True
+
+
+def limit_and_normalize(mesh_obj: bpy.types.Object, arm: bpy.types.Object, limit: int) -> int:
+    """Keep each vertex's `limit` strongest bone weights and make them sum to 1 (what game
+    engines expect). Returns how many vertices had influences dropped."""
+    bones = {b.name for b in arm.data.bones}
+    groups = {g.index: g for g in mesh_obj.vertex_groups if g.name in bones}
+    trimmed = 0
+    for v in mesh_obj.data.vertices:
+        ws = sorted(
+            ((g.weight, g.group) for g in v.groups if g.group in groups and g.weight > 0),
+            reverse=True,
+        )
+        if not ws:
+            continue
+        keep, drop = ws[:limit], ws[limit:]
+        trimmed += bool(drop)
+        for _, gi in drop:
+            groups[gi].remove([v.index])
+        total = sum(w for w, _ in keep)
+        for w, gi in keep:
+            groups[gi].add([v.index], w / total, "REPLACE")
+    return trimmed
 
 
 @mutation("bind to armature")
@@ -374,7 +400,11 @@ def bind_to_armature(params: dict[str, Any]) -> dict[str, Any]:
         else:
             _nearest_weights(mesh_obj, arm)
         _attach(mesh_obj, arm)
+        limit = int(params.get("max_influences", 4))
+        trimmed = limit_and_normalize(mesh_obj, arm, limit) if limit > 0 else 0
         info = _weight_summary(mesh_obj, arm)
+        if trimmed:
+            info["trimmed_to_max_influences"] = trimmed
         if note:
             info["note"] = note
         results.append(info)
