@@ -1,0 +1,231 @@
+/**
+ * @name MobileUX
+ * @author ArielNya
+ * @description Touch-friendly layout for Discord + Vencord on Android (Vendroid). Only applies on touch screens up to 900px wide.
+ * @version 0.1.0
+ * @license GPL-3.0-or-later
+ * @source https://github.com/ArielNya/shit-i-vibecoded-while-bored/tree/main/vencord-mobile
+ */
+
+/*
+ * Selector rules (PLAN.md §3):
+ * - Discord's CSS-module classes are "<stem>_<hash>", so we match stems with [class*="stem_"],
+ *   never a full hashed name. Prefer ids, data-* and ARIA attributes where Discord has them.
+ * - Vencord's own UI is matched by its stable .vc-* classes.
+ * - Plain CSS (no nesting, no range media syntax) so older Android System WebViews parse it.
+ *   :has() rules are kept in their own rule blocks so an old WebView drops only that block.
+ * - Resize and reflow, never hide.
+ *
+ * Tweak in QuickCSS, e.g. :root { --mux-touch-target: 48px; --mux-font-scale: 1.1; }
+ */
+
+:root {
+    --mux-touch-target: 44px;
+    --mux-touch-target-small: 36px;
+    --mux-font-scale: 1;
+    --mux-gap: 8px;
+}
+
+@media (pointer: coarse) and (max-width: 900px) {
+    /* ---------- 0. Base: no double-tap zoom delay, no scroll chaining / pull-to-refresh ---------- */
+
+    html {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
+    [class*="scroller_"] {
+        overscroll-behavior: contain;
+    }
+
+    /* ---------- 1. Touch targets ---------- */
+
+    /* Server list */
+    [data-list-item-id^="guildsnav___"] {
+        min-width: var(--mux-touch-target);
+        min-height: var(--mux-touch-target);
+    }
+
+    /* Channel list rows */
+    [data-list-item-id^="channels___"] {
+        min-height: var(--mux-touch-target);
+        display: flex;
+        align-items: center;
+    }
+
+    /* Member list rows */
+    [class*="member_"] {
+        min-height: var(--mux-touch-target);
+    }
+
+    /* Context menus */
+    [role="menu"] [role="menuitem"],
+    [role="menu"] [role="menuitemcheckbox"],
+    [role="menu"] [role="menuitemradio"] {
+        min-height: var(--mux-touch-target);
+        padding-top: 6px;
+        padding-bottom: 6px;
+        box-sizing: border-box;
+    }
+
+    /* Header toolbar icons (pins, threads, members, search...) */
+    [class*="toolbar_"] > [role="button"],
+    [class*="toolbar_"] > a {
+        min-width: var(--mux-touch-target-small);
+        min-height: var(--mux-touch-target-small);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Chat bar buttons (upload, gift, GIF, sticker, emoji, Vencord chat bar buttons) */
+    [class*="channelTextArea_"] [class*="buttons_"] > * {
+        min-width: var(--mux-touch-target-small);
+        min-height: var(--mux-touch-target-small);
+    }
+
+    /* Reactions */
+    [class*="reaction_"] {
+        min-height: var(--mux-touch-target-small);
+        min-width: var(--mux-touch-target-small);
+    }
+
+    /* Tabs (settings, profile, friends) */
+    [role="tab"] {
+        min-height: var(--mux-touch-target);
+    }
+
+    /* Vencord switches and buttons */
+    .vc-form-switch {
+        min-height: var(--mux-touch-target);
+    }
+
+    .vc-btn-small,
+    .vc-btn-medium,
+    .vc-btn-min {
+        min-height: var(--mux-touch-target-small);
+    }
+
+    .vc-plugins-info-button {
+        width: var(--mux-touch-target-small);
+        height: var(--mux-touch-target-small);
+    }
+
+    /* ---------- 2. Hover-only controls ---------- */
+
+    /* The message hover bar (react / reply / more) also shows for the focused or selected message. */
+    li[id^="chat-messages-"]:focus-within [class*="buttons_"],
+    li[id^="chat-messages-"] [class*="selected_"] [class*="buttons_"] {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    li[id^="chat-messages-"] [class*="buttonsInner_"] > * {
+        min-width: var(--mux-touch-target-small);
+        min-height: var(--mux-touch-target-small);
+    }
+
+    /* ---------- 3. Viewport and keyboard ---------- */
+
+    html,
+    body,
+    #app-mount {
+        height: 100%;
+        height: 100dvh;
+    }
+
+    /* Composer: text at 16px stops the WebView zooming in on focus; keep it clear of the bottom edge. */
+    [class*="channelTextArea_"] [role="textbox"] {
+        font-size: 16px;
+    }
+
+    form:has([class*="channelTextArea_"]) {
+        padding-bottom: max(var(--mux-gap), env(safe-area-inset-bottom));
+    }
+
+    /* ---------- 4. Safe areas (non-zero only once the fork draws edge-to-edge, PLAN.md §5.4) ---------- */
+
+    #app-mount {
+        box-sizing: border-box;
+        padding:
+            env(safe-area-inset-top, 0)
+            env(safe-area-inset-right, 0)
+            0
+            env(safe-area-inset-left, 0);
+    }
+
+    /* ---------- 5. Vencord's own UI ---------- */
+
+    .vc-plugins-grid,
+    .vc-settings-theme-grid,
+    .vc-cloud-settings-sync-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .vc-settings-quickActions-card {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .vc-settings-quickActions-pill {
+        min-height: var(--mux-touch-target);
+    }
+
+    .vc-plugins-filter-controls {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+
+    .vc-plugins-filter-control,
+    .vc-settings-theme-links {
+        min-height: var(--mux-touch-target);
+        font-size: 16px;
+    }
+
+    .vc-addon-card {
+        padding: 12px;
+    }
+
+    /* Modals (Discord's and Vencord's, which reuse Discord's modal root) fit the screen. */
+    [role="dialog"][class*="root_"] {
+        max-width: 100vw;
+        max-height: 100%;
+        max-height: 100dvh;
+        box-sizing: border-box;
+    }
+
+    /* Vencord plugin settings modal becomes a full-screen sheet. */
+    [role="dialog"]:has(.vc-plugin-modal-header) {
+        width: 100vw;
+        min-width: 0;
+        height: 100dvh;
+        border-radius: 0;
+    }
+
+    /* Keep modal close buttons easy to hit. */
+    [role="dialog"] [class*="close_"] {
+        min-width: var(--mux-touch-target);
+        min-height: var(--mux-touch-target);
+    }
+
+    /* ---------- 6. Readability ---------- */
+
+    [id^="message-content-"] {
+        font-size: calc(1rem * var(--mux-font-scale));
+        overflow-wrap: anywhere;
+    }
+
+    /* Wide content scrolls inside itself, not the whole chat. */
+    [id^="message-content-"] pre,
+    [id^="message-accessories-"] pre {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    [id^="message-accessories-"] article {
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+}
