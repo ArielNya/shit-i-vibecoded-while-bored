@@ -8,16 +8,22 @@ squeezed onto a phone.
 
 ## Status
 
-| Milestone | State |
-| --- | --- |
-| M0 | Done except one check: skeleton, subtree fork of Vendroid (`vendroid/`, upstream `006ca4d`, unmodified), plugin skeleton, `scripts/build-vencord.sh`. The build couldn't be run in the session that wrote it, because `codeload.github.com` (needed by Vencord's `gifenc` git dependency) was blocked. Run it once to tick M0 |
-| M1 | Theme §3 items 1–6 written, linted, tested in headless Chromium (applies on an emulated phone, no effect on desktop, every rule block parses). Not yet checked against live Discord on a device |
+Nothing is built. A first attempt, in a sandbox that couldn't reach
+discord.com, build Vencord or build an APK, was removed so the work can
+restart somewhere the agent can build and see the result. What it learned:
 
-Selector review (after the first device test, where the red server-list outline showed only on folders):
-- **Confirmed from source:** `chat-messages-` / `message-content-` ids (Vencord plugins use them), the message `buttons` / `buttonsInner` stems and `channelTextArea` / `buttonContainer` (Vencord's `findCssClassesLazy`), `toolbar_` (Vencord's WebPWA CSS), and all `.vc-*` classes.
-- **Fixed:** the chat bar rule targeted `buttons_`. It now targets `buttonContainer_`, as Vencord's `ChatButtons` API does.
-- **Removed:** the server-list touch-target rule. Discord's server icons are already 48 px, and the outline was most likely clipped by the icon's squircle mask on servers (folders aren't masked the same way). `theme/debug.css` tints the icons instead to confirm this.
-- **Unconfirmed, checked with `theme/debug.css`:** `channels___`, `member_`, `reaction_`, `message-accessories-`, the modal `root_` / `close_` selectors. `scroller_` can't be checked visually, and it's harmless if it doesn't match.
+- **Fork:** import Vendroid with `git subtree add --prefix vencord-mobile/vendroid https://github.com/Vencord/Vendroid.git main --squash`, so upstream changes can still be pulled in.
+- **Build:** Vencord's `pnpm install` fetches `gifenc` from `codeload.github.com`, so that host must be reachable.
+- **Online Themes:** a raw.githubusercontent.com link works on Vendroid, which serves any `.css` response as `text/css`. jsDelivr serves `text/css` everywhere.
+- **Selectors confirmed from Vencord's source:**
+  - the `chat-messages-` / `message-content-` ids
+  - the message `buttons` / `buttonsInner` stems
+  - `channelTextArea` / `buttonContainer` (the chat bar buttons: use `buttonContainer_`, not `buttons_`)
+  - `toolbar_`
+  - all `.vc-*` classes
+- **Selectors still unconfirmed:** `channels___`, `member_`, `reaction_`, `message-accessories-`, modal `root_` / `close_`, `scroller_`.
+- **Server list:** in the device test, an outline on `[data-list-item-id^="guildsnav___"]` showed only on folders. Most likely the server icons clip it to their squircle mask. The icons are already 48 px, so the theme doesn't need a server-list size rule.
+- **Viewport:** Vendroid has no URL bar, so `dvh` is the same as 100%. Don't override `html` / `body` / `#app-mount` heights.
 
 ### M2 spike results
 
