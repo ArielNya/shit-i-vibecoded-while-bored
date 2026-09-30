@@ -195,8 +195,10 @@ What the theme fixes:
    - The plugin (§4.1) also puts those actions in the long-press menu, so
      nothing relies on hover.
 3. **Viewport and keyboard.**
-   - Use `dvh`/`svh` instead of `vh` so the chat bar isn't hidden under the
-     on-screen keyboard or browser chrome.
+   - Vendroid has no browser URL bar, so `vh` is already the visible height
+     and `dvh`/`svh` add nothing. Keeping the composer above the keyboard is
+     the fork's job (§5.3); the theme only sizes the composer text at 16 px
+     so focusing it doesn't zoom.
    - Keep the composer pinned to the bottom.
 4. **Safe areas.** `env(safe-area-inset-*)` padding for notches and gesture
    bars. This depends on the fork's edge-to-edge support (§5); it's harmless
@@ -347,7 +349,7 @@ theme and plugin assume:
    - Show a splash until `onPageFinished`, which is partly done today via
      `LoadingTheme` and `setVisibility`.
 3. **Keyboard.** `android:windowSoftInputMode="adjustResize"` so the composer
-   stays above the IME. This matches the theme's `dvh` work.
+   stays above the IME. The theme can't do this from CSS.
 4. **Edge-to-edge.** Draw behind the system bars and pass the insets into the
    page, so the theme's `safe-area-inset` padding works. Colour the status
    and nav bars from the current Discord theme.
