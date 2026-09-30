@@ -8,14 +8,31 @@ squeezed onto a phone.
 
 ## Status
 
-| Milestone | State |
-| --- | --- |
-| M0 | Done except one check: skeleton, subtree fork of Vendroid (`vendroid/`, upstream `006ca4d`, unmodified), plugin skeleton, `scripts/build-vencord.sh`. The build couldn't be run in the session that wrote it, because `codeload.github.com` (needed by Vencord's `gifenc` git dependency) was blocked. Run it once to tick M0 |
-| M1 | Theme §3 items 1–6 written, linted, tested in headless Chromium (applies on an emulated phone, no effect on desktop, every rule block parses). Not yet checked against live Discord on a device |
+Nothing is built. A first attempt, in a sandbox that couldn't reach
+discord.com, build Vencord or build an APK, was removed so the work can
+restart somewhere the agent can build and see the result. What it learned:
 
-Selectors that need a device check during M2, because they come from Discord's
-DOM, which the theme was written without seeing: the hover-bar reveal on
-focus (§3.2), the `channels___` / `guildsnav___` list ids, and `[class*="member_"]`.
+- **Fork:** import Vendroid with `git subtree add --prefix vencord-mobile/vendroid https://github.com/Vencord/Vendroid.git main --squash`, so upstream changes can still be pulled in.
+- **Build:** Vencord's `pnpm install` fetches `gifenc` from `codeload.github.com`, so that host must be reachable.
+- **Online Themes:** a raw.githubusercontent.com link works on Vendroid, which serves any `.css` response as `text/css`. jsDelivr serves `text/css` everywhere.
+- **Selectors confirmed from Vencord's source:**
+  - the `chat-messages-` / `message-content-` ids
+  - the message `buttons` / `buttonsInner` stems
+  - `channelTextArea` / `buttonContainer` (the chat bar buttons: use `buttonContainer_`, not `buttons_`)
+  - `toolbar_`
+  - all `.vc-*` classes
+- **Selectors still unconfirmed:** `channels___`, `member_`, `reaction_`, `message-accessories-`, modal `root_` / `close_`, `scroller_`.
+- **Server list:** in the device test, an outline on `[data-list-item-id^="guildsnav___"]` showed only on folders. Most likely the server icons clip it to their squircle mask. The icons are already 48 px, so the theme doesn't need a server-list size rule.
+- **Viewport:** Vendroid has no URL bar, so `dvh` is the same as 100%. Don't override `html` / `body` / `#app-mount` heights.
+
+### M2 spike results
+
+| Spike | Result | Mechanism for M3 |
+| --- | --- | --- |
+| Flux sidebar events | **Yes**, from source: Vendroid itself subscribes to and dispatches `MOBILE_WEB_SIDEBAR_OPEN` / `_CLOSE` through `Vencord.Webpack.Common.FluxDispatcher` (`vencord_mobile.js`) | `FluxDispatcher.dispatch({ type: "MOBILE_WEB_SIDEBAR_OPEN" })` |
+| Wrapping `VencordMobile.onBackPress` | **Yes**, from source: `onPageStarted` evaluates `browser.js` then `vencord_mobile.js` back to back; plugins start later at `StartAt.WebpackReady` (the default), so the object exists by `start()`. Java looks up `VencordMobile.onBackPress()` by name on every press, so a replaced method is picked up | Keep the original in `start()`, replace it, restore it in `stop()`; guard with `window.VencordMobile?.onBackPress` |
+| Long-press opens the context menu | **Pending**: test on stock Vendroid — long-press a message, a user and a channel | Yes → `contextMenus` API only. No → patch (§4.1) |
+| Enter key on the soft keyboard | **Pending**: test on stock Vendroid — type a line and press Enter: does it send or add a newline? | Decides the default for the "Enter sends" setting (§4.4) |
 
 ---
 
@@ -195,8 +212,10 @@ What the theme fixes:
    - The plugin (§4.1) also puts those actions in the long-press menu, so
      nothing relies on hover.
 3. **Viewport and keyboard.**
-   - Use `dvh`/`svh` instead of `vh` so the chat bar isn't hidden under the
-     on-screen keyboard or browser chrome.
+   - Vendroid has no browser URL bar, so `vh` is already the visible height
+     and `dvh`/`svh` add nothing. Keeping the composer above the keyboard is
+     the fork's job (§5.3); the theme only sizes the composer text at 16 px
+     so focusing it doesn't zoom.
    - Keep the composer pinned to the bottom.
 4. **Safe areas.** `env(safe-area-inset-*)` padding for notches and gesture
    bars. This depends on the fork's edge-to-edge support (§5); it's harmless
@@ -347,7 +366,7 @@ theme and plugin assume:
    - Show a splash until `onPageFinished`, which is partly done today via
      `LoadingTheme` and `setVisibility`.
 3. **Keyboard.** `android:windowSoftInputMode="adjustResize"` so the composer
-   stays above the IME. This matches the theme's `dvh` work.
+   stays above the IME. The theme can't do this from CSS.
 4. **Edge-to-edge.** Draw behind the system bars and pass the insets into the
    page, so the theme's `safe-area-inset` padding works. Colour the status
    and nav bars from the current Discord theme.
