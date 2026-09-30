@@ -6,6 +6,17 @@ two parts: a **theme** that works on stock Vendroid today, and a **plugin**
 make Discord-in-Vendroid feel like a phone app rather than a desktop site
 squeezed onto a phone.
 
+## Status
+
+| Milestone | State |
+| --- | --- |
+| M0 | Done except one check: skeleton, subtree fork of Vendroid (`vendroid/`, upstream `006ca4d`, unmodified), plugin skeleton, `scripts/build-vencord.sh`. The build couldn't be run in the session that wrote it, because `codeload.github.com` (needed by Vencord's `gifenc` git dependency) was blocked. Run it once to tick M0 |
+| M1 | Theme §3 items 1–6 written, linted, tested in headless Chromium (applies on an emulated phone, no effect on desktop, every rule block parses). Not yet checked against live Discord on a device |
+
+Selectors that need a device check during M2, because they come from Discord's
+DOM, which the theme was written without seeing: the hover-bar reveal on
+focus (§3.2), the `channels___` / `guildsnav___` list ids, and `[class*="member_"]`.
+
 ---
 
 ## 0. Sources and sourcing rule
