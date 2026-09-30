@@ -42,13 +42,6 @@
 
     /* ---------- 1. Touch targets ---------- */
 
-    /* Server list */
-    [data-list-item-id^="guildsnav___"] {
-        min-width: var(--mux-touch-target);
-        min-height: var(--mux-touch-target);
-        outline: 2px solid red; /* TEMP (M1 device check): proves the theme loaded and this selector matches. Remove after. */
-    }
-
     /* Channel list rows */
     [data-list-item-id^="channels___"] {
         min-height: var(--mux-touch-target);
@@ -81,8 +74,8 @@
         justify-content: center;
     }
 
-    /* Chat bar buttons (upload, gift, GIF, sticker, emoji, Vencord chat bar buttons) */
-    [class*="channelTextArea_"] [class*="buttons_"] > * {
+    /* Chat bar buttons (upload, gift, GIF, sticker, emoji, Vencord chat bar buttons); stems from Vencord's ChatButtons API */
+    [class*="channelTextArea_"] [class*="buttonContainer_"] > * {
         min-width: var(--mux-touch-target-small);
         min-height: var(--mux-touch-target-small);
     }
