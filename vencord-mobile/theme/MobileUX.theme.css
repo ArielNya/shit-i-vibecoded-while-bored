@@ -46,6 +46,7 @@
     [data-list-item-id^="guildsnav___"] {
         min-width: var(--mux-touch-target);
         min-height: var(--mux-touch-target);
+        outline: 2px solid red; /* TEMP (M1 device check): proves the theme loaded and this selector matches. Remove after. */
     }
 
     /* Channel list rows */

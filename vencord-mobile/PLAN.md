@@ -17,6 +17,15 @@ Selectors that need a device check during M2, because they come from Discord's
 DOM, which the theme was written without seeing: the hover-bar reveal on
 focus (§3.2), the `channels___` / `guildsnav___` list ids, and `[class*="member_"]`.
 
+### M2 spike results
+
+| Spike | Result | Mechanism for M3 |
+| --- | --- | --- |
+| Flux sidebar events | **Yes**, from source: Vendroid itself subscribes to and dispatches `MOBILE_WEB_SIDEBAR_OPEN` / `_CLOSE` through `Vencord.Webpack.Common.FluxDispatcher` (`vencord_mobile.js`) | `FluxDispatcher.dispatch({ type: "MOBILE_WEB_SIDEBAR_OPEN" })` |
+| Wrapping `VencordMobile.onBackPress` | **Yes**, from source: `onPageStarted` evaluates `browser.js` then `vencord_mobile.js` back to back; plugins start later at `StartAt.WebpackReady` (the default), so the object exists by `start()`. Java looks up `VencordMobile.onBackPress()` by name on every press, so a replaced method is picked up | Keep the original in `start()`, replace it, restore it in `stop()`; guard with `window.VencordMobile?.onBackPress` |
+| Long-press opens the context menu | **Pending**: test on stock Vendroid — long-press a message, a user and a channel | Yes → `contextMenus` API only. No → patch (§4.1) |
+| Enter key on the soft keyboard | **Pending**: test on stock Vendroid — type a line and press Enter: does it send or add a newline? | Decides the default for the "Enter sends" setting (§4.4) |
+
 ---
 
 ## 0. Sources and sourcing rule
