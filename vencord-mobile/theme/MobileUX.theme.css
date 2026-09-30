@@ -1,0 +1,296 @@
+/**
+ * @name Mobile UX
+ * @author Ariel
+ * @description Touch-first, narrow-screen layout for Vencord in VendroidEnhanced.
+ * @version 0.1.0
+ * @source https://github.com/Ariel/vencord-mobile
+ */
+
+:root {
+    --mux-font-scale: 1;
+    --mux-density: 1;
+    --mux-touch-target: 48px;
+    --mux-sheet-radius: 18px;
+}
+
+:root.mux-font-small { --mux-font-scale: 0.9375; }
+:root.mux-font-medium { --mux-font-scale: 1; }
+:root.mux-font-large { --mux-font-scale: 1.125; }
+:root.mux-density-compact { --mux-density: 0.82; }
+:root.mux-density-comfortable { --mux-density: 1; }
+
+/*
+ * VendroidEnhanced reaches the first branch. Desktop Canary reaches the second
+ * when the MobileUX plugin is forced on for responsive testing.
+ */
+@media (pointer: coarse) and (width <= 900px) {
+    html:not(.mux-desktop) {
+        --mux-theme-active: 1;
+    }
+}
+
+html.mux-mobile {
+    --mux-theme-active: 1;
+}
+
+@media (pointer: coarse) and (width <= 900px) {
+    html:not(.mux-desktop) body {
+        font-size: calc(16px * var(--mux-font-scale));
+        padding-right: env(safe-area-inset-right);
+        padding-left: env(safe-area-inset-left);
+    }
+
+    html:not(.mux-desktop) :is(button, [role="button"], [role="menuitem"], [role="option"], [role="tab"]) {
+        min-width: 44px;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+
+    html:not(.mux-desktop) :is(span, a):is([role="button"], [role="tab"]) {
+        display: inline-flex;
+        align-items: center;
+    }
+
+    html:not(.mux-desktop) :is([class^="containerDefault_"], [class*=" containerDefault_"]) :is([class^="link_"], [class*=" link_"]),
+    html:not(.mux-desktop) :is([class^="member_"], [class*=" member_"]) {
+        min-height: var(--mux-touch-target);
+    }
+
+    html:not(.mux-desktop) :is([class^="message_"], [class*=" message_"]) {
+        padding-top: calc(4px * var(--mux-density));
+        padding-bottom: calc(4px * var(--mux-density));
+    }
+
+    html:not(.mux-desktop) :is([class^="message_"], [class*=" message_"]):focus-within :is([class^="buttons_"], [class*=" buttons_"]) {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    html:not(.mux-desktop) :is([class^="channelTextArea_"], [class*=" channelTextArea_"]) {
+        margin-bottom: max(8px, env(safe-area-inset-bottom));
+        scroll-margin-bottom: env(safe-area-inset-bottom);
+        z-index: 2;
+    }
+
+    html:not(.mux-desktop) :is([class^="channelTextArea_"], [class*=" channelTextArea_"]) :is(textarea, [contenteditable="true"]) {
+        font-size: max(16px, calc(16px * var(--mux-font-scale)));
+        line-height: 1.35;
+    }
+
+    html:not(.mux-desktop) :is([class^="buttonContainer_"], [class*=" buttonContainer_"]) {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    html:not(.mux-desktop) :is(pre, code) {
+        max-width: 100%;
+    }
+
+    html:not(.mux-desktop) pre {
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+    }
+
+    html:not(.mux-desktop) :is([class^="embed_"], [class*=" embed_"], [class*="message-accessories-"]) {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    html:not(.mux-desktop) :is(.vc-plugins-grid, .vc-settings-theme-grid) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    html:not(.mux-desktop) .vc-plugins-filter-controls {
+        grid-template-columns: minmax(0, 1fr);
+        height: auto;
+        gap: 8px;
+    }
+
+    html:not(.mux-desktop) :is(.vc-settings-tab, .vc-plugins-settings, .vc-settings-modal-content) {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+    }
+
+    html:not(.mux-desktop) :is([class^="contentBody_"], [class*=" contentBody_"]):has(.vc-settings-tab) {
+        position: fixed;
+        inset: 82px 0 0;
+        z-index: 100;
+        box-sizing: border-box;
+        width: 100vw;
+        height: calc(100dvh - 82px);
+        min-width: 0;
+        overflow: hidden;
+        background: var(--background-base-lowest);
+    }
+
+    html:not(.mux-desktop) :is([class^="contentBody_"], [class*=" contentBody_"]):has(.vc-settings-tab) > :is([class^="scroller_"], [class*=" scroller_"]) {
+        width: 100%;
+        padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+        box-sizing: border-box;
+    }
+
+    html:not(.mux-desktop) :is([class^="contentBody_"], [class*=" contentBody_"]):has(.vc-settings-tab) :is([class^="panel_"], [class*=" panel_"], [class^="container_"], [class*=" container_"]) {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        box-sizing: border-box;
+    }
+
+    html:not(.mux-desktop) .vc-addon-card {
+        min-height: 132px;
+    }
+
+    html:not(.mux-desktop) .vc-addon-header {
+        gap: 12px;
+    }
+
+    html:not(.mux-desktop) .vc-plugins-info-button {
+        width: 44px;
+        height: 44px;
+        margin-right: 0;
+    }
+
+    html:not(.mux-desktop) :is([class^="membersWrap_"], [class*=" membersWrap_"], [class^="userProfileOuter_"], [class*=" userProfileOuter_"]) {
+        position: absolute;
+        inset-block: 0;
+        right: 0;
+        z-index: 50;
+        width: min(100%, 360px);
+        max-width: 100%;
+        box-shadow: var(--elevation-high);
+    }
+
+    html:not(.mux-desktop) .vc-settings-tab-bar {
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+        scrollbar-width: none;
+    }
+
+    html:not(.mux-desktop) .vc-settings-tab-bar::-webkit-scrollbar {
+        display: none;
+    }
+
+    html:not(.mux-desktop) :is([class^="root_"], [class*=" root_"])[role="dialog"] {
+        width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right));
+        max-width: none;
+        max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        border-radius: var(--mux-sheet-radius) var(--mux-sheet-radius) 0 0;
+    }
+}
+
+/* Forced desktop test mode mirrors the high-value rules without spoofing UA. */
+html.mux-mobile body {
+    font-size: calc(16px * var(--mux-font-scale));
+}
+
+html.mux-mobile :is(button, [role="button"], [role="menuitem"], [role="option"], [role="tab"]) {
+    min-width: 44px;
+    min-height: 44px;
+    touch-action: manipulation;
+}
+
+html.mux-mobile :is(span, a):is([role="button"], [role="tab"]) {
+    display: inline-flex;
+    align-items: center;
+}
+
+html.mux-mobile :is([class^="containerDefault_"], [class*=" containerDefault_"]) :is([class^="link_"], [class*=" link_"]),
+html.mux-mobile :is([class^="member_"], [class*=" member_"]) {
+    min-height: var(--mux-touch-target);
+}
+
+html.mux-mobile :is([class^="channelTextArea_"], [class*=" channelTextArea_"]) :is(textarea, [contenteditable="true"]) {
+    font-size: max(16px, calc(16px * var(--mux-font-scale)));
+}
+
+html.mux-mobile :is(.vc-plugins-grid, .vc-settings-theme-grid) {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+html.mux-mobile .vc-plugins-filter-controls {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    gap: 8px;
+}
+
+/*
+ * Discord desktop does not consume the mobile sidebar Flux events. This
+ * browser-safe bridge makes Canary use the same open/close events as VendroidEnhanced
+ * while keeping the chat at full width instead of squeezing it to a sliver.
+ */
+html.mux-mobile :is([class^="content_"], [class*=" content_"]):has(> :is([class^="sidebar_"], [class*=" sidebar_"])):has(> :is([class^="page_"], [class*=" page_"])) {
+    position: relative;
+    display: block;
+    min-width: 0;
+}
+
+html.mux-mobile :is([class^="content_"], [class*=" content_"]):has(> :is([class^="sidebar_"], [class*=" sidebar_"])) > :is([class^="page_"], [class*=" page_"]) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    min-width: 0;
+}
+
+html.mux-mobile :is([class^="content_"], [class*=" content_"]):has(> :is([class^="sidebar_"], [class*=" sidebar_"])) > :is([class^="sidebar_"], [class*=" sidebar_"]) {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    z-index: 60;
+    width: min(92vw, 375px);
+    max-width: 100%;
+    transform: translateX(-105%);
+    transition: transform 180ms ease-out;
+    box-shadow: var(--elevation-high);
+}
+
+html.mux-mobile.mux-sidebar-open :is([class^="content_"], [class*=" content_"]):has(> :is([class^="sidebar_"], [class*=" sidebar_"])) > :is([class^="sidebar_"], [class*=" sidebar_"]) {
+    transform: translateX(0);
+}
+
+html.mux-mobile :is([class^="contentBody_"], [class*=" contentBody_"]):has(.vc-settings-tab) {
+    position: fixed;
+    inset: 82px 0 0;
+    z-index: 100;
+    box-sizing: border-box;
+    width: 100vw;
+    height: calc(100dvh - 82px);
+    min-width: 0;
+    overflow: hidden;
+    background: var(--background-base-lowest);
+}
+
+html.mux-mobile :is([class^="contentBody_"], [class*=" contentBody_"]):has(.vc-settings-tab) > :is([class^="scroller_"], [class*=" scroller_"]) {
+    width: 100%;
+    padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+    box-sizing: border-box;
+}
+
+html.mux-mobile :is([class^="contentBody_"], [class*=" contentBody_"]):has(.vc-settings-tab) :is([class^="panel_"], [class*=" panel_"], [class^="container_"], [class*=" container_"]) {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    box-sizing: border-box;
+}
+
+html.mux-mobile .vc-addon-card {
+    min-height: 132px;
+}
+
+html.mux-mobile .vc-plugins-info-button {
+    width: 44px;
+    height: 44px;
+    margin-right: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.mux-mobile *,
+    html.mux-mobile *::before,
+    html.mux-mobile *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
