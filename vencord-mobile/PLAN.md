@@ -32,6 +32,14 @@ tests opened message, avatar, and guild-channel menus. The plugin also wraps
 original VDE handler receives the next back press. Theme bridge classes remain
 active while the wrapper is installed.
 
+**M5 is partly built (builds and typechecks; not yet tested on a device or Canary).**
+M4 is skipped because the keyboard already passed on-device and nothing else is proven broken.
+Added: left-edge swipe for the sidebar (touch listeners that dispatch the Flux events), double-tap
+to react through `onMessageClick` (Unicode emoji, empty = off), and a "reduce effects" setting
+(`mux-lite` class removes backdrop blur). Code-block scrolling and reduced motion were already in
+the theme. Still open: "Enter sends", swipe-to-reply, the "⋯" chat-bar sheet, the tap-on-avatar-only
+rule, and the mobile QuickCSS editor.
+
 - **Android baseline:** VendroidEnhanced `8dfc2a4` from `https://git.nin0.dev/nin0/VendroidEnhanced.git`. It already supports a custom Vencord bundle URL, so no APK fork is needed for plugin testing.
 - **Build:** Vencord's `pnpm install` fetches `gifenc` from `codeload.github.com`, so that host must be reachable.
 - **Online Themes:** VendroidEnhanced uses Vencord's web theme loader; use a host that serves `.css` as `text/css`.
