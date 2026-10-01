@@ -141,11 +141,13 @@ html.mux-mobile {
         padding-inline: 0;
     }
 
-    /* Discord's settings containers use 12px padding with -12px margins but a fixed 100% width, so each nesting level loses 24px. */
+    /* Discord's settings containers bleed out with 12px padding / -12px margins but keep a fixed 100% width, which shifts and shrinks every nesting level. Drop the bleed. */
     html:not(.mux-desktop) :is([class^="contentBody_"], [class*=" contentBody_"]):has(.vc-settings-tab) :is([class^="container_"], [class*=" container_"]) {
-        width: calc(100% + 24px);
+        width: 100%;
         min-width: 0;
         max-width: none;
+        margin: 0;
+        padding: 0;
     }
 
     html:not(.mux-desktop) .vc-addon-card {
@@ -288,9 +290,11 @@ html.mux-mobile :is([class^="contentBody_"], [class*=" contentBody_"]):has(.vc-s
 }
 
 html.mux-mobile :is([class^="contentBody_"], [class*=" contentBody_"]):has(.vc-settings-tab) :is([class^="container_"], [class*=" container_"]) {
-    width: calc(100% + 24px);
+    width: 100%;
     min-width: 0;
     max-width: none;
+    margin: 0;
+    padding: 0;
 }
 
 html.mux-mobile .vc-addon-card {
