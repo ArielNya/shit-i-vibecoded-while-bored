@@ -40,13 +40,13 @@ html.mux-mobile {
         padding-left: env(safe-area-inset-left);
     }
 
-    html:not(.mux-desktop) :is(button, [role="button"], [role="menuitem"], [role="option"], [role="tab"]) {
+    html:not(.mux-desktop) :is(button, [role="button"], [role="menuitem"], [role="option"], [role="tab"]):not([class*="chiplet"], h1 *, h3 *) {
         min-width: 44px;
         min-height: 44px;
         touch-action: manipulation;
     }
 
-    html:not(.mux-desktop) :is(span, a):is([role="button"], [role="tab"]) {
+    html:not(.mux-desktop) :is(span, a):is([role="button"], [role="tab"]):not([class*="chiplet"], h1 *, h3 *) {
         display: inline-flex;
         align-items: center;
     }
@@ -195,13 +195,13 @@ html.mux-mobile body {
     font-size: calc(16px * var(--mux-font-scale));
 }
 
-html.mux-mobile :is(button, [role="button"], [role="menuitem"], [role="option"], [role="tab"]) {
+html.mux-mobile :is(button, [role="button"], [role="menuitem"], [role="option"], [role="tab"]):not([class*="chiplet"], h1 *, h3 *) {
     min-width: 44px;
     min-height: 44px;
     touch-action: manipulation;
 }
 
-html.mux-mobile :is(span, a):is([role="button"], [role="tab"]) {
+html.mux-mobile :is(span, a):is([role="button"], [role="tab"]):not([class*="chiplet"], h1 *, h3 *) {
     display: inline-flex;
     align-items: center;
 }
