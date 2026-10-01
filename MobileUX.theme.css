@@ -275,13 +275,22 @@ html.mux-mobile :is([class^="contentBody_"], [class*=" contentBody_"]):has(.vc-s
     width: 100%;
     padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
     box-sizing: border-box;
+    scrollbar-gutter: auto;
 }
 
-html.mux-mobile :is([class^="contentBody_"], [class*=" contentBody_"]):has(.vc-settings-tab) :is([class^="panel_"], [class*=" panel_"], [class^="container_"], [class*=" container_"]) {
+html.mux-mobile :is([class^="contentBody_"], [class*=" contentBody_"]):has(.vc-settings-tab) :is([class^="panel_"], [class*=" panel_"]) {
     width: 100%;
     min-width: 0;
     max-width: none;
     box-sizing: border-box;
+    margin: 0;
+    padding-inline: 0;
+}
+
+html.mux-mobile :is([class^="contentBody_"], [class*=" contentBody_"]):has(.vc-settings-tab) :is([class^="container_"], [class*=" container_"]) {
+    width: calc(100% + 24px);
+    min-width: 0;
+    max-width: none;
 }
 
 html.mux-mobile .vc-addon-card {
