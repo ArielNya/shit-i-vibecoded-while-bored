@@ -1,0 +1,205 @@
+/* ---------- Paige theme ----------
+   Palette from deiomo's site (github.com/deiomo/deiomo.github.io, styles.css), creator of Writer's Block / Paige.
+   Set on body so it beats the theme ST writes inline on :root. */
+body.stm-paige {
+    --stm-bg: #100d17;
+    --stm-text: #f1edf7;
+    --stm-muted: #aba1b8;
+    --stm-purple: #b588ef;
+    --SmartThemeBodyColor: var(--stm-text);
+    --SmartThemeEmColor: var(--stm-muted);
+    --SmartThemeUnderlineColor: #d7b8ff;
+    --SmartThemeQuoteColor: var(--stm-purple);
+    --SmartThemeBlurTintColor: rgba(25, 19, 32, 0.95);
+    --SmartThemeChatTintColor: rgba(16, 13, 23, 0.92);
+    --SmartThemeUserMesBlurTintColor: rgba(37, 26, 50, 0.6);
+    --SmartThemeBotMesBlurTintColor: rgba(25, 19, 32, 0.6);
+    --SmartThemeShadowColor: rgba(0, 0, 0, 0.5);
+    --SmartThemeBorderColor: #493257;
+    background: radial-gradient(ellipse at 70% 30%, #6e349027, transparent 55%), var(--stm-bg);
+}
+
+body.stm-paige ::selection {
+    background: var(--stm-purple);
+    color: var(--stm-bg);
+}
+
+body.stm-paige .name_text,
+body.stm-paige .timestamp,
+body.stm-paige .swipes-counter,
+body.stm-paige .mesIDDisplay,
+body.stm-paige .mes_timer {
+    font-family: "Courier New", monospace;
+    letter-spacing: 1px;
+}
+
+body.stm-paige .menu_button {
+    border-radius: 9px 2px 9px 2px;
+}
+
+/* ---------- Writer bar (phones only) ---------- */
+#stm_bar {
+    display: none;
+}
+
+.stm-btn {
+    flex: 1;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 9px 2px 9px 2px;
+    background: var(--SmartThemeBlurTintColor);
+    color: var(--SmartThemeBodyColor);
+    font: inherit;
+    font-size: 15px;
+}
+
+.stm-btn[aria-pressed="true"],
+body.stm-paige .stm-primary {
+    background: #bc92ed;
+    color: #180d25;
+    border-color: #cba5f4;
+    font-weight: 700;
+}
+
+@media screen and (max-width: 1000px) {
+    body.stm-on #stm_bar {
+        display: flex;
+        gap: 8px;
+        padding: 4px 6px;
+    }
+
+    /* Keyboard: size to what's actually visible */
+    body.stm-on #sheld {
+        height: calc(var(--stm-vh, 100dvh) - var(--topBarBlockSize) - 1px) !important;
+        max-height: calc(var(--stm-vh, 100dvh) - var(--topBarBlockSize) - 1px) !important;
+    }
+
+    body.stm-on #right-nav-panel,
+    body.stm-on #left-nav-panel {
+        height: calc(var(--stm-vh, 100dvh) - var(--topBarBlockSize)) !important;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    /* Opaque drawers: theme tint over black, so chat text doesn't bleed through */
+    body.stm-on .drawer-content {
+        background-image: linear-gradient(var(--SmartThemeBlurTintColor), var(--SmartThemeBlurTintColor)), linear-gradient(#000, #000);
+    }
+
+    /* Reading: use the full width, bigger story text */
+    body.stm-on .mes {
+        padding: 8px 6px;
+    }
+
+    body.stm-on .mesAvatarWrapper .avatar,
+    body.stm-on .mesAvatarWrapper .avatar img {
+        width: 32px;
+        height: 32px;
+    }
+
+    body.stm-on .mes_text {
+        font-size: var(--stm-font, 17px);
+        line-height: 1.65;
+    }
+
+    /* Controls: 44px tap targets */
+    body.stm-on .mes_button {
+        padding: 10px;
+        font-size: 18px;
+    }
+
+    body.stm-on .swipe_left,
+    body.stm-on .swipe_right {
+        padding: 10px;
+        font-size: 24px;
+    }
+
+    body.stm-on #send_but,
+    body.stm-on #mes_continue,
+    body.stm-on #options_button,
+    body.stm-on .drawer-icon {
+        padding: 8px;
+        font-size: 24px;
+    }
+
+    body.stm-on #send_textarea {
+        font-size: 16px;
+    }
+
+    /* Editing: ST's own editor, blown up to full screen */
+    body.stm-on #sheld:has(#curEditTextarea),
+    body.stm-on #chat:has(#curEditTextarea) {
+        /* backdrop-filter would trap the fixed editor inside the chat box */
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        /* lift the whole chat above ST's top bar */
+        z-index: 4000;
+    }
+
+    body.stm-on #sheld:has(#curEditTextarea) #form_sheld {
+        display: none;
+    }
+
+    body.stm-on .mes:has(#curEditTextarea) {
+        position: fixed;
+        inset: 0;
+        z-index: 4000;
+        display: flex;
+        flex-direction: column;
+        height: var(--stm-vh, 100dvh);
+        padding: 8px;
+        background: var(--SmartThemeBlurTintColor);
+    }
+
+    body.stm-on .mes:has(#curEditTextarea)> :not(.mes_block) {
+        display: none;
+    }
+
+    body.stm-on .mes:has(#curEditTextarea) .mes_block {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+    }
+
+    body.stm-on .mes:has(#curEditTextarea) .mes_text {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+    }
+
+    body.stm-on #curEditTextarea {
+        flex: 1;
+        height: auto !important;
+        max-height: none;
+        font-size: var(--stm-font, 17px);
+        line-height: 1.65;
+    }
+
+    body.stm-on .mes_edit_buttons .menu_button {
+        min-width: 44px;
+        min-height: 44px;
+        font-size: 20px;
+    }
+
+    /* Reading mode: just the story and the writer bar */
+    body.stm-reading #top-bar,
+    body.stm-reading #top-settings-holder,
+    body.stm-reading #send_form,
+    body.stm-reading .mesAvatarWrapper,
+    body.stm-reading .mes_buttons,
+    body.stm-reading .swipe_left,
+    body.stm-reading .swipeRightBlock {
+        display: none !important;
+    }
+
+    body.stm-reading #sheld {
+        top: 0;
+        height: var(--stm-vh, 100dvh) !important;
+        max-height: var(--stm-vh, 100dvh) !important;
+    }
+}
