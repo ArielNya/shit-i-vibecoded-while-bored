@@ -65,10 +65,115 @@ body.stm-paige .stm-primary {
     font-weight: 700;
 }
 
+/* ---------- Prompts sheet ---------- */
+#stm_prompts {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    height: var(--stm-vh, 100dvh);
+    display: flex;
+    flex-direction: column;
+    background-image: linear-gradient(var(--SmartThemeBlurTintColor), var(--SmartThemeBlurTintColor)), linear-gradient(#000, #000);
+    color: var(--SmartThemeBodyColor);
+}
+
+#stm_prompts[hidden],
+#stm_prompts [hidden] {
+    display: none;
+}
+
+.stm-sheet-head {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+}
+
+.stm-presets,
+.stm-search-row {
+    display: flex;
+    gap: 8px;
+}
+
+.stm-search-row input {
+    flex: 1;
+    margin: 0;
+    min-height: 44px;
+    font-size: 16px;
+}
+
+.stm-search-row .stm-btn {
+    flex: 0 0 44px;
+}
+
+#stm_prompt_list {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 8px 16px;
+}
+
+.stm-section summary {
+    position: sticky;
+    top: 0;
+    padding: 12px 4px;
+    font-size: 15px;
+    font-weight: 700;
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+    background-image: linear-gradient(var(--SmartThemeBlurTintColor), var(--SmartThemeBlurTintColor)), linear-gradient(#000, #000);
+    cursor: pointer;
+}
+
+.stm-section summary small,
+.stm-prompt small {
+    font-weight: 400;
+    color: var(--SmartThemeEmColor);
+}
+
+.stm-prompt {
+    width: 100%;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 4px 6px 12px;
+    border: 0;
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+
+.stm-prompt span {
+    flex: 1;
+}
+
+.stm-prompt i {
+    font-size: 26px;
+    color: var(--SmartThemeEmColor);
+}
+
+.stm-prompt[aria-checked="true"] i {
+    color: var(--SmartThemeQuoteColor);
+}
+
+.stm-empty {
+    padding: 16px;
+    color: var(--SmartThemeEmColor);
+}
+
+body.stm-paige .stm-section summary,
+body.stm-paige .stm-prompt small {
+    font-family: "Courier New", monospace;
+    letter-spacing: 1px;
+}
+
 @media screen and (max-width: 1000px) {
     body.stm-on #stm_bar {
         display: flex;
-        gap: 8px;
+        gap: 6px;
         padding: 4px 6px;
     }
 
