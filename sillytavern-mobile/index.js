@@ -38,7 +38,7 @@ const barHtml = `
 // File names match the originals so a preset you already imported by hand is reused.
 const PRESETS = [
     { label: 'Sola V3', file: '☀️ 🧡 Sola V3 Flame 🧡 ☀️', url: 'https://raw.githubusercontent.com/pyrxpia/sola-hub/main/presets/' },
-    { label: 'Writer\'s Block', file: 'Writer\'s Block Unlimited Version 2 (1)', url: 'https://raw.githubusercontent.com/deiomo/Writer-s-Block-Unlimited/main/' },
+    { label: 'Writer\'s Block V2', file: 'Writer\'s Block Unlimited Version 2 (1)', url: 'https://raw.githubusercontent.com/deiomo/Writer-s-Block-Unlimited/main/' },
 ];
 
 const sheetHtml = `

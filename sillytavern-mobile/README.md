@@ -34,7 +34,7 @@ collapsible sections. Section breaks come from the preset's own header prompts
 - The list leaves out the prompts the authors say to leave alone (`DO NOT TOUCH`, `LEAVE THIS ON`, `README`), the header prompts and ST's markers. ST's own Prompt Manager still shows all of them.
 - A toggle works the same as one in ST's Prompt Manager. Tap ST's preset **Save** to keep it in the preset file.
 
-At the top are the two default presets, **Sola V3** (Flame) and **Writer's Block** (Unlimited V2).
+At the top are the two default presets, **Sola V3** (Flame) and **Writer's Block V2** (Writer's Block Unlimited V2).
 If you already have one of them, its button switches to it. If you don't, the button downloads the preset from its
 author's GitHub and passes it to ST's own importer. That importer then asks whether to allow the preset's
 embedded regex scripts. Say yes, because the trackers and HTML need them. Chat Completion must be the active API.
@@ -76,7 +76,7 @@ Run `node sillytavern-mobile/groups.test.mjs` (it checks the prompt grouping rul
 - **Edit last** fills the screen, and its ✓ / ✕ buttons work.
 - **Read** hides the top bar and the input box.
 - Drawers open solid.
-- With Chat Completion on, **Prompts → Writer's Block / Sola V3** imports and selects the preset.
+- With Chat Completion on, **Prompts → Writer's Block V2 / Sola V3** imports and selects the preset.
   (In a sandbox, `page.route` the raw.githubusercontent.com URLs to local copies.) Pick-one rows switch each other off,
   and ST's Prompt Manager shows the same state.
 - At desktop width the bar is gone.
