@@ -1,7 +1,7 @@
 # sillytavern-mobile
 
-A SillyTavern extension ("Mobile Writer") for co-writing stories on a phone,
-for when ST runs in Termux on Android. Plain CSS plus about 70 lines of JS, with no build step.
+A SillyTavern extension ("Mobile Writer") for co-writing stories with the AI, on a phone
+(ST in Termux) or on a desktop (ST in Docker or plain Node). Plain CSS plus about 70 lines of JS, with no build step.
 Tested against SillyTavern 1.19.
 
 ## What it does
@@ -17,6 +17,18 @@ On screens up to 1000px wide (ST's own mobile breakpoint):
 - **44px tap targets** for the swipe arrows, message buttons, send/continue and the top-bar icons.
 - **Keyboard fix**: the chat resizes to the visible area when the Android keyboard opens.
 - **Solid drawers**: the settings panels no longer let chat text show through, and they scroll inside themselves.
+
+On desktop (wider than 1000px) you get:
+
+- The same **writer bar** (Continue, Edit last, Read, Prompts), compact, under the chat.
+- **Prompts** opens as a panel on the right, so the story stays visible while you flip prompts.
+- **Read** hides the top bar and the input box.
+
+At every width:
+
+- **Word count** in the bar: `Story` is every AI message in the chat, `Last` is the newest one. Your own messages don't count.
+- **Your messages look like margin notes**: smaller, italic, dimmed, with a line on the left. The AI's prose is the main text.
+- **Story text size** from the settings slider.
 
 The **Paige theme** works on desktop and mobile. It's the dark violet look from
 [deiomo](https://deiomo.github.io/) (Writer's Block / Paige), and its colours come from
@@ -46,7 +58,29 @@ The presets aren't bundled here, so you always get the authors' latest version:
 ## Settings
 
 Settings live in *Extensions → Mobile Writer*: mobile layout on/off, Paige theme
-on/off, and story text size.
+on/off, and story text size. Turning off "Writer bar and layout" removes the bar, word count, margin notes and text size, at every width.
+
+## Install (Docker)
+
+The official `docker-compose.yml` mounts `./data` into the container. Clone this repo next to it and
+bind-mount the extension folder into your user's extensions folder:
+
+```sh
+git clone https://github.com/ArielNya/shit-i-vibecoded-while-bored stvb
+```
+
+```yaml
+services:
+  sillytavern:
+    volumes:
+      # ...your existing volumes...
+      - ./stvb/sillytavern-mobile:/home/node/app/data/default-user/extensions/sillytavern-mobile
+```
+
+Then `docker compose up -d` and reload the page. To update: `cd stvb && git pull`, then reload.
+If you'd rather not edit the compose file, copy the folder instead:
+`cp -r stvb/sillytavern-mobile ./data/default-user/extensions/` (repeat the copy after each `git pull`).
+A symlink won't work here, because the container can't see the path it points to.
 
 ## Install (Termux)
 
@@ -68,7 +102,7 @@ Then reload the page.
 
 ## Checks before pushing
 
-Run `node sillytavern-mobile/groups.test.mjs` (it checks the prompt grouping rules). Then run ST (`node server.js`) with the extension symlinked into
+Run `node sillytavern-mobile/groups.test.mjs` (it checks the prompt grouping rules) and `node sillytavern-mobile/words.test.mjs` (word count). Then run ST (`node server.js`) with the extension symlinked into
 `data/default-user/extensions/`. Then open it in Chromium with Pixel 7 emulation
 (Playwright works) and check these:
 
@@ -79,7 +113,8 @@ Run `node sillytavern-mobile/groups.test.mjs` (it checks the prompt grouping rul
 - With Chat Completion on, **Prompts → Writer's Block V2 / Sola V3** imports and selects the preset.
   (In a sandbox, `page.route` the raw.githubusercontent.com URLs to local copies.) Pick-one rows switch each other off,
   and ST's Prompt Manager shows the same state.
-- At desktop width the bar is gone.
+- At 1440px wide the bar sits under the chat with the word count on the right. **Prompts** opens as a right-hand panel.
+  Your messages are italic and dimmed. The word count changes when you edit an AI message.
 
 On a real phone, also open the keyboard and check that the input box stays above it.
 An emulator can't test that.

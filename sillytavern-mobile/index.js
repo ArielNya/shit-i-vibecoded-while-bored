@@ -2,6 +2,7 @@ import { extension_settings, getContext } from '../../../extensions.js';
 import { saveSettingsDebounced } from '../../../../script.js';
 import { promptManager } from '../../../openai.js';
 import { groupPrompts } from './groups.js';
+import { countWords } from './words.js';
 
 const NAME = 'sillytavern_mobile';
 const defaults = { enabled: true, paige: true, reading: false, font: 17 };
@@ -32,7 +33,14 @@ const barHtml = `
     <button type="button" class="stm-btn" id="stm_edit"><i class="fa-solid fa-pencil"></i>Edit last</button>
     <button type="button" class="stm-btn" id="stm_read"><i class="fa-solid fa-book-open"></i>Read</button>
     <button type="button" class="stm-btn" id="stm_prompts_open"><i class="fa-solid fa-sliders"></i>Prompts</button>
+    <span id="stm_words" aria-live="polite"></span>
 </div>`;
+
+// Story = the AI's prose only; your own messages are directions, not story.
+function updateWords() {
+    const story = getContext().chat.filter(m => !m.is_user && !m.is_system).map(m => countWords(m.mes));
+    $('#stm_words').text(`Story ${story.reduce((a, b) => a + b, 0).toLocaleString()} · Last ${(story.at(-1) ?? 0).toLocaleString()}`);
+}
 
 // Downloaded from the authors' repos on tap, never bundled (Sola has no licence to redistribute).
 // File names match the originals so a preset you already imported by hand is reused.
@@ -131,7 +139,7 @@ const settingsHtml = `
         <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
     </div>
     <div class="inline-drawer-content">
-        <label class="checkbox_label"><input type="checkbox" id="stm_enabled">Mobile layout and writer bar</label>
+        <label class="checkbox_label"><input type="checkbox" id="stm_enabled">Writer bar and layout</label>
         <label class="checkbox_label"><input type="checkbox" id="stm_paige">Paige theme</label>
         <label for="stm_font">Story text size: <span id="stm_font_val"></span>px</label>
         <input type="range" id="stm_font" min="13" max="24" step="1">
@@ -165,6 +173,8 @@ jQuery(() => {
     });
     const { eventSource, eventTypes } = getContext();
     eventSource.on(eventTypes.OAI_PRESET_CHANGED_AFTER, () => { if (!sheet.hidden) renderPrompts(); });
+    ['CHAT_CHANGED', 'MESSAGE_RECEIVED', 'MESSAGE_EDITED', 'MESSAGE_DELETED', 'MESSAGE_SWIPED', 'GENERATION_ENDED']
+        .forEach(type => eventSource.on(eventTypes[type], updateWords));
 
     $('#extensions_settings2').append(settingsHtml);
     $('#stm_enabled').prop('checked', settings.enabled).on('change', e => set('enabled', e.target.checked));
@@ -178,4 +188,5 @@ jQuery(() => {
     window.visualViewport?.addEventListener('resize', syncHeight);
     if (window.visualViewport) syncHeight();
     apply();
+    updateWords();
 });
