@@ -37,8 +37,47 @@ body.stm-paige .menu_button {
     border-radius: 9px 2px 9px 2px;
 }
 
-/* ---------- Writer bar (phones only) ---------- */
+/* ---------- Writer bar ---------- */
 #stm_bar {
+    display: none;
+}
+
+body.stm-on #stm_bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+}
+
+#stm_words {
+    flex: 0 0 auto;
+    padding: 0 6px;
+    font-size: 13px;
+    color: var(--SmartThemeEmColor);
+    white-space: nowrap;
+}
+
+body.stm-paige #stm_words {
+    font-family: "Courier New", monospace;
+    letter-spacing: 1px;
+}
+
+/* ---------- Story text ---------- */
+body.stm-on .mes_text {
+    font-size: var(--stm-font, 17px);
+    line-height: 1.65;
+}
+
+/* Your messages are directions to the co-author, so they read as margin notes */
+body.stm-on .mes[is_user="true"] .mes_text {
+    font-size: calc(var(--stm-font, 17px) * 0.85);
+    font-style: italic;
+    color: var(--SmartThemeEmColor);
+    border-left: 2px solid var(--SmartThemeBorderColor);
+    padding-left: 10px;
+}
+
+body.stm-on .mes[is_user="true"] .mesAvatarWrapper {
     display: none;
 }
 
@@ -170,11 +209,38 @@ body.stm-paige .stm-prompt small {
     letter-spacing: 1px;
 }
 
+/* ---------- Desktop: compact bar, Prompts as a side panel ---------- */
+@media screen and (min-width: 1001px) {
+    body.stm-on #stm_bar .stm-btn {
+        flex: 0 1 auto;
+        min-height: 34px;
+        padding: 0 14px;
+        font-size: 14px;
+    }
+
+    #stm_words {
+        margin-left: auto;
+    }
+
+    #stm_prompts {
+        inset: 0 0 0 auto;
+        width: min(440px, 100vw);
+        border-left: 1px solid var(--SmartThemeBorderColor);
+        box-shadow: -8px 0 24px var(--SmartThemeShadowColor);
+    }
+}
+
 @media screen and (max-width: 1000px) {
+    /* Word count gets its own line so the four buttons keep their width */
     body.stm-on #stm_bar {
-        display: flex;
-        gap: 6px;
-        padding: 4px 6px;
+        flex-wrap: wrap;
+    }
+
+    #stm_words {
+        order: -1;
+        flex-basis: 100%;
+        text-align: center;
+        font-size: 12px;
     }
 
     /* Keyboard: size to what's actually visible */
@@ -204,11 +270,6 @@ body.stm-paige .stm-prompt small {
     body.stm-on .mesAvatarWrapper .avatar img {
         width: 32px;
         height: 32px;
-    }
-
-    body.stm-on .mes_text {
-        font-size: var(--stm-font, 17px);
-        line-height: 1.65;
     }
 
     /* Controls: 44px tap targets */
@@ -290,21 +351,21 @@ body.stm-paige .stm-prompt small {
         min-height: 44px;
         font-size: 20px;
     }
+}
 
-    /* Reading mode: just the story and the writer bar */
-    body.stm-reading #top-bar,
-    body.stm-reading #top-settings-holder,
-    body.stm-reading #send_form,
-    body.stm-reading .mesAvatarWrapper,
-    body.stm-reading .mes_buttons,
-    body.stm-reading .swipe_left,
-    body.stm-reading .swipeRightBlock {
-        display: none !important;
-    }
+/* ---------- Reading mode: just the story and the writer bar ---------- */
+body.stm-reading #top-bar,
+body.stm-reading #top-settings-holder,
+body.stm-reading #send_form,
+body.stm-reading .mesAvatarWrapper,
+body.stm-reading .mes_buttons,
+body.stm-reading .swipe_left,
+body.stm-reading .swipeRightBlock {
+    display: none !important;
+}
 
-    body.stm-reading #sheld {
-        top: 0;
-        height: var(--stm-vh, 100dvh) !important;
-        max-height: var(--stm-vh, 100dvh) !important;
-    }
+body.stm-reading #sheld {
+    top: 0;
+    height: var(--stm-vh, 100dvh) !important;
+    max-height: var(--stm-vh, 100dvh) !important;
 }
