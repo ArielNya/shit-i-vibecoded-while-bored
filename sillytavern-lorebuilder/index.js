@@ -1,7 +1,7 @@
 import { extension_settings, getContext } from '../../../extensions.js';
 import { saveSettingsDebounced } from '../../../../script.js';
 import { createNewWorldInfo, createWorldInfoEntry } from '../../../world-info.js';
-import { listEntries, writeEntry } from './lore.js';
+import { POSITIONS, ROLES, STRATEGIES, describeEntry, listEntries, writeEntry } from './lore.js';
 
 const NAME = 'sillytavern_lorebuilder';
 const settings = extension_settings[NAME] = { book: '', ...extension_settings[NAME] };
@@ -35,7 +35,7 @@ const TOOLS = [
     {
         name: 'lore_list',
         displayName: 'Lore: list entries',
-        description: 'List every entry in the lorebook being built (uid, title, trigger keywords, always-on). Call this before writing so you update existing entries instead of making duplicates.',
+        description: 'List every entry in the lorebook being built (uid, title, trigger keywords, strategy, position, depth, order). Call this before writing so you update existing entries instead of making duplicates.',
         parameters: schema(),
         action: async () => ({ lorebook: settings.book, entries: listEntries(await loadBook()) }),
         formatMessage: () => 'Lore: reading the entry list',
@@ -48,20 +48,24 @@ const TOOLS = [
         action: async ({ uid }) => {
             const entry = (await loadBook()).entries[uid];
             if (!entry) throw new Error(`No entry with uid ${uid}.`);
-            return { uid: entry.uid, title: entry.comment, keys: entry.key, content: entry.content, always_on: !!entry.constant };
+            return { ...describeEntry(entry), content: entry.content };
         },
         formatMessage: ({ uid }) => `Lore: reading entry ${uid}`,
     },
     {
         name: 'lore_write',
         displayName: 'Lore: write entry',
-        description: 'Create a lorebook entry, or update one by passing its uid. Use it when the user and you settle a character, place, faction, item, event or rule while brainstorming. Write the content as compact third-person facts the story AI can use later. Only the fields you pass are changed.',
+        description: 'Create a lorebook entry, or update one by passing its uid. Use it when the user and you settle a character, place, faction, item, event or rule while brainstorming. Write the content as compact third-person facts the story AI can use later. Only the fields you pass are changed; leave strategy, position, depth, role and order out unless the user asks for them or the entry clearly needs it.',
         parameters: schema({
             uid: { ...uid, description: 'Leave out to create a new entry. Pass it to update that entry.' },
             title: { type: 'string', description: 'Short name of the entry, e.g. "Mara Voss" or "Ashford Keep".' },
             keys: { type: 'array', items: { type: 'string' }, description: 'Trigger keywords: names, nicknames and words that should bring this entry into the story prompt.' },
             content: { type: 'string', description: 'The entry text.' },
-            constant: { type: 'boolean', description: 'Always-on: true only for core facts that must always be in the prompt (world rules, main premise).' },
+            strategy: { type: 'string', enum: STRATEGIES, description: 'When the entry is inserted. "keyword" (default): when a trigger keyword shows up in the chat. "constant": always, so only for core facts like world rules or the premise. "vectorized": by meaning, needs the Vector Storage extension.' },
+            position: { type: 'string', enum: Object.keys(POSITIONS), description: 'Where it goes in the prompt: before_char / after_char (around the character description, default before_char), an_top / an_bottom (around the Author\'s Note), em_top / em_bottom (around the example messages), at_depth (inside the chat history, see depth).' },
+            depth: { type: 'integer', minimum: 0, description: 'Only for position at_depth: how many messages up from the newest one. 0 is the very bottom (strongest effect), ST default is 4.' },
+            role: { type: 'string', enum: Object.keys(ROLES), description: 'Only for position at_depth: which role the inserted message has. Default system.' },
+            order: { type: 'integer', minimum: 0, description: 'Insertion order among entries at the same position. Higher goes later, closer to the end of the prompt. ST default is 100.' },
         }),
         action: async args => {
             const data = await loadBook();

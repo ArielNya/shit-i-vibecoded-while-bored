@@ -8,14 +8,30 @@ Lorebook entry itself, using SillyTavern's built-in function calling. Plain JS, 
 
 | Tool | What it does |
 | --- | --- |
-| `lore_list` | Lists the entries in the lorebook (uid, title, keywords, always-on), so it updates instead of duplicating. |
+| `lore_list` | Lists the entries in the lorebook (uid, title, keywords, strategy, position, depth, order), so it updates instead of duplicating. |
 | `lore_read` | Reads one entry in full. |
-| `lore_write` | Creates an entry, or updates one by uid: title, trigger keywords, content, always-on. |
+| `lore_write` | Creates an entry, or updates one by uid: title, trigger keywords, content, and where and when it goes in the prompt (see below). |
 | `lore_delete` | Deletes an entry. **You get a Yes/No popup first**, and "No" keeps it. |
 | `lore_create_book` | Makes a new empty lorebook and switches to it. |
 
 Changes are saved straight to the lorebook file. If ST's **World Info** panel is open, you see them appear there.
-New entries get ST's default settings (position, depth, order, etc.), so tweak them in the World Info panel if you need to.
+### Strategy, position, depth and order
+
+`lore_write` can set these, with the same meaning as the columns in ST's World Info panel. If the AI leaves one out,
+a new entry gets ST's default and an existing entry keeps what it had. You can ask for them in plain words,
+e.g. "make the magic rules constant" or "put Mara's secret at depth 2 as a system message".
+
+| Field | Values | ST default |
+| --- | --- | --- |
+| `strategy` | `keyword` (🟢 inserted when a trigger keyword appears), `constant` (🔵 always inserted), `vectorized` (🔗 by meaning, needs Vector Storage) | `keyword` |
+| `position` | `before_char`, `after_char` (around the character description), `an_top`, `an_bottom` (around the Author's Note), `em_top`, `em_bottom` (around example messages), `at_depth` (inside the chat) | `before_char` |
+| `depth` | 0 or more: messages up from the newest. Only used with `at_depth` | 4 |
+| `role` | `system`, `user`, `assistant`. Only used with `at_depth` | `system` |
+| `order` | 0 or more: higher is inserted later among entries at the same position | 100 |
+
+A wrong value (say, position `middle`) is refused with a message listing the valid ones, and nothing is changed.
+The ST position "Outlet" isn't offered, and the other entry settings (probability, groups, recursion, etc.) keep ST's defaults.
+Change those in the World Info panel.
 
 ## Setup
 
@@ -59,6 +75,7 @@ tick *Enable function calling*, and in the browser console call each tool with
 
 - With no lorebook picked, the tools return an error message instead of failing.
 - `lore_create_book` creates the book and selects it in the drawer.
-- `lore_write` creates entries, and updating by uid changes only the fields you pass.
+- `lore_write` creates entries, and updating by uid changes only the fields you pass. Strategy, position, depth, role and
+  order show up the same in ST's World Info panel (e.g. `at_depth` + role `user` shows as `@D 👤`).
 - `lore_delete` shows the popup. "No" keeps the entry, "Yes" removes it.
 - The entries show in ST's World Info panel.
